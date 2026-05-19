@@ -8,14 +8,14 @@ export function useReadingStats() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadStats = useCallback(async () => {
+  const loadStats = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
     try {
-      const now = Math.floor(Date.now() / 1000);
       const result = await invoke<ReadingStatsResult>("get_reading_stats", {
-        mode: "all",
-        baseTime: now,
+        mode: "overall",
+        baseTime: 0,
+        forceRefresh,
       });
       setStats(result);
       return result;

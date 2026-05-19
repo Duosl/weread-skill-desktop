@@ -3,6 +3,7 @@ export interface AppSettings {
   apiKeyMasked?: string | null;
   lastExportDir: string;
   defaultFormat: string;
+  cacheTtlSeconds: number;
 }
 
 export interface ShelfBook {
@@ -29,8 +30,27 @@ export interface BookInfo {
   bookId: string;
   title: string;
   author: string;
+  translator: string;
   cover: string;
+  intro: string;
   category: string;
+  publisher: string;
+  publishTime: string;
+  isbn: string;
+  wordCount: number;
+  newRating: number;
+  newRatingCount: number;
+}
+
+export interface BookProgress {
+  bookId: string;
+  progress: number;
+  chapterUid: number;
+  chapterOffset: number;
+  updateTime: number;
+  recordReadingTime: number;
+  finishTime?: number | null;
+  isStartReading: number;
 }
 
 export interface ChapterInfo {

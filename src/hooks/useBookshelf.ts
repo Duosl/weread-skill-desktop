@@ -13,11 +13,11 @@ export function useBookshelf() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const syncShelf = useCallback(async () => {
+  const syncShelf = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await invoke<ShelfSyncResult>("sync_shelf");
+      const result = await invoke<ShelfSyncResult>("sync_shelf", { forceRefresh });
       setBooks(result.books);
       setTotalCount(result.totalCount);
     } catch (err) {

@@ -180,7 +180,7 @@ fn build_markdown(data: &ExportBook, options: &ExportOptions) -> String {
         }
     }
 
-    markdown.push_str("\n---\n\n*由 WeRead Skill Desktop 导出*\n");
+    markdown.push_str("\n---\n\n*由微信读书桌面导出工具导出*\n");
     markdown
 }
 

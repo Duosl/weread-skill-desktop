@@ -45,8 +45,34 @@ pub async fn save_export_settings(
 }
 
 #[tauri::command]
-pub async fn sync_shelf(state: State<'_, RuntimeState>) -> Result<ShelfSyncResult, String> {
-    state.client().await?.shelf_sync().await
+pub async fn save_cache_settings(cache_ttl_seconds: i64) -> Result<AppSettings, String> {
+    let mut config = AppConfig::load();
+    config.cache_ttl_seconds = Some(cache_ttl_seconds.max(crate::config::MIN_CACHE_TTL_SECONDS));
+    config.save()?;
+    Ok(config.to_settings())
+}
+
+#[tauri::command]
+pub async fn get_api_cache_info() -> Result<ApiCacheInfo, String> {
+    Ok(crate::cache::ApiCache::info())
+}
+
+#[tauri::command]
+pub async fn clear_api_cache() -> Result<ApiCacheInfo, String> {
+    crate::cache::ApiCache::clear()?;
+    Ok(crate::cache::ApiCache::info())
+}
+
+#[tauri::command]
+pub async fn sync_shelf(
+    state: State<'_, RuntimeState>,
+    force_refresh: Option<bool>,
+) -> Result<ShelfSyncResult, String> {
+    state
+        .client()
+        .await?
+        .shelf_sync(force_refresh.unwrap_or(false))
+        .await
 }
 
 #[tauri::command]
@@ -55,6 +81,14 @@ pub async fn get_book_info(
     book_id: String,
 ) -> Result<BookInfo, String> {
     state.client().await?.book_info(&book_id).await
+}
+
+#[tauri::command]
+pub async fn get_book_progress(
+    state: State<'_, RuntimeState>,
+    book_id: String,
+) -> Result<BookProgress, String> {
+    state.client().await?.book_progress(&book_id).await
 }
 
 #[tauri::command]
@@ -84,8 +118,13 @@ pub async fn get_notebooks(
     state: State<'_, RuntimeState>,
     count: i32,
     last_sort: i64,
+    force_refresh: Option<bool>,
 ) -> Result<NotebooksResult, String> {
-    state.client().await?.notebooks(count, last_sort).await
+    state
+        .client()
+        .await?
+        .notebooks_with_cache(count, last_sort, force_refresh.unwrap_or(false))
+        .await
 }
 
 #[tauri::command]
@@ -93,8 +132,13 @@ pub async fn get_reading_stats(
     state: State<'_, RuntimeState>,
     mode: String,
     base_time: i64,
+    force_refresh: Option<bool>,
 ) -> Result<ReadingStatsResult, String> {
-    state.client().await?.reading_stats(&mode, base_time).await
+    state
+        .client()
+        .await?
+        .reading_stats(&mode, base_time, force_refresh.unwrap_or(false))
+        .await
 }
 
 #[tauri::command]

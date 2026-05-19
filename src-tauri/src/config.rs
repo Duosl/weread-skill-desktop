@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 const CONFIG_DIR_NAME: &str = ".weread-desktop";
 const CONFIG_FILE_NAME: &str = "config.json";
+pub const DEFAULT_CACHE_TTL_SECONDS: i64 = 24 * 60 * 60;
+pub const MIN_CACHE_TTL_SECONDS: i64 = 30 * 60;
 
 impl AppConfig {
     pub fn config_path() -> PathBuf {
@@ -34,6 +36,7 @@ impl AppConfig {
             api_key: None,
             last_export_dir: Some(Self::default_export_dir().to_string_lossy().to_string()),
             default_format: Some("markdown".to_string()),
+            cache_ttl_seconds: Some(DEFAULT_CACHE_TTL_SECONDS),
             config_path,
         }
     }
@@ -69,6 +72,13 @@ impl AppConfig {
                 .default_format
                 .clone()
                 .unwrap_or_else(|| "markdown".to_string()),
+            cache_ttl_seconds: self.cache_ttl_seconds(),
         }
+    }
+
+    pub fn cache_ttl_seconds(&self) -> i64 {
+        self.cache_ttl_seconds
+            .unwrap_or(DEFAULT_CACHE_TTL_SECONDS)
+            .max(MIN_CACHE_TTL_SECONDS)
     }
 }

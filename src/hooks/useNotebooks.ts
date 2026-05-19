@@ -8,7 +8,7 @@ export function useNotebooks() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadNotebooks = useCallback(async () => {
+  const loadNotebooks = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
     try {
@@ -19,7 +19,7 @@ export function useNotebooks() {
       while (hasMore) {
         const result = await invoke<{ books: NotebookBook[]; hasMore: number }>(
           "get_notebooks",
-          { count: 50, lastSort },
+          { count: 50, lastSort, forceRefresh },
         );
         collected.push(...result.books);
         hasMore = result.hasMore === 1 && result.books.length > 0;

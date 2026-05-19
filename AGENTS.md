@@ -167,8 +167,9 @@ API 验收以 `/tmp/weread-skills/weread-skills/` 为准。
 6. 实现 Notes。
 7. 实现 Export。
 8. 实现 Reading Stats。
-9. 追加 P1 功能。
-10. 统一验收。
+9. 完成真实 API 数据校准、导出边界用例和 UI 细节走查。
+10. 再评估是否追加缓存、搜索增强、批量导出进度等 P1 功能。
+11. 统一验收。
 
 ---
 

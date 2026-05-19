@@ -7,6 +7,7 @@ pub struct AppConfig {
     pub api_key: Option<String>,
     pub last_export_dir: Option<String>,
     pub default_format: Option<String>,
+    pub cache_ttl_seconds: Option<i64>,
     #[serde(skip, default = "AppConfig::config_path")]
     pub config_path: PathBuf,
 }
@@ -18,6 +19,26 @@ pub struct AppSettings {
     pub api_key_masked: Option<String>,
     pub last_export_dir: String,
     pub default_format: String,
+    pub cache_ttl_seconds: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiCacheEntry {
+    pub api_name: String,
+    pub skill_version: String,
+    pub request: serde_json::Value,
+    pub fetched_at: i64,
+    pub response: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiCacheInfo {
+    pub cache_dir: String,
+    pub request_log_path: String,
+    pub entry_count: usize,
+    pub total_bytes: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -63,10 +84,29 @@ pub struct BookInfo {
     pub book_id: String,
     pub title: String,
     pub author: String,
+    pub translator: String,
     pub cover: String,
+    pub intro: String,
     pub category: String,
+    pub publisher: String,
+    pub publish_time: String,
+    pub isbn: String,
+    pub word_count: i64,
     pub new_rating: i32,
     pub new_rating_count: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct BookProgress {
+    pub book_id: String,
+    pub progress: i32,
+    pub chapter_uid: i64,
+    pub chapter_offset: i64,
+    pub update_time: i64,
+    pub record_reading_time: i64,
+    pub finish_time: Option<i64>,
+    pub is_start_reading: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

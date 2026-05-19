@@ -12,10 +12,10 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark">W</div>
+        <img className="brand-mark" src="/weread-icon.png" alt="" />
         <div>
-          <strong>WeRead Skill</strong>
-          <span>Desktop Export</span>
+          <strong>微信读书</strong>
+          <span>桌面导出工具</span>
         </div>
       </div>
 
@@ -23,7 +23,7 @@ export function Sidebar() {
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} end={to === "/"}>
             <Icon size={18} />
-            <span>{label}</span>
+            <span className="nav-label">{label}</span>
           </NavLink>
         ))}
       </nav>

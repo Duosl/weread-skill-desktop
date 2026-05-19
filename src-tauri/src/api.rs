@@ -1,3 +1,5 @@
+use crate::cache::ApiCache;
+use crate::types::AppConfig;
 use crate::types::*;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
@@ -21,9 +23,25 @@ impl WeReadClient {
     }
 
     async fn gateway_value(&self, api_name: &str, params: Value) -> Result<Value, String> {
+        self.gateway_value_with_cache(api_name, params, false).await
+    }
+
+    async fn gateway_value_with_cache(
+        &self,
+        api_name: &str,
+        params: Value,
+        force_refresh: bool,
+    ) -> Result<Value, String> {
         let mut body = params;
         body["api_name"] = json!(api_name);
         body["skill_version"] = json!(SKILL_VERSION);
+
+        if !force_refresh {
+            let ttl_seconds = AppConfig::load().cache_ttl_seconds();
+            if let Some(cached) = ApiCache::read(api_name, &body, ttl_seconds) {
+                return Ok(cached);
+            }
+        }
 
         let response = self
             .client
@@ -41,10 +59,13 @@ impl WeReadClient {
             .map_err(|e| format!("读取响应失败: {e}"))?;
 
         if status != 200 {
+            let detail = text.chars().take(600).collect::<String>();
             return Err(match status {
-                401 | 403 => "API Key 无效或已过期，请检查设置".to_string(),
-                429 => "请求过于频繁，请稍后再试".to_string(),
-                _ => format!("请求失败 (HTTP {status})"),
+                401 | 403 => {
+                    format!("{api_name} 请求失败 (HTTP {status})：API Key 无效或已过期，请检查设置。响应：{detail}")
+                }
+                429 => format!("{api_name} 请求失败 (HTTP 429)：请求过于频繁，请稍后再试。响应：{detail}"),
+                _ => format!("{api_name} 请求失败 (HTTP {status})。响应：{detail}"),
             });
         }
 
@@ -58,9 +79,10 @@ impl WeReadClient {
                     .get("errmsg")
                     .and_then(Value::as_str)
                     .unwrap_or("未知错误");
-                return Err(format!("API 错误 ({code}): {message}"));
+                return Err(format!("{api_name} API 错误 ({code}): {message}"));
             }
         }
+        ApiCache::write(api_name, &body, &value)?;
         Ok(value)
     }
 
@@ -74,8 +96,10 @@ impl WeReadClient {
         serde_json::from_value(value).map_err(|e| format!("解析响应结构失败: {e}"))
     }
 
-    pub async fn shelf_sync(&self) -> Result<ShelfSyncResult, String> {
-        let value = self.gateway_value("/shelf/sync", json!({})).await?;
+    pub async fn shelf_sync(&self, force_refresh: bool) -> Result<ShelfSyncResult, String> {
+        let value = self
+            .gateway_value_with_cache("/shelf/sync", json!({}), force_refresh)
+            .await?;
         let books: Vec<ShelfBook> = value
             .get("books")
             .and_then(Value::as_array)
@@ -104,6 +128,30 @@ impl WeReadClient {
             .gateway_value("/book/info", json!({ "bookId": book_id }))
             .await?;
         Ok(parse_book_info(&value, book_id))
+    }
+
+    pub async fn book_progress(&self, book_id: &str) -> Result<BookProgress, String> {
+        let value = self
+            .gateway_value("/book/getprogress", json!({ "bookId": book_id }))
+            .await?;
+        let book = value
+            .get("book")
+            .or_else(|| value.get("bookProgress"))
+            .or_else(|| value.get("progress"))
+            .unwrap_or(&value);
+        Ok(BookProgress {
+            book_id: str_field(book, "bookId").if_empty_then(book_id),
+            progress: first_int(book, &["progress", "readingProgress"]) as i32,
+            chapter_uid: first_int(book, &["chapterUid"]),
+            chapter_offset: first_int(book, &["chapterOffset"]),
+            update_time: first_int(book, &["updateTime", "readUpdateTime"]),
+            record_reading_time: first_int(
+                book,
+                &["recordReadingTime", "readingTime", "readTime", "totalReadTime"],
+            ),
+            finish_time: int_optional(book, "finishTime"),
+            is_start_reading: first_int(book, &["isStartReading"]) as i32,
+        })
     }
 
     pub async fn bookmark_list(&self, book_id: &str) -> Result<BookmarkListResult, String> {
@@ -167,11 +215,22 @@ impl WeReadClient {
     }
 
     pub async fn notebooks(&self, count: i32, last_sort: i64) -> Result<NotebooksResult, String> {
+        self.notebooks_with_cache(count, last_sort, false).await
+    }
+
+    pub async fn notebooks_with_cache(
+        &self,
+        count: i32,
+        last_sort: i64,
+        force_refresh: bool,
+    ) -> Result<NotebooksResult, String> {
         let mut params = json!({ "count": count });
         if last_sort > 0 {
             params["lastSort"] = json!(last_sort);
         }
-        let value = self.gateway_value("/user/notebooks", params).await?;
+        let value = self
+            .gateway_value_with_cache("/user/notebooks", params, force_refresh)
+            .await?;
         let books = value
             .get("books")
             .and_then(Value::as_array)
@@ -195,11 +254,13 @@ impl WeReadClient {
         &self,
         mode: &str,
         base_time: i64,
+        force_refresh: bool,
     ) -> Result<ReadingStatsResult, String> {
         let value = self
-            .gateway_value(
+            .gateway_value_with_cache(
                 "/readdata/detail",
                 json!({ "mode": mode, "baseTime": base_time }),
+                force_refresh,
             )
             .await?;
         let read_longest = value
@@ -217,17 +278,23 @@ impl WeReadClient {
             .and_then(Value::as_array)
             .map(|items| items.iter().filter_map(Value::as_i64).collect())
             .unwrap_or_default();
+        let read_days = int_field(&value, "readDays") as i32;
+        let total_read_time = int_field(&value, "totalReadTime");
+        let day_average_read_time = {
+            let api_value = int_field(&value, "dayAverageReadTime");
+            if api_value > 0 {
+                api_value
+            } else if read_days > 0 && total_read_time > 0 {
+                total_read_time / i64::from(read_days)
+            } else {
+                0
+            }
+        };
         Ok(ReadingStatsResult {
             base_time: value.get("baseTime").and_then(Value::as_i64).unwrap_or(0),
-            read_days: value.get("readDays").and_then(Value::as_i64).unwrap_or(0) as i32,
-            total_read_time: value
-                .get("totalReadTime")
-                .and_then(Value::as_i64)
-                .unwrap_or(0),
-            day_average_read_time: value
-                .get("dayAverageReadTime")
-                .and_then(Value::as_i64)
-                .unwrap_or(0),
+            read_days,
+            total_read_time,
+            day_average_read_time,
             compare: value.get("compare").and_then(Value::as_f64),
             read_longest,
             prefer_category,
@@ -275,10 +342,30 @@ fn parse_book_info(value: &Value, fallback_book_id: &str) -> BookInfo {
             .to_string(),
         title: str_field(value, "title"),
         author: str_field(value, "author"),
+        translator: str_field(value, "translator"),
         cover: str_field(value, "cover"),
+        intro: str_field(value, "intro"),
         category: str_field(value, "category"),
+        publisher: str_field(value, "publisher"),
+        publish_time: str_field(value, "publishTime"),
+        isbn: str_field(value, "isbn"),
+        word_count: int_field(value, "wordCount"),
         new_rating: int_field(value, "newRating") as i32,
         new_rating_count: int_field(value, "newRatingCount") as i32,
+    }
+}
+
+trait EmptyFallback {
+    fn if_empty_then(self, fallback: &str) -> String;
+}
+
+impl EmptyFallback for String {
+    fn if_empty_then(self, fallback: &str) -> String {
+        if self.is_empty() {
+            fallback.to_string()
+        } else {
+            self
+        }
     }
 }
 
@@ -376,5 +463,30 @@ fn str_field(value: &Value, key: &str) -> String {
 }
 
 fn int_field(value: &Value, key: &str) -> i64 {
-    value.get(key).and_then(Value::as_i64).unwrap_or(0)
+    value.get(key).map(value_to_i64).unwrap_or(0)
+}
+
+fn int_optional(value: &Value, key: &str) -> Option<i64> {
+    value.get(key).map(value_to_i64).filter(|number| *number > 0)
+}
+
+fn first_int(value: &Value, keys: &[&str]) -> i64 {
+    keys.iter()
+        .map(|key| int_field(value, key))
+        .find(|number| *number > 0)
+        .unwrap_or(0)
+}
+
+fn value_to_i64(value: &Value) -> i64 {
+    if let Some(number) = value.as_i64() {
+        number
+    } else if let Some(number) = value.as_u64() {
+        number as i64
+    } else if let Some(number) = value.as_f64() {
+        number as i64
+    } else if let Some(text) = value.as_str() {
+        text.parse::<i64>().unwrap_or(0)
+    } else {
+        0
+    }
 }

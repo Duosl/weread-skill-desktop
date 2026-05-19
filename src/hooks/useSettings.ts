@@ -8,6 +8,7 @@ const fallbackSettings: AppSettings = {
   apiKeyMasked: null,
   lastExportDir: "~/Documents/WereadNotes",
   defaultFormat: "markdown",
+  cacheTtlSeconds: 24 * 60 * 60,
 };
 
 export function useSettings() {
@@ -48,6 +49,14 @@ export function useSettings() {
     );
   };
 
+  const saveCacheSettings = async (cacheTtlSeconds: number) => {
+    setSettings(
+      await invoke<AppSettings>("save_cache_settings", {
+        cacheTtlSeconds,
+      }),
+    );
+  };
+
   return {
     settings,
     loading,
@@ -56,5 +65,6 @@ export function useSettings() {
     saveApiKey,
     clearApiKey,
     saveExportSettings,
+    saveCacheSettings,
   };
 }

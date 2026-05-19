@@ -38,10 +38,17 @@ export function ExportPage({ settings }: ExportPageProps) {
   );
 
   const preview = format === "json" ? buildJsonPreview(selectedBooks) : buildMarkdownPreview(selectedBooks);
+  const allSelected = notebooks.books.length > 0 && selectedIds.length === notebooks.books.length;
 
   function toggleBook(bookId: string) {
     setSelectedIds((current) =>
       current.includes(bookId) ? current.filter((id) => id !== bookId) : [...current, bookId],
+    );
+  }
+
+  function toggleAll() {
+    setSelectedIds((current) =>
+      current.length === notebooks.books.length ? [] : notebooks.books.map((book) => book.bookId),
     );
   }
 
@@ -65,7 +72,6 @@ export function ExportPage({ settings }: ExportPageProps) {
   return (
     <PageShell
       title="导出"
-      eyebrow="Export"
       action={
         <Button
           variant="primary"
@@ -86,6 +92,18 @@ export function ExportPage({ settings }: ExportPageProps) {
               <h2>选择范围</h2>
               <p>仅导出包含划线或想法的笔记本。</p>
             </div>
+          </div>
+          <div className="export-select-all">
+            <label className="check-row compact">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                disabled={notebooks.books.length === 0}
+                onChange={toggleAll}
+              />
+              <span>全选</span>
+            </label>
+            <small>{selectedIds.length} / {notebooks.books.length}</small>
           </div>
           {notebooks.loading ? (
             <Spinner label="正在读取笔记本" />

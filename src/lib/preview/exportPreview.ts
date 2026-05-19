@@ -42,7 +42,7 @@ export function buildMarkdownPreview(books: NotebookBook[]): string {
 
 ---
 
-*由 WeRead Skill Desktop 导出*`;
+*由微信读书桌面导出工具导出*`;
 }
 
 export function buildExportPreview(book?: NotebookBook, format = "markdown"): string {

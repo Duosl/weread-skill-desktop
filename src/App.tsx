@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Sidebar } from "./components/layout/Sidebar";
+import { Toolbar } from "./components/layout/Toolbar";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ExportPage } from "./pages/ExportPage";
 import { NotesPage } from "./pages/NotesPage";
@@ -10,6 +12,7 @@ import { useSettings } from "./hooks/useSettings";
 import "./index.css";
 
 function App() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const settings = useSettings();
   const shelf = useBookshelf();
   const reading = useReadingStats();
@@ -17,35 +20,41 @@ function App() {
   return (
     <HashRouter>
       <div className="app-shell">
-        <Sidebar />
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <DashboardPage
-                apiKeySet={settings.settings.apiKeySet}
-                shelf={shelf}
-                reading={reading}
-              />
-            }
-          />
-          <Route path="/notes" element={<NotesPage />} />
-          <Route path="/notes/:bookId" element={<NotesPage />} />
-          <Route path="/export" element={<ExportPage settings={settings.settings} />} />
-          <Route
-            path="/settings"
-            element={
-              <SettingsPage
-                settings={settings.settings}
-                error={settings.error}
+        <Toolbar
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed((current) => !current)}
+        />
+        <div className="app-body">
+          {!sidebarCollapsed ? <Sidebar /> : null}
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <DashboardPage
+                  apiKeySet={settings.settings.apiKeySet}
+                  shelf={shelf}
+                  reading={reading}
+                />
+              }
+            />
+            <Route path="/notes" element={<NotesPage />} />
+            <Route path="/notes/:bookId" element={<NotesPage />} />
+            <Route path="/export" element={<ExportPage settings={settings.settings} />} />
+            <Route
+              path="/settings"
+              element={
+                <SettingsPage
+                  settings={settings.settings}
+                  error={settings.error}
                 onSaveApiKey={settings.saveApiKey}
                 onClearApiKey={settings.clearApiKey}
-                onSaveExportSettings={settings.saveExportSettings}
+                onSaveCacheSettings={settings.saveCacheSettings}
               />
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
       </div>
     </HashRouter>
   );

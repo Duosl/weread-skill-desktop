@@ -1,4 +1,5 @@
 mod api;
+mod cache;
 mod commands;
 mod config;
 mod export;
@@ -18,8 +19,12 @@ pub fn run() {
             commands::save_api_key,
             commands::clear_api_key,
             commands::save_export_settings,
+            commands::save_cache_settings,
+            commands::get_api_cache_info,
+            commands::clear_api_cache,
             commands::sync_shelf,
             commands::get_book_info,
+            commands::get_book_progress,
             commands::get_bookmarks,
             commands::get_my_reviews,
             commands::get_notebooks,

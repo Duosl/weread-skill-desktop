@@ -17,6 +17,8 @@ export function NotesPage() {
   const params = useParams();
   const [selectedBookId, setSelectedBookId] = useState(params.bookId ?? "");
   const [query, setQuery] = useState("");
+  const [noteType, setNoteType] = useState<"all" | "bookmarks" | "reviews">("all");
+  const [actionError, setActionError] = useState<string | null>(null);
   const notebooks = useNotebooks();
   const notes = useNotes(selectedBookId);
 
@@ -38,44 +40,70 @@ export function NotesPage() {
     () =>
       notes.bookmarks.filter(
         (bookmark) =>
-          !normalizedQuery ||
-          bookmark.markText.toLowerCase().includes(normalizedQuery) ||
-          bookmark.chapterTitle?.toLowerCase().includes(normalizedQuery),
+          noteType !== "reviews" &&
+          (!normalizedQuery ||
+            bookmark.markText.toLowerCase().includes(normalizedQuery) ||
+            Boolean(bookmark.chapterTitle?.toLowerCase().includes(normalizedQuery))),
       ),
-    [notes.bookmarks, normalizedQuery],
+    [notes.bookmarks, normalizedQuery, noteType],
   );
   const filteredReviews = useMemo(
     () =>
       notes.reviews.filter(
         (review) =>
-          !normalizedQuery ||
-          review.content.toLowerCase().includes(normalizedQuery) ||
-          review.chapterName?.toLowerCase().includes(normalizedQuery),
+          noteType !== "bookmarks" &&
+          (!normalizedQuery ||
+            review.content.toLowerCase().includes(normalizedQuery) ||
+            Boolean(review.chapterName?.toLowerCase().includes(normalizedQuery))),
       ),
-    [notes.reviews, normalizedQuery],
+    [notes.reviews, normalizedQuery, noteType],
+  );
+  const visibleNotes = useMemo(
+    () =>
+      [
+        ...filteredBookmarks.map((bookmark) => ({
+          kind: "bookmark" as const,
+          id: bookmark.bookmarkId,
+          chapter: bookmark.chapterTitle || "未命名章节",
+          time: bookmark.createTime,
+          content: bookmark.markText,
+        })),
+        ...filteredReviews.map((review) => ({
+          kind: "review" as const,
+          id: review.reviewId,
+          chapter: review.chapterName || "想法",
+          time: review.createTime,
+          content: review.content,
+        })),
+      ].sort((left, right) => right.time - left.time),
+    [filteredBookmarks, filteredReviews],
   );
 
-  function openInWeread() {
+  async function openInWeread() {
     if (!selectedBookId) return;
-    void invoke("open_in_weread", { bookId: selectedBookId, chapterUid: null });
+    setActionError(null);
+    try {
+      await invoke("open_in_weread", { bookId: selectedBookId, chapterUid: null });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    }
   }
 
   return (
     <PageShell
       title="笔记"
-      eyebrow="Notes"
       action={
         <Button
           variant="secondary"
           icon={<ExternalLink size={16} />}
           disabled={!selectedBookId}
-          onClick={openInWeread}
+          onClick={() => void openInWeread()}
         >
           微信读书
         </Button>
       }
     >
-      <ErrorBanner message={notebooks.error ?? notes.error} />
+      <ErrorBanner message={notebooks.error ?? notes.error ?? actionError} />
       <div className="notes-layout">
         <Card className="notebook-list">
           <div className="section-title">
@@ -97,8 +125,8 @@ export function NotesPage() {
                   className={book.bookId === selectedBookId ? "notebook active" : "notebook"}
                   onClick={() => setSelectedBookId(book.bookId)}
                 >
-                  <span>{book.title}</span>
-                  <small>{noteTotal(book)} 条</small>
+                  <span className="notebook-title">{book.title}</span>
+                  <small>{noteTotal(book)}</small>
                 </button>
               ))}
             </div>
@@ -122,6 +150,26 @@ export function NotesPage() {
             ) : null}
           </Card>
 
+          <Card className="notes-filter-card">
+            <div className="segmented full">
+              <button className={noteType === "all" ? "active" : ""} onClick={() => setNoteType("all")}>
+                全部
+              </button>
+              <button
+                className={noteType === "bookmarks" ? "active" : ""}
+                onClick={() => setNoteType("bookmarks")}
+              >
+                划线
+              </button>
+              <button
+                className={noteType === "reviews" ? "active" : ""}
+                onClick={() => setNoteType("reviews")}
+              >
+                想法
+              </button>
+            </div>
+          </Card>
+
           {!selectedBookId ? (
             <EmptyState title="选择一本书" description="从左侧笔记本选择后查看划线和想法。" />
           ) : notes.loading ? (
@@ -130,27 +178,17 @@ export function NotesPage() {
             </Card>
           ) : (
             <div className="note-stack">
-              {filteredBookmarks.map((bookmark) => (
-                <Card className="quote-card" key={bookmark.bookmarkId}>
+              {visibleNotes.map((note) => (
+                <Card className={note.kind === "bookmark" ? "quote-card" : "review-card"} key={`${note.kind}-${note.id}`}>
                   <div className="note-meta">
-                    <span>{bookmark.chapterTitle || "未命名章节"}</span>
-                    <time>{formatDate(bookmark.createTime)}</time>
+                    <span>{note.chapter}</span>
+                    <time>{formatDate(note.time)}</time>
                   </div>
-                  <blockquote>{bookmark.markText}</blockquote>
+                  {note.kind === "bookmark" ? <blockquote>{note.content}</blockquote> : <p>{note.content}</p>}
                 </Card>
               ))}
 
-              {filteredReviews.map((review) => (
-                <Card className="review-card" key={review.reviewId}>
-                  <div className="note-meta">
-                    <span>{review.chapterName || "想法"}</span>
-                    <time>{formatDate(review.createTime)}</time>
-                  </div>
-                  <p>{review.content}</p>
-                </Card>
-              ))}
-
-              {filteredBookmarks.length === 0 && filteredReviews.length === 0 ? (
+              {visibleNotes.length === 0 ? (
                 <EmptyState title="没有匹配内容" description="换一个关键词，或选择其他笔记本。" />
               ) : null}
             </div>
