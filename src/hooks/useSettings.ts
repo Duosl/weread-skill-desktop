@@ -1,0 +1,60 @@
+import { useCallback, useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import type { AppSettings } from "@/types";
+import { getErrorMessage } from "@/lib/format";
+
+const fallbackSettings: AppSettings = {
+  apiKeySet: false,
+  apiKeyMasked: null,
+  lastExportDir: "~/Documents/WereadNotes",
+  defaultFormat: "markdown",
+};
+
+export function useSettings() {
+  const [settings, setSettings] = useState<AppSettings>(fallbackSettings);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setSettings(await invoke<AppSettings>("get_settings"));
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const saveApiKey = async (apiKey: string) => {
+    setSettings(await invoke<AppSettings>("save_api_key", { apiKey }));
+  };
+
+  const clearApiKey = async () => {
+    setSettings(await invoke<AppSettings>("clear_api_key"));
+  };
+
+  const saveExportSettings = async (outputDir: string, defaultFormat: string) => {
+    setSettings(
+      await invoke<AppSettings>("save_export_settings", {
+        outputDir,
+        defaultFormat,
+      }),
+    );
+  };
+
+  return {
+    settings,
+    loading,
+    error,
+    refresh,
+    saveApiKey,
+    clearApiKey,
+    saveExportSettings,
+  };
+}
