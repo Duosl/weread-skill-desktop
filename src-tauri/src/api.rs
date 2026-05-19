@@ -290,6 +290,37 @@ impl WeReadClient {
                 0
             }
         };
+        let read_stat = value
+            .get("readStat")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| {
+                        Some(ReadStatItem {
+                            stat: str_field(item, "stat"),
+                            counts: str_field(item, "counts"),
+                            scheme: item.get("scheme").and_then(Value::as_str).map(str::to_string),
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let read_times = value
+            .get("readTimes")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .collect();
+        let daily_read_times = value
+            .get("dailyReadTimes")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .collect();
+        let regist_time = int_field(&value, "registTime");
         Ok(ReadingStatsResult {
             base_time: value.get("baseTime").and_then(Value::as_i64).unwrap_or(0),
             read_days,
@@ -299,6 +330,10 @@ impl WeReadClient {
             read_longest,
             prefer_category,
             prefer_time,
+            read_times,
+            daily_read_times,
+            read_stat,
+            regist_time,
         })
     }
 }

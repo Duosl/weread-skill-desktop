@@ -1,7 +1,8 @@
-import { BookOpen, FileDown, Library, Settings } from "lucide-react";
+import { BarChart3, BookOpen, FileDown, Library, Settings } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 const navItems = [
+  { to: "/overview", label: "概览", icon: BarChart3 },
   { to: "/", label: "书架", icon: Library },
   { to: "/notes", label: "笔记", icon: BookOpen },
   { to: "/export", label: "导出", icon: FileDown },
@@ -15,7 +16,7 @@ export function Sidebar() {
         <img className="brand-mark" src="/weread-icon.png" alt="" />
         <div>
           <strong>微信读书</strong>
-          <span>桌面导出工具</span>
+          <span>SKill 桌面客户端</span>
         </div>
       </div>
 

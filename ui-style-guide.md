@@ -805,11 +805,6 @@
 --breakpoint-sm: 1024px;   /* 最小支持尺寸 */
 --breakpoint-md: 1280px;   /* 默认设计尺寸 */
 --breakpoint-lg: 1440px;   /* 大屏优化 */
-
-/* 侧边栏行为 */
-@media (max-width: 1024px) {
-  .sidebar { width: 200px; }  /* 收缩 */
-}
 ```
 
 ---

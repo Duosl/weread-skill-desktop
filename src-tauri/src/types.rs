@@ -201,6 +201,14 @@ pub struct ReadLongestItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct ReadStatItem {
+    pub stat: String,
+    pub counts: String,
+    pub scheme: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct ReadingStatsResult {
     pub base_time: i64,
     pub read_days: i32,
@@ -210,6 +218,10 @@ pub struct ReadingStatsResult {
     pub read_longest: Vec<ReadLongestItem>,
     pub prefer_category: Vec<CategoryPref>,
     pub prefer_time: Vec<i64>,
+    pub read_times: serde_json::Map<String, serde_json::Value>,
+    pub daily_read_times: serde_json::Map<String, serde_json::Value>,
+    pub read_stat: Vec<ReadStatItem>,
+    pub regist_time: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -229,4 +241,12 @@ pub struct ExportResult {
     pub success: bool,
     pub file_paths: Vec<String>,
     pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportProgressPayload {
+    pub current: usize,
+    pub total: usize,
+    pub title: String,
 }

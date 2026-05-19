@@ -1,6 +1,7 @@
 use crate::state::RuntimeState;
 use crate::types::*;
 use open::that as open_path;
+use std::path::Path;
 use tauri::State;
 
 #[tauri::command]
@@ -143,10 +144,11 @@ pub async fn get_reading_stats(
 
 #[tauri::command]
 pub async fn export_to_markdown(
+    app: tauri::AppHandle,
     state: State<'_, RuntimeState>,
     options: ExportOptions,
 ) -> Result<ExportResult, String> {
-    let file_paths = crate::export::export_to_markdown(state.inner(), &options).await?;
+    let file_paths = crate::export::export_to_markdown(&app, state.inner(), &options).await?;
     Ok(ExportResult {
         success: true,
         message: format!("成功导出 {} 个文件", file_paths.len()),
@@ -156,10 +158,11 @@ pub async fn export_to_markdown(
 
 #[tauri::command]
 pub async fn export_to_json(
+    app: tauri::AppHandle,
     state: State<'_, RuntimeState>,
     options: ExportOptions,
 ) -> Result<ExportResult, String> {
-    let file_paths = crate::export::export_to_json(state.inner(), &options).await?;
+    let file_paths = crate::export::export_to_json(&app, state.inner(), &options).await?;
     Ok(ExportResult {
         success: true,
         message: format!("成功导出 {} 个文件", file_paths.len()),
@@ -169,7 +172,20 @@ pub async fn export_to_json(
 
 #[tauri::command]
 pub async fn open_export_folder(path: String) -> Result<(), String> {
-    open_path(path).map_err(|e| format!("无法打开导出目录: {e}"))
+    let p = Path::new(&path);
+    let dir = if p.is_file() || !p.is_dir() {
+        p.parent()
+            .map(|parent| parent.to_path_buf())
+            .unwrap_or_else(|| p.to_path_buf())
+    } else {
+        p.to_path_buf()
+    };
+    open_path(dir).map_err(|e| format!("无法打开导出目录: {e}"))
+}
+
+#[tauri::command]
+pub async fn get_app_version() -> Result<String, String> {
+    Ok(env!("CARGO_PKG_VERSION").to_string())
 }
 
 #[tauri::command]

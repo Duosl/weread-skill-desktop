@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { ChevronDown, Database, KeyRound, Save, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { ChevronDown, Database, Info, KeyRound, Save, Trash2 } from "lucide-react";
 import { PageShell } from "../components/layout/PageShell";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -26,6 +27,11 @@ export function SettingsPage({
   const [cacheTtlSeconds, setCacheTtlSeconds] = useState(settings.cacheTtlSeconds);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState("");
+
+  useEffect(() => {
+    invoke<string>("get_app_version").then(setAppVersion).catch(() => setAppVersion("0.1.0"));
+  }, []);
 
   const cacheTtlOptions = [
     [30 * 60, "30分钟"],
@@ -72,7 +78,7 @@ export function SettingsPage({
               <KeyRound size={20} />
             </div>
             <h2>API Key</h2>
-            <p>连接微信读书 Skill Gateway。密钥只保存在本机配置文件。</p>
+            <p>连接微信读书 Skill。密钥只保存在本机配置文件。</p>
             <span className={settings.apiKeySet ? "settings-status ok" : "settings-status"}>
               {settings.apiKeySet ? "已连接" : "未配置"}
             </span>
@@ -147,6 +153,37 @@ export function SettingsPage({
               <Button variant="primary" icon={<Save size={16} />} disabled={saving} onClick={saveCache}>
                 保存间隔
               </Button>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="settings-panel">
+          <div className="settings-panel-aside">
+            <div className="settings-icon">
+              <Info size={20} />
+            </div>
+            <h2>关于</h2>
+            <p>微信读书 SKill 桌面客户端，基于 weread skill 构建。</p>
+          </div>
+
+          <div className="settings-panel-main">
+            <div className="about-info">
+              <div className="about-row">
+                <span className="about-label">应用名称</span>
+                <span className="about-value">微信读书 SKill 桌面客户端</span>
+              </div>
+              <div className="about-row">
+                <span className="about-label">版本</span>
+                <span className="about-value">{appVersion || "—"}</span>
+              </div>
+              <div className="about-row">
+                <span className="about-label">技术栈</span>
+                <span className="about-value">Tauri 2 + React + TypeScript</span>
+              </div>
+              <div className="about-row">
+                <span className="about-label">数据来源</span>
+                <span className="about-value">微信读书 Skill</span>
+              </div>
             </div>
           </div>
         </Card>

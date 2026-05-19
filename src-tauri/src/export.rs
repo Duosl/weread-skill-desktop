@@ -3,48 +3,69 @@ use crate::types::*;
 use serde_json::json;
 use std::fs;
 use std::path::{Path, PathBuf};
+use tauri::{AppHandle, Emitter};
 
 pub async fn export_to_markdown(
+    app: &AppHandle,
     state: &RuntimeState,
     options: &ExportOptions,
 ) -> Result<Vec<String>, String> {
-    let output_dir = resolve_output_dir(&options.output_dir);
+    let output_dir = resolve_output_dir(&options.output_dir).join("markdown");
     fs::create_dir_all(&output_dir).map_err(|e| format!("创建输出目录失败: {e}"))?;
 
     let client = state.client().await?;
     let book_ids = resolve_book_ids(&client, options).await?;
+    let total = book_ids.len();
     let mut file_paths = Vec::new();
 
-    for book_id in book_ids {
-        let data = load_export_book(&client, &book_id, options).await?;
+    for (i, book_id) in book_ids.iter().enumerate() {
+        let data = load_export_book(&client, book_id, options).await?;
         let content = build_markdown(&data, options);
         let file_path = output_dir.join(format!("{}.md", safe_file_name(&data.title)));
         fs::write(&file_path, content).map_err(|e| format!("写入 Markdown 失败: {e}"))?;
+        if !file_path.exists() {
+            return Err(format!("写入验证失败，文件未生成: {}", file_path.display()));
+        }
         file_paths.push(file_path.to_string_lossy().to_string());
+        let _ = app.emit("export-progress", ExportProgressPayload {
+            current: i + 1,
+            total,
+            title: data.title.clone(),
+        });
     }
 
     Ok(file_paths)
 }
 
 pub async fn export_to_json(
+    app: &AppHandle,
     state: &RuntimeState,
     options: &ExportOptions,
 ) -> Result<Vec<String>, String> {
-    let output_dir = resolve_output_dir(&options.output_dir);
+    let output_dir = resolve_output_dir(&options.output_dir).join("json");
     fs::create_dir_all(&output_dir).map_err(|e| format!("创建输出目录失败: {e}"))?;
 
     let client = state.client().await?;
     let book_ids = resolve_book_ids(&client, options).await?;
+    let total = book_ids.len();
     let mut file_paths = Vec::new();
 
-    for book_id in book_ids {
-        let data = load_export_book(&client, &book_id, options).await?;
+    for (i, book_id) in book_ids.iter().enumerate() {
+        let data = load_export_book(&client, book_id, options).await?;
         let value = build_json(&data, options);
         let content = serde_json::to_string_pretty(&value)
             .map_err(|e| format!("序列化 JSON 失败: {e}"))?;
         let file_path = output_dir.join(format!("{}.json", safe_file_name(&data.title)));
         fs::write(&file_path, content).map_err(|e| format!("写入 JSON 失败: {e}"))?;
+        if !file_path.exists() {
+            return Err(format!("写入验证失败，文件未生成: {}", file_path.display()));
+        }
         file_paths.push(file_path.to_string_lossy().to_string());
+        let _ = app.emit("export-progress", ExportProgressPayload {
+            current: i + 1,
+            total,
+            title: data.title.clone(),
+        });
     }
 
     Ok(file_paths)
@@ -179,8 +200,6 @@ fn build_markdown(data: &ExportBook, options: &ExportOptions) -> String {
             push_review_markdown(&mut markdown, review);
         }
     }
-
-    markdown.push_str("\n---\n\n*由微信读书桌面导出工具导出*\n");
     markdown
 }
 

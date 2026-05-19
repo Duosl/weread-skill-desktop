@@ -15,7 +15,17 @@ export function buildJsonPreview(books: NotebookBook[]): string {
         totalBookmarks: book?.noteCount ?? 0,
         totalReviews: book?.reviewCount ?? 0,
       },
-      chapters: [],
+      chapters: [
+        {
+          chapterUid: "章节id",
+          title: "章节标题",
+          bookmarks: [
+            {
+              content: "笔记/划线内容"
+            }
+          ]
+        },
+      ],
     },
     null,
     2,
@@ -39,10 +49,7 @@ export function buildMarkdownPreview(books: NotebookBook[]): string {
 位置：\`900-2004\`
 
 **我的思考：** 关联的想法或点评会显示在这里。
-
----
-
-*由微信读书桌面导出工具导出*`;
+`;
 }
 
 export function buildExportPreview(book?: NotebookBook, format = "markdown"): string {

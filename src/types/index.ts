@@ -125,6 +125,12 @@ export interface ReadLongestItem {
   tags: string[];
 }
 
+export interface ReadStatItem {
+  stat: string;
+  counts: string;
+  scheme?: string | null;
+}
+
 export interface ReadingStatsResult {
   baseTime: number;
   readDays: number;
@@ -134,6 +140,10 @@ export interface ReadingStatsResult {
   readLongest: ReadLongestItem[];
   preferCategory: CategoryPref[];
   preferTime: number[];
+  readTimes: Record<string, number>;
+  dailyReadTimes: Record<string, number>;
+  readStat: ReadStatItem[];
+  registTime: number;
 }
 
 export interface ExportOptions {
@@ -149,4 +159,10 @@ export interface ExportResult {
   success: boolean;
   filePaths: string[];
   message: string;
+}
+
+export interface ExportProgress {
+  current: number;
+  total: number;
+  title: string;
 }

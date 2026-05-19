@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { BookOpen, Clock3, RefreshCw, Search, X } from "lucide-react";
+import { BookOpen, Search, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageShell } from "../components/layout/PageShell";
 import { Badge } from "../components/ui/Badge";
@@ -60,20 +60,11 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
 
   return (
     <PageShell
-      title="书架"
-      action={
-        <Button
-          variant="primary"
-          icon={<RefreshCw size={16} />}
-          disabled={!apiKeySet || shelf.loading}
-          onClick={() => {
-            void shelf.syncShelf(true);
-            void reading.loadStats(true);
-            void notebooks.loadNotebooks(true);
-          }}
-        >
-          同步
-        </Button>
+      title={
+        <>
+          书架
+          {shelf.totalCount > 0 ? <small className="page-title-count">{shelf.totalCount}本</small> : null}
+        </>
       }
     >
       {!apiKeySet ? (
@@ -89,51 +80,7 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
       ) : (
         <>
           <ErrorBanner message={shelf.error} />
-          <ErrorBanner message={reading.error} />
           <ErrorBanner message={notebooks.error} />
-          <div className="stats-grid">
-            <Card>
-              <span className="metric-label">书架总数</span>
-              <strong className="metric-value">{shelf.totalCount}</strong>
-            </Card>
-            <Card>
-              <span className="metric-label">阅读天数</span>
-              <strong className="metric-value">{reading.stats?.readDays ?? 0}</strong>
-            </Card>
-            <Card>
-              <span className="metric-label">累计时长</span>
-              <strong className="metric-value">
-                {formatDuration(reading.stats?.totalReadTime ?? 0)}
-              </strong>
-            </Card>
-            <Card>
-              <span className="metric-label">日均阅读</span>
-              <strong className="metric-value">
-                {formatDuration(reading.stats?.dayAverageReadTime ?? 0)}
-              </strong>
-            </Card>
-          </div>
-
-          {reading.stats?.preferCategory?.length ? (
-            <Card className="preference-card">
-              <div className="section-title">
-                <Clock3 size={20} />
-                <div>
-                  <h2>阅读偏好</h2>
-                  <p>按阅读时长排序的分类倾向。</p>
-                </div>
-              </div>
-              <div className="preference-list">
-                {reading.stats.preferCategory.slice(0, 5).map((item) => (
-                  <div key={item.categoryTitle}>
-                    <span>{item.categoryTitle}</span>
-                    <strong>{formatDuration(item.readingTime)}</strong>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          ) : null}
-
           <Card className="toolbar-card">
             <div className="search-box">
               <Search size={18} />

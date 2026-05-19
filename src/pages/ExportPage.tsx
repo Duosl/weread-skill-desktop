@@ -9,7 +9,7 @@ import { ErrorBanner } from "../components/ui/ErrorBanner";
 import { Spinner } from "../components/ui/Spinner";
 import { useExport } from "../hooks/useExport";
 import { useNotebooks } from "../hooks/useNotebooks";
-import { buildJsonPreview, buildMarkdownPreview } from "../lib/preview/exportPreview";
+import { buildMarkdownPreview } from "../lib/preview/exportPreview";
 import { noteTotal } from "../lib/format";
 import type { AppSettings, ExportOptions } from "../types";
 
@@ -21,9 +21,6 @@ export function ExportPage({ settings }: ExportPageProps) {
   const notebooks = useNotebooks();
   const exporter = useExport();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [format, setFormat] = useState<"markdown" | "json">(
-    settings.defaultFormat === "json" ? "json" : "markdown",
-  );
   const [outputDir, setOutputDir] = useState(settings.lastExportDir);
   const [includeBookmarks, setIncludeBookmarks] = useState(true);
   const [includeReviews, setIncludeReviews] = useState(true);
@@ -37,7 +34,7 @@ export function ExportPage({ settings }: ExportPageProps) {
     [notebooks.books, selectedIds],
   );
 
-  const preview = format === "json" ? buildJsonPreview(selectedBooks) : buildMarkdownPreview(selectedBooks);
+  const preview = buildMarkdownPreview(selectedBooks);
   const allSelected = notebooks.books.length > 0 && selectedIds.length === notebooks.books.length;
 
   function toggleBook(bookId: string) {
@@ -53,14 +50,14 @@ export function ExportPage({ settings }: ExportPageProps) {
   }
 
   async function chooseFolder() {
-    const selected = await open({ directory: true, multiple: false });
+    const selected = await open({ directory: true, multiple: false, defaultPath: outputDir });
     if (typeof selected === "string") setOutputDir(selected);
   }
 
   async function runExport() {
     const options: ExportOptions = {
       bookIds: selectedIds,
-      format,
+      format: "markdown",
       outputDir,
       includeBookmarks,
       includeReviews,
@@ -136,16 +133,8 @@ export function ExportPage({ settings }: ExportPageProps) {
               <FileDown size={20} />
               <div>
                 <h2>导出选项</h2>
-                <p>Markdown 适合阅读归档，JSON 适合后续处理。</p>
+                <p>导出为 Markdown 格式，适合阅读归档。</p>
               </div>
-            </div>
-            <div className="segmented full">
-              <button className={format === "markdown" ? "active" : ""} onClick={() => setFormat("markdown")}>
-                Markdown
-              </button>
-              <button className={format === "json" ? "active" : ""} onClick={() => setFormat("json")}>
-                JSON
-              </button>
             </div>
             <label className="check-row compact">
               <input
@@ -166,7 +155,10 @@ export function ExportPage({ settings }: ExportPageProps) {
             <div className="folder-row">
               <input value={outputDir} onChange={(event) => setOutputDir(event.target.value)} />
               <Button variant="secondary" icon={<FolderOpen size={16} />} onClick={() => void chooseFolder()}>
-                选择
+                浏览
+              </Button>
+              <Button variant="secondary" disabled={!outputDir} onClick={() => void exporter.openExportFolder(outputDir)}>
+                打开目录
               </Button>
             </div>
           </Card>
@@ -176,7 +168,22 @@ export function ExportPage({ settings }: ExportPageProps) {
             <pre>{preview}</pre>
           </Card>
 
-          {exporter.loading ? (
+          {exporter.loading && exporter.progress ? (
+            <Card className="progress-card">
+              <div className="progress-header">
+                <span className="progress-label">
+                  正在导出 ({exporter.progress.current}/{exporter.progress.total})
+                </span>
+                <span className="progress-title">{exporter.progress.title}</span>
+              </div>
+              <div className="progress-track">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${(exporter.progress.current / exporter.progress.total) * 100}%` }}
+                />
+              </div>
+            </Card>
+          ) : exporter.loading ? (
             <Card>
               <Spinner label="正在导出" />
             </Card>
@@ -185,7 +192,7 @@ export function ExportPage({ settings }: ExportPageProps) {
               <h2>{exporter.result.message}</h2>
               <div className="file-list">
                 {exporter.result.filePaths.map((path) => (
-                  <button key={path} onClick={() => void exporter.openExportFolder(outputDir)}>
+                  <button key={path} onClick={() => void exporter.openExportFolder(path)}>
                     {path}
                   </button>
                 ))}
