@@ -6,6 +6,7 @@ import { getErrorMessage } from "@/lib/format";
 const fallbackSettings: AppSettings = {
   apiKeySet: false,
   apiKeyMasked: null,
+  apiKeyFull: null,
   lastExportDir: "~/Documents/WereadNotes",
   defaultFormat: "markdown",
   cacheTtlSeconds: 24 * 60 * 60,

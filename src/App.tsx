@@ -2,6 +2,7 @@ import { useState } from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Toolbar } from "./components/layout/Toolbar";
+import { RewardDialog } from "./components/RewardDialog";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ExportPage } from "./pages/ExportPage";
 import { NotesPage } from "./pages/NotesPage";
@@ -11,14 +12,17 @@ import { useBookshelf } from "./hooks/useBookshelf";
 import { useNotebooks } from "./hooks/useNotebooks";
 import { useReadingStats } from "./hooks/useReadingStats";
 import { useSettings } from "./hooks/useSettings";
+import { useUpdater } from "./hooks/useUpdater";
 import "./index.css";
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showRewardDialog, setShowRewardDialog] = useState(false);
   const settings = useSettings();
   const shelf = useBookshelf();
   const reading = useReadingStats();
   const notebooks = useNotebooks();
+  const { state: updateState, checkForUpdates, downloadUpdate, installUpdate } = useUpdater();
 
   return (
     <HashRouter>
@@ -26,12 +30,18 @@ function App() {
         <Toolbar
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed((current) => !current)}
+          updateReady={updateState.status === "ready"}
+          onInstallUpdate={installUpdate}
         />
         <div className="app-body">
-          {!sidebarCollapsed ? <Sidebar /> : null}
+          {!sidebarCollapsed ? (
+            <Sidebar
+              onOpenReward={() => setShowRewardDialog(true)}
+            />
+          ) : null}
           <Routes>
             <Route
-              path="/overview"
+              path="/"
               element={
                 <OverviewPage
                   apiKeySet={settings.settings.apiKeySet}
@@ -42,7 +52,7 @@ function App() {
               }
             />
             <Route
-              path="/"
+              path="/shelf"
               element={
                 <DashboardPage
                   apiKeySet={settings.settings.apiKeySet}
@@ -63,12 +73,21 @@ function App() {
                   onSaveApiKey={settings.saveApiKey}
                   onClearApiKey={settings.clearApiKey}
                   onSaveCacheSettings={settings.saveCacheSettings}
+                  updateState={updateState}
+                  onCheckUpdate={() => checkForUpdates(false)}
+                  onDownloadUpdate={downloadUpdate}
+                  onInstallUpdate={installUpdate}
+                  onOpenReward={() => setShowRewardDialog(true)}
                 />
               }
             />
-            <Route path="*" element={<Navigate to="/overview" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
+        <RewardDialog
+          isOpen={showRewardDialog}
+          onClose={() => setShowRewardDialog(false)}
+        />
       </div>
     </HashRouter>
   );

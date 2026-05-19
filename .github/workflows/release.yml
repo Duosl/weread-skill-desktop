@@ -1,0 +1,468 @@
+name: Releases
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      tag_name: ${{ steps.extract_tag.outputs.tag }}
+      version: ${{ steps.extract_tag.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract tag
+        id: extract_tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            COMMIT_HASH=$(git rev-parse --short HEAD)
+            TAG="dev-${COMMIT_HASH}-$(date +%Y%m%d%H%M%S)"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Get release notes
+        id: release_notes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const tag = '${{ steps.extract_tag.outputs.tag }}';
+            const changelogPath = 'CHANGELOG.md';
+
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+
+            let body = '';
+
+            if (fs.existsSync(changelogPath)) {
+              const changelog = fs.readFileSync(changelogPath, 'utf8').replace(/\r\n/g, '\n');
+              const escapedTag = escapeRegExp(tag);
+              // 支持 [v0.2.0] 和 v0.2.0 两种标题格式
+              const headingPattern = new RegExp('^##\\s+\\[' + escapedTag + '\\]\\s*(?:-.*)?$|^##\\s+' + escapedTag + '\\s*(?:-.*)?$', 'm');
+
+              console.log('[DEBUG] tag:', tag);
+              console.log('[DEBUG] escapedTag:', escapedTag);
+              console.log('[DEBUG] pattern source:', headingPattern.source);
+              console.log('[DEBUG] changelog length:', changelog.length);
+              console.log('[DEBUG] changelog first 800 chars:', changelog.substring(0, 800));
+
+              const heading = changelog.match(headingPattern);
+              console.log('[DEBUG] heading match result:', heading ? heading[0] : null);
+
+              if (heading) {
+                const sectionStart = heading.index + heading[0].length;
+                const sectionRest = changelog.slice(sectionStart);
+                const nextSectionIndex = sectionRest.search(new RegExp('^##\\s+', 'm'));
+                body = sectionRest
+                  .slice(0, nextSectionIndex === -1 ? undefined : nextSectionIndex)
+                  .trim();
+                console.log('[DEBUG] sectionStart:', sectionStart);
+                console.log('[DEBUG] nextSectionIndex:', nextSectionIndex);
+                console.log('[DEBUG] body length:', body.length);
+                console.log('[DEBUG] body first 200 chars:', body.substring(0, 200));
+              } else {
+                console.log('[DEBUG] no heading matched, body stays empty');
+              }
+            } else {
+              console.log('[DEBUG] CHANGELOG.md not found at', changelogPath);
+            }
+
+            if (!body) {
+              body = `No CHANGELOG.md entry found for ${tag}.`;
+            }
+
+            console.log('[DEBUG] final body length:', body.length);
+            return { body };
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.extract_tag.outputs.tag }}
+          name: Release ${{ steps.extract_tag.outputs.tag }}
+          body: ${{ fromJSON(steps.release_notes.outputs.result).body }}
+          draft: false
+          prerelease: ${{ startsWith(steps.extract_tag.outputs.tag, 'dev') }}
+
+  build-macos:
+    needs: create-release
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Sync version from tag
+        env:
+          VERSION: ${{ needs.create-release.outputs.version }}
+        run: |
+          jq ".version = \"$VERSION\"" package.json > package.json.tmp && mv package.json.tmp package.json
+          sed -i '' "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          sed -i '' "/^name = \"weread-skill-desktop\"$/,/^version/s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
+          jq ".version = \"$VERSION\"" src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp && mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+          echo "Synced version to $VERSION"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          cache: true
+          target: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Universal Binary
+        run: npm run build:mac
+
+      - name: Build Apple Silicon Binary
+        run: npm run build:mac-arm
+
+      - name: Build Intel Binary
+        run: npm run build:mac-intel
+
+      - name: Prepare macOS Release Assets
+        env:
+          VERSION: ${{ needs.create-release.outputs.tag_name }}
+        run: |
+          mkdir -p release-assets/macos
+          # DMG for manual download
+          cp src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg "release-assets/macos/weread-skill-desktop_${VERSION#v}_macos_universal.dmg"
+          cp src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg "release-assets/macos/weread-skill-desktop_${VERSION#v}_macos_apple-silicon.dmg"
+          cp src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg "release-assets/macos/weread-skill-desktop_${VERSION#v}_macos_intel.dmg"
+          # Updater artifacts (.app.tar.gz)
+          cp src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz "release-assets/macos/weread-skill-desktop_${VERSION#v}_macos_universal.app.tar.gz" 2>/dev/null || true
+          cp src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz "release-assets/macos/weread-skill-desktop_${VERSION#v}_macos_apple-silicon.app.tar.gz" 2>/dev/null || true
+          cp src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.app.tar.gz "release-assets/macos/weread-skill-desktop_${VERSION#v}_macos_intel.app.tar.gz" 2>/dev/null || true
+          # Signatures (.sig)
+          cp src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig "release-assets/macos/weread-skill-desktop_${VERSION#v}_macos_universal.app.tar.gz.sig" 2>/dev/null || true
+          cp src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig "release-assets/macos/weread-skill-desktop_${VERSION#v}_macos_apple-silicon.app.tar.gz.sig" 2>/dev/null || true
+          cp src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig "release-assets/macos/weread-skill-desktop_${VERSION#v}_macos_intel.app.tar.gz.sig" 2>/dev/null || true
+
+      - name: Upload macOS Installers
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
+          files: release-assets/macos/*
+
+  build-windows:
+    needs: create-release
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Sync version from tag
+        env:
+          VERSION: ${{ needs.create-release.outputs.version }}
+        shell: pwsh
+        run: |
+          $v = $env:VERSION
+          $jqFilter = ".version = ""$v"""
+          jq $jqFilter package.json | Set-Content package.json -Encoding UTF8
+
+          $cargoVer = "version = ""$v"""
+          (Get-Content src-tauri/Cargo.toml) -replace '^version = "[^"]*"', $cargoVer | Set-Content src-tauri/Cargo.toml -Encoding UTF8
+
+          # Update Cargo.lock: version line after name = "weread-skill-desktop"
+          $lockContent = Get-Content src-tauri/Cargo.lock -Raw
+          $lockContent = $lockContent -replace '(?m)(?<=name = "weread-skill-desktop"\r?\n)version = "[^"]*"', "version = ""$v"""
+          Set-Content src-tauri/Cargo.lock -Value $lockContent -Encoding UTF8
+
+          jq $jqFilter src-tauri/tauri.conf.json | Set-Content src-tauri/tauri.conf.json -Encoding UTF8
+          Write-Host "Synced version to $v"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          cache: true
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Windows
+        run: npm run build:windows
+
+      - name: Prepare Windows Release Assets
+        env:
+          VERSION: ${{ needs.create-release.outputs.tag_name }}
+        run: |
+          New-Item -ItemType Directory -Force -Path release-assets/windows
+          # MSI for manual download
+          Copy-Item src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64.msi"
+          # NSIS for updater
+          Copy-Item src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64-setup.exe" -ErrorAction SilentlyContinue
+          # NSIS zip for updater
+          Copy-Item src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64.nsis.zip" -ErrorAction SilentlyContinue
+          # Signatures
+          Copy-Item src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip.sig "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64.nsis.zip.sig" -ErrorAction SilentlyContinue
+
+      - name: Upload Windows Installer
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
+          files: release-assets/windows/*
+
+  build-linux:
+    needs: create-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Sync version from tag
+        env:
+          VERSION: ${{ needs.create-release.outputs.version }}
+        run: |
+          jq ".version = \"$VERSION\"" package.json > package.json.tmp && mv package.json.tmp package.json
+          sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          sed -i "/^name = \"weread-skill-desktop\"$/,/^version/s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
+          jq ".version = \"$VERSION\"" src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp && mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+          echo "Synced version to $VERSION"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          cache: true
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Linux
+        run: npm run build:linux
+
+      - name: Prepare Linux Release Assets
+        env:
+          VERSION: ${{ needs.create-release.outputs.tag_name }}
+        run: |
+          mkdir -p release-assets/linux
+          cp src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage "release-assets/linux/weread-skill-desktop_${VERSION#v}_linux_x64.AppImage"
+          cp src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb "release-assets/linux/weread-skill-desktop_${VERSION#v}_linux_x64.deb"
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
+          files: release-assets/linux/*
+
+  generate-latest-json:
+    needs: [create-release, build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.create-release.outputs.tag_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p release-assets/all
+          cd release-assets/all
+          
+          # Get release assets
+          gh release download "$TAG" --repo "$REPO" || true
+          
+          ls -la
+
+      - name: Generate latest.json
+        env:
+          VERSION: ${{ needs.create-release.outputs.version }}
+          TAG: ${{ needs.create-release.outputs.tag_name }}
+        run: |
+          cd release-assets/all
+          
+          # Read signatures
+          DARWIN_AARCH64_SIG=""
+          DARWIN_X86_64_SIG=""
+          WINDOWS_X86_64_SIG=""
+          
+          if [ -f "weread-skill-desktop_${VERSION}_macos_apple-silicon.app.tar.gz.sig" ]; then
+            DARWIN_AARCH64_SIG=$(cat "weread-skill-desktop_${VERSION}_macos_apple-silicon.app.tar.gz.sig")
+          fi
+          
+          if [ -f "weread-skill-desktop_${VERSION}_macos_intel.app.tar.gz.sig" ]; then
+            DARWIN_X86_64_SIG=$(cat "weread-skill-desktop_${VERSION}_macos_intel.app.tar.gz.sig")
+          fi
+          
+          if [ -f "weread-skill-desktop_${VERSION}_windows_x64.nsis.zip.sig" ]; then
+            WINDOWS_X86_64_SIG=$(cat "weread-skill-desktop_${VERSION}_windows_x64.nsis.zip.sig")
+          fi
+          
+          # Get release notes from CHANGELOG
+          NOTES=""
+          if [ -f "../../CHANGELOG.md" ]; then
+            ESCAPED_TAG=$(echo "$TAG" | sed 's/[[\.*^$()+?{|]/\\&/g')
+            HEADING_PATTERN="^##[[:space:]]+\[?${ESCAPED_TAG}\]?.*"
+            if grep -q "$HEADING_PATTERN" ../../CHANGELOG.md; then
+              START_LINE=$(grep -n "$HEADING_PATTERN" ../../CHANGELOG.md | head -1 | cut -d: -f1)
+              NEXT_HEADING=$(tail -n +$((START_LINE + 1)) ../../CHANGELOG.md | grep -n "^## " | head -1 | cut -d: -f1)
+              if [ -n "$NEXT_HEADING" ]; then
+                NOTES=$(tail -n +$((START_LINE + 1)) ../../CHANGELOG.md | head -n $((NEXT_HEADING - 1)) | sed 's/^[[:space:]]*$//')
+              else
+                NOTES=$(tail -n +$((START_LINE + 1)) ../../CHANGELOG.md)
+              fi
+              NOTES=$(echo "$NOTES" | sed 's/"/\\"/g' | tr '\n' ' ')
+            fi
+          fi
+          if [ -z "$NOTES" ]; then
+            NOTES="Release $TAG"
+          fi
+          
+          # Generate latest.json
+          PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          REPO="${{ github.repository }}"
+
+          jq -n \
+            --arg version "${VERSION}" \
+            --arg notes "${NOTES}" \
+            --arg pub_date "${PUB_DATE}" \
+            --arg darwin_aarch64_sig "${DARWIN_AARCH64_SIG}" \
+            --arg darwin_x86_64_sig "${DARWIN_X86_64_SIG}" \
+            --arg windows_x86_64_sig "${WINDOWS_X86_64_SIG}" \
+            --arg repo "${REPO}" \
+            --arg tag "${TAG}" \
+            '{
+              version: $version,
+              notes: $notes,
+              pub_date: $pub_date,
+              platforms: {
+                "darwin-aarch64": {
+                  signature: $darwin_aarch64_sig,
+                  url: "https://github.com/\($repo)/releases/download/\($tag)/weread-skill-desktop_\($version)_macos_apple-silicon.app.tar.gz"
+                },
+                "darwin-x86_64": {
+                  signature: $darwin_x86_64_sig,
+                  url: "https://github.com/\($repo)/releases/download/\($tag)/weread-skill-desktop_\($version)_macos_intel.app.tar.gz"
+                },
+                "windows-x86_64": {
+                  signature: $windows_x86_64_sig,
+                  url: "https://github.com/\($repo)/releases/download/\($tag)/weread-skill-desktop_\($version)_windows_x64.nsis.zip"
+                }
+              }
+            }' > latest.json
+          
+          cat latest.json
+
+      - name: Upload latest.json
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
+          files: release-assets/all/latest.json
+
+      - name: Sync version back to source
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          VERSION: ${{ needs.create-release.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin main
+          git checkout -B sync-version-$VERSION origin/main
+
+          jq ".version = \"$VERSION\"" package.json > package.json.tmp && mv package.json.tmp package.json
+          sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          sed -i "/^name = \"weread-skill-desktop\"$/,/^version/s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
+          jq ".version = \"$VERSION\"" src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp && mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+
+          git add package.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
+          git commit -m "chore: update version to v${VERSION}"
+          git push origin sync-version-$VERSION:main

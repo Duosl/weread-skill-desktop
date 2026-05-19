@@ -17,6 +17,7 @@ pub struct AppConfig {
 pub struct AppSettings {
     pub api_key_set: bool,
     pub api_key_masked: Option<String>,
+    pub api_key_full: Option<String>,
     pub last_export_dir: String,
     pub default_format: String,
     pub cache_ttl_seconds: i64,

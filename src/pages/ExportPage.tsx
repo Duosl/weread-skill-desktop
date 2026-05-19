@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Check, FileDown, FolderOpen } from "lucide-react";
+import { FileDown, FolderOpen } from "lucide-react";
 import { PageShell } from "../components/layout/PageShell";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -83,10 +83,9 @@ export function ExportPage({ settings }: ExportPageProps) {
       <ErrorBanner message={notebooks.error ?? exporter.error} />
       <div className="export-layout">
         <Card className="export-picker">
-          <div className="section-title">
-            <Check size={20} />
+          <div className="section-title">            
             <div>
-              <h2>选择范围</h2>
+              <h2>选择导出范围</h2>
               <p>仅导出包含划线或想法的笔记本。</p>
             </div>
           </div>
@@ -186,17 +185,6 @@ export function ExportPage({ settings }: ExportPageProps) {
           ) : exporter.loading ? (
             <Card>
               <Spinner label="正在导出" />
-            </Card>
-          ) : exporter.result ? (
-            <Card className="success-card">
-              <h2>{exporter.result.message}</h2>
-              <div className="file-list">
-                {exporter.result.filePaths.map((path) => (
-                  <button key={path} onClick={() => void exporter.openExportFolder(path)}>
-                    {path}
-                  </button>
-                ))}
-              </div>
             </Card>
           ) : null}
         </div>

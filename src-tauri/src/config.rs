@@ -64,6 +64,7 @@ impl AppConfig {
         AppSettings {
             api_key_set: self.api_key.is_some(),
             api_key_masked: self.masked_api_key(),
+            api_key_full: self.api_key.clone(),
             last_export_dir: self
                 .last_export_dir
                 .clone()

@@ -1,6 +1,7 @@
 export interface AppSettings {
   apiKeySet: boolean;
   apiKeyMasked?: string | null;
+  apiKeyFull?: string | null;
   lastExportDir: string;
   defaultFormat: string;
   cacheTtlSeconds: number;

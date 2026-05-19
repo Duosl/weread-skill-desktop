@@ -205,16 +205,10 @@ fn build_markdown(data: &ExportBook, options: &ExportOptions) -> String {
 
 fn push_bookmark_markdown(markdown: &mut String, bookmark: &Bookmark) {
     markdown.push_str(&format!("> {}\n\n", bookmark.mark_text));
-    markdown.push_str(&format!(
-        "创建时间：{}  \n位置：`{}`\n\n",
-        format_timestamp(bookmark.create_time),
-        bookmark.range
-    ));
 }
 
 fn push_review_markdown(markdown: &mut String, review: &Review) {
     markdown.push_str(&format!("**我的思考：** {}\n\n", review.content));
-    markdown.push_str(&format!("创建时间：{}\n\n", format_timestamp(review.create_time)));
 }
 
 fn build_json(data: &ExportBook, _options: &ExportOptions) -> serde_json::Value {
@@ -289,12 +283,6 @@ fn parse_range(range: &str) -> (Option<i64>, Option<i64>) {
     let start = parts.next().and_then(|value| value.parse::<i64>().ok());
     let end = parts.next().and_then(|value| value.parse::<i64>().ok());
     (start, end)
-}
-
-fn format_timestamp(timestamp: i64) -> String {
-    chrono::DateTime::from_timestamp(timestamp, 0)
-        .map(|dt| dt.format("%Y-%m-%d").to_string())
-        .unwrap_or_default()
 }
 
 fn resolve_output_dir(path: &str) -> PathBuf {

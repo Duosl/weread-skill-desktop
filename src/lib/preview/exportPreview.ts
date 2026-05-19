@@ -45,9 +45,6 @@ export function buildMarkdownPreview(books: NotebookBook[]): string {
 
 > 划线内容会显示在这里。
 
-创建时间：YYYY-MM-DD
-位置：\`900-2004\`
-
 **我的思考：** 关联的想法或点评会显示在这里。
 `;
 }
