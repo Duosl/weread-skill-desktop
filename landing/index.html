@@ -628,6 +628,30 @@
       transform: translateY(-3px);
       border-color: var(--brand-200);
     }
+    .download-card.detected {
+      border-color: var(--brand-400);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.03), 0 8px 24px rgba(30, 184, 105, 0.12);
+      background: linear-gradient(180deg, rgba(30, 184, 105, 0.03) 0%, white 100%);
+      transform: scale(1.04);
+    }
+    .download-card.detected .download-card-btn {
+      background: var(--brand-600);
+      padding: 0 20px;
+      box-shadow: 0 2px 8px rgba(30, 184, 105, 0.25);
+    }
+    .download-card.detected .download-card-platform::after {
+      content: ' · 推荐';
+      color: var(--brand-600);
+      font-weight: 500;
+    }
+    .download-cards.has-detected .download-card:not(.detected) {
+      opacity: 0.55;
+      filter: grayscale(0.3);
+    }
+    .download-cards.has-detected .download-card:not(.detected):hover {
+      opacity: 1;
+      filter: none;
+    }
     .download-card-icon {
       width: 48px; height: 48px; border-radius: 12px;
       display: flex; align-items: center; justify-content: center;
@@ -769,7 +793,7 @@
         <a href="#workflow">流程</a>
         <a href="#export">导出</a>
         <a href="#tech">技术</a>
-        <a href="https://github.com/duoshilin/weread-skill-desktop" target="_blank" rel="noopener" class="nav-cta">
+        <a href="https://github.com/Duosl/weread-skill-desktop" target="_blank" rel="noopener" class="nav-cta">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
           GitHub
         </a>
@@ -797,7 +821,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               免费下载
             </a>
-            <a href="https://github.com/duoshilin/weread-skill-desktop" target="_blank" rel="noopener" class="btn-hero-secondary">
+            <a href="https://github.com/Duosl/weread-skill-desktop" target="_blank" rel="noopener" class="btn-hero-secondary">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
               查看源码
             </a>
@@ -1050,18 +1074,18 @@
       <h2 class="section-title reveal">开始使用</h2>
       <p class="section-desc reveal reveal-delay-1" style="margin:0 auto 0;">完全免费，开源发布。选择你的平台：</p>
       <div class="download-cards">
-        <a href="https://github.com/duoshilin/weread-skill-desktop/releases/latest" target="_blank" rel="noopener" class="download-card reveal reveal-delay-1">
+        <a href="https://github.com/Duosl/weread-skill-desktop/releases/latest/download/weread-skill-desktop_0.1.0_macos_apple-silicon.dmg" target="_blank" rel="noopener" class="download-card reveal reveal-delay-1" data-os="mac">
           <div class="download-card-icon mac">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
           </div>
           <div class="download-card-platform">macOS</div>
-          <div class="download-card-arch">Apple Silicon / Intel</div>
+          <div class="download-card-arch" id="mac-arch">Apple Silicon / Intel</div>
           <span class="download-card-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             下载
           </span>
         </a>
-        <a href="https://github.com/duoshilin/weread-skill-desktop/releases/latest" target="_blank" rel="noopener" class="download-card reveal reveal-delay-2">
+        <a href="https://github.com/Duosl/weread-skill-desktop/releases/latest/download/weread-skill-desktop_0.1.0_windows_x64-setup.exe" target="_blank" rel="noopener" class="download-card reveal reveal-delay-2" data-os="windows">
           <div class="download-card-icon windows">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 12V6.75l8-1.25V12H3zm0 .5h8v6.5L3 17.75V12.5zM11.5 5.38l9.5-1.63V12h-9.5V5.38zm0 7.12h9.5v8.25l-9.5-1.63V12.5z"/></svg>
           </div>
@@ -1072,7 +1096,7 @@
             下载
           </span>
         </a>
-        <a href="https://github.com/duoshilin/weread-skill-desktop/releases/latest" target="_blank" rel="noopener" class="download-card reveal reveal-delay-3">
+        <a href="https://github.com/Duosl/weread-skill-desktop/releases/latest/download/weread-skill-desktop_0.1.0_linux_x64.AppImage" target="_blank" rel="noopener" class="download-card reveal reveal-delay-3" data-os="linux">
           <div class="download-card-icon linux">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.368 1.884 1.43.868.074 1.741-.313 2.45-.901 1.603.46 3.082-.197 4.151-1.022.467-.363.87-.774 1.169-1.192a.887.887 0 00.084-.107c.322-.474.514-.948.578-1.345.019-.116.03-.23.03-.344 0-.1-.01-.2-.03-.296a1.07 1.07 0 00-.032-.126c-.09-.285-.27-.468-.484-.598-.213-.13-.464-.204-.7-.263-.236-.058-.456-.103-.623-.175a1.13 1.13 0 01-.353-.225.923.923 0 01-.222-.383c-.042-.133-.054-.284-.042-.448.023-.327.157-.713.297-1.12.14-.407.289-.826.326-1.228.037-.403-.053-.796-.384-1.084a.908.908 0 00-.073-.06c-.262-.2-.543-.284-.826-.307-.283-.023-.57.018-.842.093-.272.075-.533.178-.777.276-.244.098-.474.191-.687.24a1.334 1.334 0 01-.547.044c-.178-.04-.327-.126-.442-.285-.115-.16-.197-.395-.238-.72-.04-.327-.04-.733-.016-1.22.023-.487.064-1.052.09-1.72.025-.668.032-1.434-.03-2.298-.062-.864-.214-1.828-.558-2.872-.344-1.044-.884-2.17-1.716-3.27-.832-1.1-1.977-2.162-3.525-2.892A8.045 8.045 0 0012.504 0z"/></svg>
           </div>
@@ -1085,7 +1109,7 @@
         </a>
       </div>
       <p class="download-note reveal">
-        也可以在 <a href="https://github.com/duoshilin/weread-skill-desktop/releases" target="_blank" rel="noopener">GitHub Releases</a> 查看所有历史版本
+        也可以在 <a href="https://github.com/Duosl/weread-skill-desktop/releases" target="_blank" rel="noopener">GitHub Releases</a> 查看所有历史版本
       </p>
     </div>
   </section>
@@ -1098,11 +1122,11 @@
           <p>代码完全开放，接受审查与贡献。你的数据只保存在本地，不经过任何第三方服务器。</p>
         </div>
         <div class="open-source-actions">
-          <a href="https://github.com/duoshilin/weread-skill-desktop" target="_blank" rel="noopener" class="btn-gh">
+          <a href="https://github.com/Duosl/weread-skill-desktop" target="_blank" rel="noopener" class="btn-gh">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
             GitHub 仓库
           </a>
-          <a href="https://github.com/duoshilin/weread-skill-desktop/blob/main/LICENSE" target="_blank" rel="noopener" class="btn-license">
+          <a href="https://github.com/Duosl/weread-skill-desktop/blob/main/LICENSE" target="_blank" rel="noopener" class="btn-license">
             GPL v3.0
           </a>
         </div>
@@ -1120,9 +1144,9 @@
           WeRead Skill Desktop
         </div>
         <div class="footer-links">
-          <a href="https://github.com/duoshilin/weread-skill-desktop" target="_blank" rel="noopener">GitHub</a>
-          <a href="https://github.com/duoshilin/weread-skill-desktop/releases" target="_blank" rel="noopener">Releases</a>
-          <a href="https://github.com/duoshilin/weread-skill-desktop/issues" target="_blank" rel="noopener">Issues</a>
+          <a href="https://github.com/Duosl/weread-skill-desktop" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/Duosl/weread-skill-desktop/releases" target="_blank" rel="noopener">Releases</a>
+          <a href="https://github.com/Duosl/weread-skill-desktop/issues" target="_blank" rel="noopener">Issues</a>
         </div>
       </div>
     </div>
@@ -1164,6 +1188,104 @@
           }
         });
       });
+
+      var ua = navigator.userAgent || '';
+      var platform = navigator.platform || '';
+      var detectedOs = null;
+
+      if (/Mac/i.test(platform) || /Macintosh|MacIntel|MacPPC/i.test(ua)) {
+        detectedOs = 'mac';
+      } else if (/Win/i.test(platform) || /Windows|Win32|Win64/i.test(ua)) {
+        detectedOs = 'windows';
+      } else if (/Linux/i.test(platform) && !/Android/i.test(ua)) {
+        detectedOs = 'linux';
+      }
+
+      if (detectedOs) {
+        var card = document.querySelector('.download-card[data-os="' + detectedOs + '"]');
+        if (card) {
+          card.classList.add('detected');
+          card.closest('.download-cards').classList.add('has-detected');
+        }
+      }
+
+      var assetPatterns = {
+        'mac': {
+          'apple-silicon': /macos_apple-silicon\.dmg$/i,
+          'intel': /macos_intel\.dmg$/i
+        },
+        'windows': /windows_x64-setup\.exe$/i,
+        'linux': /linux_x64\.AppImage$/i
+      };
+
+      function updateDownloadLinks(assets) {
+        if (!assets || !assets.length) return;
+
+        document.querySelectorAll('.download-card').forEach(function(card) {
+          var os = card.getAttribute('data-os');
+          var arch = card.getAttribute('data-arch');
+          var pattern;
+
+          if (os === 'mac' && arch) {
+            pattern = assetPatterns['mac'][arch];
+          } else if (os === 'windows' || os === 'linux') {
+            pattern = assetPatterns[os];
+          }
+
+          if (pattern) {
+            for (var i = 0; i < assets.length; i++) {
+              if (pattern.test(assets[i].name)) {
+                card.href = assets[i].browser_download_url;
+                break;
+              }
+            }
+          }
+        });
+      }
+
+      var isAppleSilicon = false;
+      if (detectedOs === 'mac') {
+        try {
+          var canvas = document.createElement('canvas');
+          var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+          if (gl) {
+            var debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+            if (debugInfo) {
+              var renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+              isAppleSilicon = /Apple/i.test(renderer);
+            }
+          }
+        } catch (e) {}
+
+        var macArch = document.getElementById('mac-arch');
+        var macCard = document.querySelector('.download-card[data-os="mac"]');
+        if (macArch && macCard) {
+          if (isAppleSilicon) {
+            macArch.textContent = 'Apple Silicon (M 系列)';
+            macCard.setAttribute('data-arch', 'apple-silicon');
+          } else {
+            macArch.textContent = 'Intel';
+            macCard.setAttribute('data-arch', 'intel');
+          }
+        }
+      }
+
+      if (detectedOs) {
+        var card = document.querySelector('.download-card[data-os="' + detectedOs + '"]');
+        if (card) {
+          card.classList.add('detected');
+          card.closest('.download-cards').classList.add('has-detected');
+        }
+      }
+
+      fetch('https://api.github.com/repos/Duosl/weread-skill-desktop/releases/latest')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data.assets) {
+            updateDownloadLinks(data.assets);
+          }
+        })
+        .catch(function() {});
     })();
   </script>
 
