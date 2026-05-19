@@ -128,9 +128,10 @@ export function SettingsPage({
         return <span className="update-pill success">已是最新</span>;
       case "error":
         return (
-          <span className="update-pill error" title={updateState.error}>
-            检查失败
-          </span>
+          // <span className="update-pill error" title={updateState.error}>
+          //   检查失败
+          // </span>
+          <span></span>
         );
     }
   }
@@ -289,10 +290,10 @@ export function SettingsPage({
                   v{appVersion || "—"}
                 </span>
               </div>
-              {/* <div className="about-meta-item">
+              <div className="about-meta-item">
                 <span className="about-meta-label">更新状态</span>
                 <span className="about-meta-value">{renderUpdateStatus()}</span>
-              </div> */}
+              </div>
             </div>
 
             <div className="about-actions-bar">
