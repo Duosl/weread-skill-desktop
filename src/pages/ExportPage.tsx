@@ -17,9 +17,11 @@ import type { AppSettings, BookmarkListResult, BookInfo, BookProgress, ExportOpt
 
 type ExportPageProps = {
   settings: AppSettings;
+  embedded?: boolean;
+  initialSelectedBookId?: string | null;
 };
 
-export function ExportPage({ settings }: ExportPageProps) {
+export function ExportPage({ settings, embedded = false, initialSelectedBookId }: ExportPageProps) {
   const notebooks = useNotebooks();
   const exporter = useExport();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -34,6 +36,11 @@ export function ExportPage({ settings }: ExportPageProps) {
   useEffect(() => {
     void notebooks.loadNotebooks();
   }, []);
+
+  useEffect(() => {
+    if (!initialSelectedBookId) return;
+    setSelectedIds([initialSelectedBookId]);
+  }, [initialSelectedBookId]);
 
   const selectedBooks = useMemo(
     () => notebooks.books.filter((book) => selectedIds.includes(book.bookId)),
@@ -131,20 +138,24 @@ export function ExportPage({ settings }: ExportPageProps) {
     }
   }
 
-  return (
-    <PageShell
-      title="导出"
-      action={
-        <Button
-          variant="primary"
-          icon={<FileDown size={16} />}
-          disabled={selectedIds.length === 0 || !outputDir || exporter.loading}
-          onClick={() => void runExport()}
-        >
-          导出
-        </Button>
-      }
-    >
+  const content = (
+    <>
+      {embedded ? (
+        <div className="workbench-section-header">
+          <div>
+            <h2>导出笔记</h2>
+            <p>批量选择笔记本，生成 Markdown 文件并保留真实预览。</p>
+          </div>
+          <Button
+            variant="primary"
+            icon={<FileDown size={16} />}
+            disabled={selectedIds.length === 0 || !outputDir || exporter.loading}
+            onClick={() => void runExport()}
+          >
+            导出
+          </Button>
+        </div>
+      ) : null}
       <ErrorBanner message={notebooks.error ?? exporter.error} />
       {notice ? <div className="success-text">{notice}</div> : null}
       {exporter.result ? <div className="success-text">{exporter.result.message}</div> : null}
@@ -166,7 +177,9 @@ export function ExportPage({ settings }: ExportPageProps) {
               />
               <span>{bookQuery.trim() ? "全选筛选结果" : "全选"}</span>
             </label>
-            <small>{selectedIds.length} / {visibleBooks.length} / {notebooks.books.length}</small>
+            <small>
+              已选 {selectedIds.length} 本 · 当前 {visibleBooks.length} 本 · 全部 {notebooks.books.length} 本
+            </small>
           </div>
           <div className="search-box list-search">
             <Search size={16} />
@@ -302,6 +315,28 @@ export function ExportPage({ settings }: ExportPageProps) {
           ) : null}
         </div>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <PageShell
+      title="导出"
+      action={
+        <Button
+          variant="primary"
+          icon={<FileDown size={16} />}
+          disabled={selectedIds.length === 0 || !outputDir || exporter.loading}
+          onClick={() => void runExport()}
+        >
+          导出
+        </Button>
+      }
+    >
+      {content}
     </PageShell>
   );
 }

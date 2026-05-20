@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, MessageSquareQuote, Search } from "lucide-react";
+import { ExternalLink, FileDown, MessageSquareQuote, Search } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { PageShell } from "../components/layout/PageShell";
@@ -34,9 +34,15 @@ type FlatNote = {
   range?: string;
 };
 
-export function NotesPage() {
+type NotesPageProps = {
+  embedded?: boolean;
+  initialBookId?: string;
+  onExportBook?: (bookId: string) => void;
+};
+
+export function NotesPage({ embedded = false, initialBookId, onExportBook }: NotesPageProps = {}) {
   const params = useParams();
-  const [selectedBookId, setSelectedBookId] = useState(params.bookId ?? "");
+  const [selectedBookId, setSelectedBookId] = useState(initialBookId ?? params.bookId ?? "");
   const [notebookQuery, setNotebookQuery] = useState("");
   const [query, setQuery] = useState("");
   const [noteType, setNoteType] = useState<NoteType>("all");
@@ -52,6 +58,10 @@ export function NotesPage() {
   useEffect(() => {
     if (params.bookId) setSelectedBookId(params.bookId);
   }, [params.bookId]);
+
+  useEffect(() => {
+    if (initialBookId) setSelectedBookId(initialBookId);
+  }, [initialBookId]);
 
   useEffect(() => {
     if (selectedBookId) void notes.loadNotes(selectedBookId);
@@ -132,20 +142,36 @@ export function NotesPage() {
     }
   }
 
-  return (
-    <PageShell
-      title="笔记"
-      action={
-        <Button
-          variant="secondary"
-          icon={<ExternalLink size={16} />}
-          disabled={!selectedBookId}
-          onClick={() => void openInWeread()}
-        >
-          微信读书
-        </Button>
-      }
-    >
+  const content = (
+    <>
+      {embedded ? (
+        <div className="workbench-section-header">
+          <div>
+            <h2>浏览笔记</h2>
+            <p>查看单本书的划线与想法，需要导出时可直接切到导出区。</p>
+          </div>
+          <div className="workbench-actions">
+            {onExportBook ? (
+              <Button
+                variant="secondary"
+                icon={<FileDown size={16} />}
+                disabled={!selectedBookId}
+                onClick={() => onExportBook(selectedBookId)}
+              >
+                导出当前书
+              </Button>
+            ) : null}
+            <Button
+              variant="secondary"
+              icon={<ExternalLink size={16} />}
+              disabled={!selectedBookId}
+              onClick={() => void openInWeread()}
+            >
+              微信读书
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <ErrorBanner message={notebooks.error ?? notes.error ?? actionError} />
       <div className="notes-layout">
         <Card className="notebook-list">
@@ -250,6 +276,28 @@ export function NotesPage() {
           )}
         </div>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <PageShell
+      title="笔记"
+      action={
+        <Button
+          variant="secondary"
+          icon={<ExternalLink size={16} />}
+          disabled={!selectedBookId}
+          onClick={() => void openInWeread()}
+        >
+          微信读书
+        </Button>
+      }
+    >
+      {content}
     </PageShell>
   );
 }

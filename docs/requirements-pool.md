@@ -103,7 +103,7 @@ lark-cli base +record-list \
 | REQ-008 | P2 | Done | Export | Obsidian Base 导出增强 |
 | REQ-009 | P2 | Todo | Export | 导出为 PDF 文档 |
 | REQ-010 | P2 | Todo | Integration | 腾讯 ima 联动 |
-| REQ-011 | P1 | Todo | Notes / Export | 合并为笔记工作台 |
+| REQ-011 | P1 | Done | Notes / Export | 合并为笔记工作台 |
 
 ---
 
@@ -286,29 +286,24 @@ lark-cli base +record-list \
 ### REQ-011 合并为笔记工作台
 
 - 优先级：P1
-- 状态：Todo
+- 状态：Done
 - 模块：Notes / Export / Navigation
 - 背景：笔记页和导出页都围绕微信读书笔记数据，但当前分成两个侧边栏入口。笔记页负责浏览、搜索、查看单本书划线和想法；导出页负责批量选择、配置导出、预览和生成文件。二者可以合并入口，但不应直接揉成一个长页面。
-- 产品结论：新增或改造为 `笔记工作台`，内部用 Tab 区分 `浏览` 和 `导出`。侧边栏只保留 `笔记` 入口，去掉单独 `导出` 入口；导出作为笔记工作台里的后续动作存在。
-- 第一阶段范围：
-  - 新增 `NotesWorkbenchPage` 或等价容器页。
-  - 工作台内提供 `浏览` / `导出` 两个 Tab。
-  - `浏览` 继续承载现有 Notes 逻辑：笔记本列表、内容搜索、按章节 / 按时间查看、微信读书打开入口。
-  - `导出` 继续承载现有 Export 逻辑：批量选书、导出选项、Markdown 预览、生成文件、打开目录。
-  - 侧边栏移除独立 `导出` 项，`/notes?tab=export` 或等价路由进入导出 Tab。
-- 第二阶段范围：
-  - 抽出公共组件：`NotebookPicker`、`BookSearchBox`、`ExportPreview`、`SelectedBooksSummary`。
-  - 浏览和导出共享笔记本加载与搜索状态，减少重复请求。
-  - 从单本笔记浏览进入导出时，可自动选中当前书。
-- 不建议做：
-  - 不把导出表单直接塞进当前笔记详情底部或右侧。
-  - 不在同一个视图里同时展示完整笔记内容和批量导出配置，避免主线变重。
-  - 不在本需求里改变 Markdown 导出格式或 HTML 阅读报告能力。
+- 产品结论：新增 `NotesWorkbenchPage`，内部用 Tab 区分 `浏览` 和 `导出`。侧边栏只保留 `笔记` 入口，去掉单独 `导出` 入口；旧 `/export` 路由重定向到 `/notes?tab=export`，避免旧链接失效。
+- 当前实现：
+  - 新增 `src/pages/NotesWorkbenchPage.tsx`，作为笔记工作台容器。
+  - `NotesPage` 增加 `embedded` 模式和「导出当前书」入口。
+  - `ExportPage` 增加 `embedded` 模式和 `initialSelectedBookId`，支持从浏览 Tab 带当前书进入导出。
+  - 侧边栏移除独立 `导出` 项。
+  - `mvp-design-doc.md` 路由设计已同步为工作台结构。
+- 完成说明：已完成工作台容器、路由重定向、侧边栏入口收敛、浏览到导出当前书的跳转，以及导出范围计数文案优化。
+- 验证结果：`npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check`、`git diff --check` 通过；普通浏览器预览会被无 API Key 状态拦截到概览页，桌面运行时仍需在 Tauri 环境内做一次真实数据回归。
 - 验收：
   - 侧边栏只保留一个 `笔记` 入口，导出入口可从笔记工作台内清晰进入。
   - `浏览` Tab 保留现有笔记浏览、搜索、筛选能力。
   - `导出` Tab 保留现有批量选择、导出选项、预览和结果反馈能力。
   - 从笔记浏览到导出当前书的路径清晰，不需要用户重新搜索该书。
+  - 旧 `/export` 路由可重定向到 `/notes?tab=export`。
   - `npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过。
 
 ---
