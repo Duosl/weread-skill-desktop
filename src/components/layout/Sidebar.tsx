@@ -46,16 +46,13 @@ export function Sidebar({ onOpenCommunity, onOpenSupport }: SidebarProps) {
         <div className="sidebar-support-actions">
           <button className="sidebar-reward-btn community-action" onClick={onOpenCommunity}>
             <MessageCircle size={14} />
-            <span>交流群</span>
+            <span>加交流群</span>
           </button>
           <button className="sidebar-reward-btn support-action" onClick={onOpenSupport}>
             <Heart size={14} />
             <span>打赏支持</span>
           </button>
         </div>
-        {appVersion ? (
-          <small className="sidebar-version">v{appVersion}</small>
-        ) : null}
       </div>
     </aside>
   );
