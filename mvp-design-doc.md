@@ -179,7 +179,7 @@ impl WeReadClient {
 }
 ```
 
-API 规则以 `/tmp/weread-skills/weread-skills/` 为准。本设计文档只定义 MVP 使用哪些能力，不复制字段表。
+API 规则以 `~/.agents/skills/weread-skills/` 为准。本设计文档只定义 MVP 使用哪些能力，不复制字段表。
 
 ### 3.2 Tauri 命令清单（MVP）
 
@@ -800,7 +800,7 @@ chrono = { version = "0.4", features = ["serde"] }  # 时间处理
 
 - [ ] 真实 API 数据校准：
   - [ ] 用真实账号逐页验证 `shelf_sync`、`notebooks`、`bookmark_list`、`my_reviews`、`reading_stats` 的字段映射
-  - [ ] 对照 `/tmp/weread-skills/weread-skills/` 修正字段单位、缺省值、分页游标、统计口径
+  - [ ] 对照 `~/.agents/skills/weread-skills/` 修正字段单位、缺省值、分页游标、统计口径
   - [ ] 记录无法稳定获得的字段，不用前端假数据补齐
 - [ ] 导出边界用例：
   - [ ] 空笔记本、只有划线、只有想法、无章节名、无作者名
@@ -841,7 +841,7 @@ chrono = { version = "0.4", features = ["serde"] }  # 时间处理
 
 1. **API 口径误读**
    - 微信读书字段命名不总是直觉含义，例如 `noteCount` 不是总笔记数，阅读时长字段单位是秒
-   - 解决方案：实现任何接口前必须阅读 `/tmp/weread-skills/weread-skills/` 中对应文档，不在本文件复制字段表
+   - 解决方案：实现任何接口前必须阅读 `~/.agents/skills/weread-skills/` 中对应文档，不在本文件复制字段表
 
 2. **API 限制**
    - 微信读书 API 可能有频率限制

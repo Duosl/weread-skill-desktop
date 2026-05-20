@@ -83,9 +83,9 @@ lark-cli base +record-list \
 
 ## 当前推荐
 
-建议下一个启动：`REQ-001 前端想法分页加载`。
+建议下一个启动：`REQ-002 真实 API 数据校准`。
 
-原因：Rust 最终导出路径已分页，但笔记页和导出页单本预览仍只取前 100 条想法，多想法书籍会出现页面/预览数据不完整。
+原因：前端想法分页加载已完成，下一步需要用真实 API 响应校准字段单位、缺省值、分页游标和统计口径。
 
 ---
 
@@ -93,13 +93,16 @@ lark-cli base +record-list \
 
 | ID | 优先级 | 状态 | 模块 | 需求 |
 |----|--------|------|------|------|
-| REQ-001 | P0 | Todo | Notes / Export | 前端想法分页加载 |
+| REQ-001 | P0 | Done | Notes / Export | 前端想法分页加载 |
 | REQ-002 | P0 | Todo | API / QA | 真实 API 数据校准 |
 | REQ-003 | P1 | Todo | Docs | 同步清理 `mvp-design-doc.md` 中过期阶段和 JSON 遗留描述 |
 | REQ-004 | P1 | Todo | Export | 导出边界用例补齐 |
 | REQ-005 | P1 | Todo | UI | 窗口尺寸、长文本、空态/错误态走查 |
 | REQ-006 | P1 | Todo | Search | 书架/笔记本本地搜索增强 |
 | REQ-007 | P2 | Todo | Export | 笔记报告模版 |
+| REQ-008 | P2 | Todo | Export | Obsidian Base 导出增强 |
+| REQ-009 | P2 | Todo | Export | 导出为 PDF 文档 |
+| REQ-010 | P2 | Todo | Integration | 腾讯 ima 联动 |
 
 ---
 
@@ -108,9 +111,12 @@ lark-cli base +record-list \
 ### REQ-001 前端想法分页加载
 
 - 优先级：P0
-- 状态：Todo
+- 状态：Done
 - 模块：`src/hooks/useNotes.ts`、`src/pages/ExportPage.tsx`
 - 背景：`get_my_reviews` 支持 `synckey` / `hasMore` 分页，Rust 导出路径 `load_all_reviews` 已循环加载，但前端页面和导出预览仍只请求 `count: 100`。
+- 完成说明：新增前端分页 helper `src/lib/reviews.ts`，`useNotes` 和导出页单本预览均循环加载 `get_my_reviews`，直到 `hasMore !== 1` 或返回空页。
+- 改动入口：`src/lib/reviews.ts`、`src/hooks/useNotes.ts`、`src/pages/ExportPage.tsx`。
+- 验证结果：`npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过。
 - 验收：
   - `useNotes` 循环调用 `get_my_reviews`，直到 `hasMore !== 1` 或返回空页。
   - 导出页单本预览使用相同分页逻辑。
@@ -123,7 +129,7 @@ lark-cli base +record-list \
 - 优先级：P0
 - 状态：Todo
 - 模块：API 解析、统计展示、导出字段
-- 背景：MVP 已能串起核心流程，但字段单位、缺省值、分页游标和统计口径必须以 `/tmp/weread-skills/weread-skills/` 和真实账号响应校准。
+- 背景：MVP 已能串起核心流程，但字段单位、缺省值、分页游标和统计口径必须以 `~/.agents/skills/weread-skills/` 和真实账号响应校准。
 - 验收：
   - 覆盖 `shelf_sync`、`notebooks`、`bookmark_list`、`my_reviews`、`reading_stats`、`book_progress`。
   - 记录无法稳定获得的字段，不用前端假数据补齐。
@@ -183,11 +189,48 @@ lark-cli base +record-list \
 - 优先级：P2
 - 状态：Todo
 - 模块：Export
-- 背景：支持用户自定义导出模版，将划线、想法、章节等数据按模版渲染输出。详见 `mvp-design-doc.md` 5.4 节。
+- 来源：飞书记录 `rec27qYCk2C7z5`，提出人 `Duosl`，创建时间 `2026-05-20 11:44:15`。
+- 背景：支持用户自定义导出模版，将划线、想法、章节等数据按模版渲染输出。飞书收集项补充希望支持内置报告模版、分享，以及区分调用已安装 CLI 版本 / API Key 版本。详见 `mvp-design-doc.md` 5.4 节。
 - 验收：
   - 先确定模版语法和最小变量集。
   - 默认模版保持现有 Markdown 输出。
   - 用户模版错误不影响默认导出能力。
+
+### REQ-008 Obsidian Base 导出增强
+
+- 优先级：P2
+- 状态：Todo
+- 模块：Export
+- 来源：飞书记录 `rec27qYACS18S2`，提出人 `Duosl`，创建时间 `2026-05-20 11:42:39`。
+- 背景：飞书收集项希望 Markdown 支持更适合 Obsidian Base 的 Frontmatter，方便用户在 Obsidian 中创建 Base 并可视化。当前 Markdown Frontmatter 已有基础字段，仍需澄清 Obsidian Base 需要的字段命名、类型和示例视图。
+- 验收：
+  - 明确 Obsidian Base 所需 Frontmatter 字段清单和字段类型。
+  - 不破坏现有 Markdown 导出和资料库索引字段。
+  - 补充一份 Obsidian Base 使用示例或 README 说明。
+
+### REQ-009 导出为 PDF 文档
+
+- 优先级：P2
+- 状态：Todo
+- 模块：Export
+- 来源：飞书记录 `rec27qYMwke04e`，提出人 `曲小明`，创建时间 `2026-05-20 11:53:54`。
+- 背景：飞书收集项希望读书笔记可以导出为 PDF 文档。该能力不属于当前 Markdown-only MVP，需先确定 PDF 渲染来源、样式和文件命名策略。
+- 验收：
+  - 明确 PDF 是否由 Markdown 渲染生成，以及是否复用当前导出预览样式。
+  - 失败时不影响默认 Markdown 导出。
+  - UI 中清楚区分 Markdown 与 PDF 导出入口。
+
+### REQ-010 腾讯 ima 联动
+
+- 优先级：P2
+- 状态：Todo
+- 模块：Integration
+- 来源：飞书记录 `rec27qYOrn5Fmy`，提出人 `曲小明`，创建时间 `2026-05-20 11:55:43`。
+- 背景：飞书收集项希望笔记自动导出到腾讯 ima 笔记和知识库，格式包含 Markdown 和 PDF。该能力涉及外部服务集成，不进入当前 MVP 主线，需先确认 ima 的导入 API、认证方式和用户授权流程。
+- 验收：
+  - 明确 ima 可用导入能力和认证边界。
+  - 导出失败不能影响本地 Markdown/PDF 文件生成。
+  - 用户可选择是否启用该联动。
 
 ---
 
@@ -195,6 +238,8 @@ lark-cli base +record-list \
 
 ### 2026-05-20
 
+- REQ-001 前端想法分页加载：Notes 页和导出页单本预览已通过 `src/lib/reviews.ts` 共享分页加载所有想法，不再只取前 100 条；`frontend:typecheck`、`frontend:build`、`cargo check` 通过。
+- 飞书需求表同步：已用 user 身份读取外部收集表，合并 `rec27qYCk2C7z5` 到 `REQ-007`，新增 `REQ-008`、`REQ-009`、`REQ-010` 作为 P2 外部候选。
 - Markdown-only 导出边界：已移除 JSON 导出命令和前端格式切换，导出入口固定为 `export_to_markdown`。
 - Markdown Frontmatter：导出文件头部包含 `bookId`、`isbn`、`title`、`author`、`cover`、`lastReadDate`、`finishedDate`、`reading-time`、`progress`。
 - 笔记页视图：支持笔记本列表、关键词搜索、划线/想法筛选，以及「按章节 / 按时间」两种视图。

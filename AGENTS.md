@@ -7,7 +7,7 @@ AI 必须同时参考：
 1. `AGENTS.md`：工程约束、执行顺序、验收入口。
 2. `mvp-design-doc.md`：MVP 范围、页面、命令、数据流、导出格式。
 3. `ui-style-guide.md`：UI 与交互规范。
-4. `/tmp/weread-skills/weread-skills/`：微信读书 Skill 原始 API 文档。
+4. `~/.agents/skills/weread-skills/`：微信读书 Skill 原始 API 文档。
 5. `docs/requirements-pool.md`：需求池、优先级、状态、下一步建议。
 6. 飞书多维表格「微信读书 SKill 桌面端需求收集表」：外部需求收集入口，按第 9 节流程读取和回写。
 
@@ -37,7 +37,7 @@ AI 必须同时参考：
 
 当资料之间冲突时，按以下顺序判断：
 
-1. `/tmp/weread-skills/weread-skills/*.md`：API 参数、字段含义、分页、单位、统计口径的最终依据。
+1. `~/.agents/skills/weread-skills/*.md`：API 参数、字段含义、分页、单位、统计口径的最终依据。
 2. `mvp-design-doc.md`：产品范围、页面结构、命令清单、导出格式的最终依据。
 3. `ui-style-guide.md`：UI 与交互的最终依据。
 4. `AGENTS.md`：工程行为与协作规则。
@@ -54,7 +54,7 @@ AI 必须同时参考：
 - 先建立清晰架构，再实现具体功能。
 - 每个功能只实现 MVP 明确需要的范围。
 - 前端、数据获取、导出、系统能力保持职责分离。
-- API 行为必须以 `/tmp/weread-skills/weread-skills/` 为准，不凭字段名猜测。
+- API 行为必须以 `~/.agents/skills/weread-skills/` 为准，不凭字段名猜测。
 - UI 相关决策必须以 `ui-style-guide.md` 为准。
 
 工程原则：
@@ -82,7 +82,7 @@ AI 必须同时参考：
 1. 阅读 `mvp-design-doc.md`，确认当前任务属于 MVP 的哪个模块。
 2. 阅读 `ui-style-guide.md`，确认相关 UI 规则。
 3. 阅读 `docs/requirements-pool.md`，确认当前需求状态、优先级和完成后应更新的位置。
-4. 如果任务涉及微信读书 API，阅读 `/tmp/weread-skills/weread-skills/` 中对应能力文档。
+4. 如果任务涉及微信读书 API，阅读 `~/.agents/skills/weread-skills/` 中对应能力文档。
 5. 明确当前改动的边界：前端 UI、前端数据层、Rust API、导出、配置、系统命令中的哪一类。
 
 不要把其他文档中的内容复制进本文件；需要细节时直接引用并遵循对应文档。
@@ -91,7 +91,7 @@ AI 必须同时参考：
 
 ## 5. API 使用规则
 
-本文件不维护 API 字段表。所有 API 参数、分页方式、字段单位和统计口径以 `/tmp/weread-skills/weread-skills/` 为准。
+本文件不维护 API 字段表。所有 API 参数、分页方式、字段单位和统计口径以 `~/.agents/skills/weread-skills/` 为准。
 
 最低要求：
 
@@ -156,7 +156,7 @@ Rust 后端职责：
 
 UI 验收以 `ui-style-guide.md` 为准。
 
-API 验收以 `/tmp/weread-skills/weread-skills/` 为准。
+API 验收以 `~/.agents/skills/weread-skills/` 为准。
 
 ---
 
@@ -201,7 +201,7 @@ API 验收以 `/tmp/weread-skills/weread-skills/` 为准。
 - 视觉风格、组件状态、布局规则、交互细节：写入 `ui-style-guide.md`。
 - 需求池、优先级、完成记录、下一步开发建议：写入 `docs/requirements-pool.md`。
 - 面向用户的安装、使用、功能说明：写入 `README.md`。
-- 微信读书 API 字段、参数、分页、统计口径：只引用 `/tmp/weread-skills/weread-skills/`，不要复制到仓库文档。
+- 微信读书 API 字段、参数、分页、统计口径：只引用 `~/.agents/skills/weread-skills/`，不要复制到仓库文档。
 - 具体实现细节：以代码为准；文档只记录稳定边界和必要决策。
 
 ---

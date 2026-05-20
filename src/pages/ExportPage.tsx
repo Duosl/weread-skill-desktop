@@ -12,7 +12,8 @@ import { useExport } from "../hooks/useExport";
 import { useNotebooks } from "../hooks/useNotebooks";
 import { buildMarkdownPreview } from "../lib/preview/exportPreview";
 import { noteTotal } from "../lib/format";
-import type { AppSettings, BookmarkListResult, BookInfo, BookProgress, ExportOptions, ReviewListResult } from "../types";
+import { loadAllReviews } from "../lib/reviews";
+import type { AppSettings, BookmarkListResult, BookInfo, BookProgress, ExportOptions } from "../types";
 
 type ExportPageProps = {
   settings: AppSettings;
@@ -49,18 +50,14 @@ export function ExportPage({ settings }: ExportPageProps) {
     try {
       const [bookmarkResult, reviewResult, progress, bookInfo] = await Promise.all([
         invoke<BookmarkListResult>("get_bookmarks", { bookId: previewBook.bookId }),
-        invoke<ReviewListResult>("get_my_reviews", {
-          bookId: previewBook.bookId,
-          synckey: 0,
-          count: 100,
-        }),
+        loadAllReviews(previewBook.bookId),
         invoke<BookProgress>("get_book_progress", { bookId: previewBook.bookId }).catch(() => null),
         invoke<BookInfo>("get_book_info", { bookId: previewBook.bookId }).catch(() => null),
       ]);
       const markdown = buildMarkdownPreview(
         previewBook,
         bookmarkResult.bookmarks ?? [],
-        reviewResult.reviews ?? [],
+        reviewResult,
         bookmarkResult.chapters ?? [],
         progress,
         bookInfo?.isbn,

@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { Bookmark, BookmarkListResult, ChapterInfo, Review, ReviewListResult } from "../types";
+import type { Bookmark, BookmarkListResult, ChapterInfo, Review } from "../types";
 import { getErrorMessage } from "../lib/format";
+import { loadAllReviews } from "../lib/reviews";
 
 export function useNotes(bookId?: string) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
@@ -24,15 +25,11 @@ export function useNotes(bookId?: string) {
       try {
         const [bookmarkResult, reviewResult] = await Promise.all([
           invoke<BookmarkListResult>("get_bookmarks", { bookId: targetBookId }),
-          invoke<ReviewListResult>("get_my_reviews", {
-            bookId: targetBookId,
-            synckey: 0,
-            count: 100,
-          }),
+          loadAllReviews(targetBookId),
         ]);
         setBookmarks(bookmarkResult.bookmarks ?? []);
         setChapters(bookmarkResult.chapters ?? []);
-        setReviews(reviewResult.reviews ?? []);
+        setReviews(reviewResult);
       } catch (err) {
         const message = getErrorMessage(err);
         setError(message);
