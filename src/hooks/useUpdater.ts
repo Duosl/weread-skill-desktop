@@ -44,7 +44,6 @@ export function useUpdater() {
 
     let update = pendingUpdateRef.current;
     if (!update) {
-      console.log("[DEBUG] updater.download request missing cached update, checking first");
       update = await check();
       pendingUpdateRef.current = update;
     }
@@ -68,7 +67,6 @@ export function useUpdater() {
       let contentLength = 0;
 
       await update.downloadAndInstall((event) => {
-        console.log("[DEBUG] updater.downloadAndInstall event:", event);
         switch (event.event) {
           case "Started":
             contentLength = event.data.contentLength || 0;
@@ -86,7 +84,6 @@ export function useUpdater() {
         }
       });
     } catch (error) {
-      console.error("[DEBUG] updater.downloadAndInstall error:", error);
       setState((prev) => ({ ...prev, status: "error", error: String(error) }));
     } finally {
       isDownloadingRef.current = false;
@@ -99,15 +96,8 @@ export function useUpdater() {
 
     try {
       setState((prev) => ({ ...prev, status: "checking" }));
-      console.log("[DEBUG] updater.check request:", {
-        source: "useUpdater",
-        silent,
-        method: "check",
-        params: {},
-      });
 
       const update = await check();
-      console.log("[DEBUG] updater.check response:", update);
       pendingUpdateRef.current = update;
 
       if (update) {
@@ -126,7 +116,6 @@ export function useUpdater() {
         setState({ status: silent ? "idle" : "uptodate" });
       }
     } catch (error) {
-      console.error("[DEBUG] updater.check error:", error);
       const msg = String(error);
       const isRemoteEmpty =
         /release\s*json|fetch|404|not\s*found|invalid/i.test(msg);
@@ -142,11 +131,8 @@ export function useUpdater() {
 
   const installUpdate = useCallback(async () => {
     try {
-      console.log("[DEBUG] updater.relaunch request:", { method: "relaunch" });
       await relaunch();
-      console.log("[DEBUG] updater.relaunch response:", { ok: true });
     } catch (error) {
-      console.error("[DEBUG] updater.relaunch error:", error);
       setState((prev) => ({ ...prev, status: "error", error: String(error) }));
     }
   }, []);

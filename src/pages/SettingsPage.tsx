@@ -131,10 +131,9 @@ export function SettingsPage({
         return <span className="update-pill success">已是最新</span>;
       case "error":
         return (
-          // <span className="update-pill error" title={updateState.error}>
-          //   检查失败
-          // </span>
-          <span></span>
+          <span className="update-pill error" title={updateState.error}>
+            检查失败
+          </span>
         );
     }
   }
