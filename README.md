@@ -128,6 +128,7 @@ weread-skill-desktop/
   &nbsp;&nbsp;&nbsp;&nbsp;
   <img src="./docs/images/wechat-personal-qrcode.jpg" width="300" alt="个人二维码" />
 </p>
+
 ---
 
 ## 喝杯咖啡
