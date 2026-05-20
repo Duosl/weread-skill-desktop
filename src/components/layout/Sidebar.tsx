@@ -1,7 +1,5 @@
 import { BarChart3, BookOpen, FileDown, Heart, Library, MessageCircle, Settings } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
 
 const navItems = [
   { to: "/", label: "概览", icon: BarChart3 },
@@ -17,12 +15,6 @@ type SidebarProps = {
 };
 
 export function Sidebar({ onOpenCommunity, onOpenSupport }: SidebarProps) {
-  const [appVersion, setAppVersion] = useState("");
-
-  useEffect(() => {
-    invoke<string>("get_app_version").then(setAppVersion).catch(() => {});
-  }, []);
-
   return (
     <aside className="sidebar">
       <div className="brand">
