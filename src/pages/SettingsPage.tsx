@@ -342,7 +342,7 @@ export function SettingsPage({
               )}
               <button className="about-action-btn community-action" onClick={onOpenCommunity}>
                 <MessageCircle size={14} />
-                <span>交流群</span>
+                <span>加交流群</span>
               </button>
               <button className="about-action-btn support-action" onClick={onOpenSupport}>
                 <Heart size={14} />
