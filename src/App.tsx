@@ -4,8 +4,7 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { Toolbar } from "./components/layout/Toolbar";
 import { CommunityDialog, SupportDialog } from "./components/RewardDialog";
 import { DashboardPage } from "./pages/DashboardPage";
-import { ExportPage } from "./pages/ExportPage";
-import { NotesPage } from "./pages/NotesPage";
+import { NotesWorkbenchPage } from "./pages/NotesWorkbenchPage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { useBookshelf } from "./hooks/useBookshelf";
@@ -63,9 +62,9 @@ function App() {
                 />
               }
             />
-            <Route path="/notes" element={<NotesPage />} />
-            <Route path="/notes/:bookId" element={<NotesPage />} />
-            <Route path="/export" element={<ExportPage settings={settings.settings} />} />
+            <Route path="/notes" element={<NotesWorkbenchPage settings={settings.settings} />} />
+            <Route path="/notes/:bookId" element={<NotesWorkbenchPage settings={settings.settings} />} />
+            <Route path="/export" element={<Navigate to="/notes?tab=export" replace />} />
             <Route
               path="/settings"
               element={
