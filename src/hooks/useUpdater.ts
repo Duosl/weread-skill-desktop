@@ -21,11 +21,40 @@ export type UpdateState = {
   currentVersion?: string;
   body?: string;
   progress?: number;
+  errorTitle?: string;
   error?: string;
 };
 
 const CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 小时
 const STARTUP_DELAY = 3000; // 启动后 3 秒检测
+
+function normalizeError(error: unknown) {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function getUpdaterErrorTitle(error: string) {
+  if (/different key|signature.*key|key.*provided/i.test(error)) {
+    return "签名密钥不匹配";
+  }
+
+  if (/signature/i.test(error)) {
+    return "签名校验失败";
+  }
+
+  return "检查失败";
+}
 
 export function useUpdater() {
   const [state, setState] = useState<UpdateState>({ status: "idle" });
@@ -40,16 +69,29 @@ export function useUpdater() {
   }, [state.status]);
 
   const downloadUpdate = useCallback(async () => {
-    if (isDownloadingRef.current || statusRef.current === "ready") return;
+    if (isDownloadingRef.current || statusRef.current === "ready") {
+      return;
+    }
 
     let update = pendingUpdateRef.current;
     if (!update) {
-      update = await check();
-      pendingUpdateRef.current = update;
+      try {
+        update = await check();
+        pendingUpdateRef.current = update;
+      } catch (error) {
+        const msg = normalizeError(error);
+        setState((prev) => ({
+          ...prev,
+          status: "error",
+          errorTitle: getUpdaterErrorTitle(msg),
+          error: msg,
+        }));
+        return;
+      }
     }
 
     if (!update) {
-      setState({ status: "uptodate" });
+      setState((prev) => ({ ...prev, status: "uptodate" }));
       return;
     }
 
@@ -84,14 +126,22 @@ export function useUpdater() {
         }
       });
     } catch (error) {
-      setState((prev) => ({ ...prev, status: "error", error: String(error) }));
+      const msg = normalizeError(error);
+      setState((prev) => ({
+        ...prev,
+        status: "error",
+        errorTitle: getUpdaterErrorTitle(msg),
+        error: msg,
+      }));
     } finally {
       isDownloadingRef.current = false;
     }
   }, []);
 
   const checkForUpdates = useCallback(async (silent = true) => {
-    if (isCheckingRef.current || isDownloadingRef.current || statusRef.current === "ready") return;
+    if (isCheckingRef.current || isDownloadingRef.current || statusRef.current === "ready") {
+      return;
+    }
     isCheckingRef.current = true;
 
     try {
@@ -101,28 +151,36 @@ export function useUpdater() {
       pendingUpdateRef.current = update;
 
       if (update) {
-        setState({
+        setState((prev) => ({
+          ...prev,
           status: "available",
           version: update.version,
           currentVersion: undefined,
           body: update.body || undefined,
-        });
+          errorTitle: undefined,
+          error: undefined,
+        }));
 
         // 静默下载
         if (silent) {
           await downloadUpdate();
         }
       } else {
-        setState({ status: silent ? "idle" : "uptodate" });
+        setState((prev) => ({ ...prev, status: silent ? "idle" : "uptodate" }));
       }
     } catch (error) {
-      const msg = String(error);
+      const msg = normalizeError(error);
       const isRemoteEmpty =
         /release\s*json|fetch|404|not\s*found|invalid/i.test(msg);
       if (isRemoteEmpty) {
-        setState({ status: "uptodate" });
+        setState((prev) => ({ ...prev, status: "uptodate" }));
       } else {
-        setState({ status: "error", error: msg });
+        setState((prev) => ({
+          ...prev,
+          status: "error",
+          errorTitle: getUpdaterErrorTitle(msg),
+          error: msg,
+        }));
       }
     } finally {
       isCheckingRef.current = false;
@@ -133,7 +191,13 @@ export function useUpdater() {
     try {
       await relaunch();
     } catch (error) {
-      setState((prev) => ({ ...prev, status: "error", error: String(error) }));
+      const msg = normalizeError(error);
+      setState((prev) => ({
+        ...prev,
+        status: "error",
+        errorTitle: getUpdaterErrorTitle(msg),
+        error: msg,
+      }));
     }
   }, []);
 

@@ -280,16 +280,7 @@ impl WeReadClient {
             .unwrap_or_default();
         let read_days = int_field(&value, "readDays") as i32;
         let total_read_time = int_field(&value, "totalReadTime");
-        let day_average_read_time = {
-            let api_value = int_field(&value, "dayAverageReadTime");
-            if api_value > 0 {
-                api_value
-            } else if read_days > 0 && total_read_time > 0 {
-                total_read_time / i64::from(read_days)
-            } else {
-                0
-            }
-        };
+        let day_average_read_time = int_field(&value, "dayAverageReadTime");
         let read_stat = value
             .get("readStat")
             .and_then(Value::as_array)
@@ -438,6 +429,7 @@ fn parse_review(value: &Value) -> Option<Review> {
         star: int_field(review, "star") as i32,
         chapter_name: review
             .get("chapterName")
+            .or_else(|| review.get("chapterTitle"))
             .and_then(Value::as_str)
             .map(str::to_string),
         range: review.get("range").and_then(Value::as_str).map(str::to_string),
@@ -464,8 +456,12 @@ fn parse_notebook_book(value: &Value) -> Option<NotebookBook> {
 }
 
 fn parse_read_longest(value: &Value) -> Option<ReadLongestItem> {
+    let book = value
+        .get("book")
+        .map(|book| parse_book_info(book, ""))
+        .or_else(|| value.get("albumInfo").map(parse_album_as_book_info));
     Some(ReadLongestItem {
-        book: value.get("book").map(|book| parse_book_info(book, "")),
+        book,
         read_time: value.get("readTime")?.as_i64()?,
         tags: value
             .get("tags")
@@ -478,6 +474,18 @@ fn parse_read_longest(value: &Value) -> Option<ReadLongestItem> {
             })
             .unwrap_or_default(),
     })
+}
+
+fn parse_album_as_book_info(value: &Value) -> BookInfo {
+    BookInfo {
+        book_id: str_field(value, "albumId"),
+        title: str_field(value, "name"),
+        author: str_field(value, "authorName"),
+        cover: str_field(value, "cover"),
+        intro: str_field(value, "intro"),
+        category: "有声书".to_string(),
+        ..Default::default()
+    }
 }
 
 fn parse_category_pref(value: &Value) -> Option<CategoryPref> {

@@ -242,7 +242,7 @@ pub fn open_output_dir(path: PathBuf) -> Result<(), String>
 pub struct AppConfig {
     pub api_key: Option<String>,
     pub last_export_dir: Option<String>,  // 记住上次导出目录
-    pub default_format: Option<String>,   // 默认导出格式
+    pub default_format: Option<String>,   // 兼容旧配置；当前导出固定为 Markdown
     #[serde(skip)]
     config_path: PathBuf,
 }
@@ -369,7 +369,7 @@ impl AppConfig {
 │                                                     │
 │  默认导出设置                                       │
 │  ┌─────────────────────────────────────────────┐    │
-│  │ 默认格式:  Markdown                           │    │
+│  │ 默认格式:  Markdown（当前唯一导出格式）          │    │
 │  │ 输出目录:  [~/Documents/WereadNotes/] [浏览] │    │
 │  │ 默认内容:  ☑ 划线  ☑ 点评  ☑ 按章分组       │    │
 │  └─────────────────────────────────────────────┘    │
@@ -455,18 +455,99 @@ progress: 100
 
 > 注意：`start-date` 当前 API 不直接提供"开始阅读时间"，需从 `book_progress` 的最早记录推算，或暂用 `updateTime` 代替。实现时需确认数据可用性。
 
-### 5.4 笔记报告模版（P2，待讨论）
+### 5.4 HTML 阅读报告生成器（P2，规划中）
 
-支持用户自定义导出模版，将划线、想法、章节等数据按模版渲染输出。
+笔记报告能力不再按“Markdown 字符串模版”理解，而是作为独立的 HTML 阅读报告生成器推进：先把微信读书数据整理成稳定的报告数据模型，再用不同 HTML 模版渲染成可预览、可导出的静态网页。
 
-初步设想：
+#### 产品分层
 
-- 内置默认模版（当前 Markdown 格式）
-- 支持用户在设置中编辑模版字符串
-- 模版变量：`{{title}}`、`{{author}}`、`{{chapter}}`、`{{bookmark}}`、`{{review}}`、`{{date}}`、`{{range}}` 等
-- 模版语法待定（简单替换 vs 模版引擎）
+第一层是基础报告模版，不依赖大模型，只基于确定数据生成：
 
-> 此功能优先级较低，需进一步讨论使用场景和模版语法后再实现。
+- 年度 / 月度阅读报告：阅读时长、阅读天数、读完书籍、分类偏好、最长阅读书籍、摘录摘要。
+- 阅读旅程：按时间线呈现近期读过的书、阅读阶段、代表性划线和想法。
+- 阅读分析报告：偏数据仪表盘，展示分类分布、阅读曲线、笔记数量、读完率和重点书籍。
+- 成长路径报告：围绕书籍分类和阶段性主题呈现个人阅读方向变化。
+- 个人阅读账本：延续 Quiet Reading Ledger 气质，偏档案、索引和本地知识库归档。
+
+第二层是高级报告模版，需要解释、归纳和建议能力，应接入大模型或规则引擎：
+
+- 阅读人格分析报告。
+- 阅读画像 / 你是哪种阅读者。
+- 阅读局限诊断。
+- 基于阅读记录的 MBTI 风格阅读测试。
+- 知识结构盲区与下一阶段阅读建议。
+- 基于年度阅读记录的成长主题识别。
+
+高级模版不得直接把全量笔记无节制发送给模型。必须先做数据裁剪和用户确认：只发送统计摘要、代表性书籍、代表性划线 / 想法，并明确是否包含个人笔记内容。
+
+#### 报告数据模型
+
+所有 HTML 报告模版都应读取统一的 `ReadingReportData`，不要直接依赖微信读书原始 API 回包：
+
+```typescript
+type ReadingReportData = {
+  profile: {
+    period: string;
+    totalReadTime: number;
+    readDays: number;
+    finishedBooks: number;
+    noteCount: number;
+    bookmarkCount: number;
+    reviewCount: number;
+  };
+  books: ReportBook[];
+  categories: CategoryStat[];
+  timeline: DailyReadingStat[];
+  highlights: Highlight[];
+  insights?: GeneratedInsight[];
+};
+```
+
+基础数据来源：
+
+- `reading_stats`：阅读时长、阅读天数、阅读曲线、分类偏好、最长阅读书籍。
+- `notebooks`：有笔记书籍、划线数、想法数、笔记总量。
+- `bookmark_list` / `my_reviews`：代表性划线、个人想法、章节信息。
+- `book_info` / `book_progress`：书籍元数据、阅读进度、阅读时长。
+
+#### 第一版边界
+
+第一版只做基础 HTML 报告，不做用户自定义 HTML 编辑器，不做大模型分析：
+
+- Export 页增加导出类型：`Markdown 笔记` / `HTML 阅读报告`。
+- HTML 阅读报告支持 3 个内置模版：
+  - `阅读分析报告`：数据分析型，偏统计和结构化视图。
+  - `读书旅程`：时间线型，偏阅读路径和代表性摘录。
+  - `年度阅读报告`：总结型，偏视觉化年度 / 月度汇总。
+- 每次导出生成一个 `.html` 文件。
+- HTML 使用内联 CSS，尽量不依赖外部网络资源，保证本地可打开。
+- 导出预览和最终文件使用同一套报告数据模型。
+- 当前 Markdown 导出保持默认且不被破坏。
+
+#### 后续高级模版边界
+
+高级模版在基础报告稳定后再进入：
+
+- 新增 `Insight Engine`，负责把结构化阅读数据转成洞察、证据和建议。
+- 新增 AI 使用设置：使用本地已安装 CLI、API Key 或外部模型服务。
+- 新增隐私确认：只发送统计数据，或允许包含代表性划线 / 想法。
+- 输出 `GeneratedInsight[]`，再由 HTML 模版渲染，不让模版直接调用模型。
+
+```typescript
+type GeneratedInsight = {
+  title: string;
+  summary: string;
+  evidence: string[];
+  suggestions: string[];
+};
+```
+
+#### 不做内容
+
+- 第一版不做完整网页编辑器。
+- 第一版不做在线分享平台。
+- 第一版不做 PDF 渲染；PDF 由 `REQ-009` 单独设计。
+- 第一版不要求 AI 分析，但数据模型要为后续 `insights` 预留扩展点。
 
 ---
 
@@ -539,25 +620,23 @@ function useReadingStats() {
 
 ## 七、关键技术实现细节
 
-### 7.1 文件保存对话框（Tauri）
+### 7.1 导出目录选择（Tauri）
 
 ```rust
-// 使用 tauri-plugin-dialog 让用户选择保存位置
+// 使用 tauri-plugin-dialog 让用户选择导出目录
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
-async fn save_file_dialog(
+async fn select_export_dir(
     app: AppHandle,
     state: State<'_, RuntimeState>,
 ) -> Result<PathBuf, String> {
-    let file_path = app
+    let dir = app
         .dialog()
         .file()
-        .add_filter("Markdown", &["md"])
-        .add_filter("JSON", &["json"])
-        .blocking_save_file();
+        .blocking_pick_folder();
     
-    Ok(file_path.ok_or("用户取消")?.path())
+    Ok(dir.ok_or("用户取消")?.path())
 }
 ```
 
@@ -706,116 +785,25 @@ chrono = { version = "0.4", features = ["serde"] }  # 时间处理
 
 ---
 
-## 十、MVP 分阶段实施计划
+## 十、当前实现与剩余收敛
 
-### 第一阶段：基础骨架（Day 1-2）
+### 10.1 已实现的 MVP 能力
 
-- [ ] 初始化 Tauri 项目（`npm create tauri-app`）
-- [ ] 配置 Tailwind CSS v4 + Vite
-- [ ] 实现 Rust 后端骨架：
-  - [ ] `config.rs` - 配置读写
-  - [ ] `state.rs` - 应用状态
-  - [ ] `api.rs` - `WeReadClient` + `gateway_call()`
-  - [ ] `types.rs` - 核心数据结构
-  - [ ] `commands.rs` - 配置相关命令（3个）
-- [ ] 前端基础布局：
-  - [ ] `App.tsx` + HashRouter
-  - [ ] `Sidebar.tsx` + `PageShell.tsx`
-  - [ ] `SettingsPage` + `useSettings` Hook
+- 基础骨架：Tauri 2、React、HashRouter、侧边栏、页面容器和设置页已接入。
+- 配置能力：支持 API Key 保存、脱敏显示、清除，以及缓存刷新间隔设置。
+- 书架与统计：支持 `shelf_sync`、`reading_stats`、书架本地筛选和统计概览。
+- 笔记中心：支持笔记本列表、划线、我的想法/点评、按章节/按时间视图和本地搜索。
+- 导出中心：支持单本/批量 Markdown 导出、目录选择、导出进度、真实 Markdown 预览和成功/失败反馈。
+- 文件能力：支持打开导出目录和微信读书深度链接。
 
-**验证点：** 应用启动 → 设置页输入 API Key → 保存成功 → 脱敏显示正确
+### 10.2 当前质量收敛方向
 
----
+基础功能可用后，优先做质量收敛，不急于扩展非 MVP 功能：
 
-### 第二阶段：书架 + 统计（Day 3-4）
-
-- [ ] Rust 后端：
-  - [ ] 实现 `shelf_sync` 和 `reading_stats` API 调用
-  - [ ] 实现对应 Tauri 命令
-- [ ] 前端页面：
-  - [ ] `DashboardPage` - 书架列表 + 统计卡片
-  - [ ] `useBookshelf` Hook
-  - [ ] `useReadingStats` Hook
-  - [ ] `BookList` / `BookItem` / `BookFilter` 组件
-  - [ ] `StatsOverview` / `ReadingChart` / `CategoryPie` 组件
-  - [ ] 通用组件：LoadingSpinner / ErrorBanner / EmptyState
-
-**验证点：** 同步书架成功 → 显示书籍列表、已读/在读状态、最近阅读时间 → 统计卡片数据正确
-
----
-
-### 第三阶段：笔记功能（Day 5-6）
-
-- [ ] Rust 后端：
-  - [ ] 实现 `bookmark_list`、`my_reviews` API
-  - [ ] 实现 `notebooks` API（P0.5，建议用于只导出有笔记的书）
-  - [ ] 实现搜索命令 `search_books`（P1，可延后）
-- [ ] 前端页面：
-  - [ ] `NotesPage` - 笔记详情页
-  - [ ] `useNotes` Hook
-  - [ ] `BookmarkList` / `ReviewCard` / `ChapterGroup` / `NoteContent` 组件
-  - [ ] 章节筛选和本地搜索
-
-**验证点：** 点击书籍进入笔记页 → 显示划线和点评 → 按章节分组 → 筛选正常
-
----
-
-### 第四阶段：导出功能（Day 7）
-
-- [ ] Rust 后端：
-  - [ ] 实现 `export.rs` - 导出逻辑
-  - [ ] 实现 `export_to_markdown` / `export_to_json` 命令
-  - [ ] 文件对话框集成：`select_export_dir` / `open_export_folder`
-- [ ] 前端页面：
-  - [ ] `ExportPage` - 导出中心
-  - [ ] `useExport` Hook
-  - [ ] `ExportOptions` / `ExportPreview` 组件
-  - [ ] 前端只负责预览和参数组织；最终文件内容由 Rust 导出模块生成
-
-**验证点：** 选择书籍 → 选择格式 → 导出成功 → 文件内容正确 → 可打开文件夹
-
----
-
-### 第五阶段：打磨 + 落地页（Day 8）
-
-- [ ] UI 打磨：
-  - [ ] 暗色模式支持（可选）
-  - [ ] 骨架屏加载态
-  - [ ] 错误边界优化
-- [ ] 网页落地页：
-  - [ ] 产品介绍
-  - [ ] 功能截图/GIF
-  - [ ] 下载按钮
-- [ ] 构建测试：
-  - [ ] macOS 开发模式运行
-  - [ ] 生产构建测试
-
-**验证点：** 应用流畅无报错 → 落地页可访问 → 下载链接可用
-
----
-
-### 第六阶段：细节调整与真实数据校准（MVP 可用后）
-
-当基础功能已经可用后，下一步不要急于扩展 P1/P2 功能，先完成以下质量收敛：
-
-- [ ] 真实 API 数据校准：
-  - [ ] 用真实账号逐页验证 `shelf_sync`、`notebooks`、`bookmark_list`、`my_reviews`、`reading_stats` 的字段映射
-  - [ ] 对照 `~/.agents/skills/weread-skills/` 修正字段单位、缺省值、分页游标、统计口径
-  - [ ] 记录无法稳定获得的字段，不用前端假数据补齐
-- [ ] 导出边界用例：
-  - [ ] 空笔记本、只有划线、只有想法、无章节名、无作者名
-  - [ ] 超长书名、非法文件名字符、重名文件
-  - [ ] 导出目录不存在、目录无权限、用户取消目录选择
-  - [ ] Markdown 与 JSON 内容和 UI 预览口径一致
-- [ ] UI 细节走查：
-  - [ ] macOS 默认窗口、最小窗口、宽屏窗口下无错位
-  - [ ] 长书名、长作者名、长划线、长点评不撑破布局
-  - [ ] 加载态、空态、错误态、成功态都有明确反馈
-  - [ ] 视觉细节继续以 `ui-style-guide.md` 和 `$frontend-design` 为准
-- [ ] 稳定性与体验：
-  - [ ] API Key 无效、网络失败、接口升级提示的错误文案可理解
-  - [ ] 批量导出需要进度反馈，避免用户误以为卡死
-  - [ ] 再评估是否需要缓存、搜索增强和批量导出进度条
+- 真实 API 数据校准：用真实账号验证 `shelf_sync`、`notebooks`、`bookmark_list`、`my_reviews`、`reading_stats`、`book_progress` 的字段映射、单位、缺省值和分页游标。
+- 导出边界用例：覆盖空笔记本、只有划线、只有想法、无章节名、无作者名、超长书名、非法文件名、重名文件、目录不可写、用户取消目录选择。
+- UI 细节走查：检查 macOS 默认窗口、最小窗口、宽屏窗口下的错位、长文本撑破、加载态、空态、错误态、成功态。
+- 稳定性体验：API Key 无效、网络失败、接口升级提示需要返回可理解错误；批量导出需要持续进度反馈。
 
 **验证点：** 使用真实 API Key 完成一轮“设置 → 书架 → 笔记 → 导出 → 打开目录”流程；至少覆盖 3 本不同类型书籍，包括无笔记书、有大量划线书、只有想法/点评书。
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ChevronDown,
   Download,
@@ -18,6 +19,9 @@ import { Button } from "../components/ui/Button";
 import { ErrorBanner } from "../components/ui/ErrorBanner";
 import type { AppSettings } from "../types";
 import type { UpdateState } from "../hooks/useUpdater";
+
+const GITHUB_RELEASES_URL =
+  "https://github.com/Duosl/weread-skill-desktop/releases/latest";
 
 type SettingsPageProps = {
   settings: AppSettings;
@@ -132,10 +136,18 @@ export function SettingsPage({
       case "error":
         return (
           <span className="update-pill error" title={updateState.error}>
-            检查失败
+            {updateState.errorTitle ?? "检查失败"}
           </span>
         );
     }
+  }
+
+  const signatureMismatch =
+    updateState.status === "error" &&
+    updateState.errorTitle === "签名密钥不匹配";
+
+  async function openDownloadPage() {
+    await openUrl(GITHUB_RELEASES_URL);
   }
 
   return (
@@ -340,6 +352,15 @@ export function SettingsPage({
                   <span>重启更新</span>
                 </button>
               )}
+              {signatureMismatch && (
+                <button
+                  className="about-action-btn primary"
+                  onClick={openDownloadPage}
+                >
+                  <Download size={14} />
+                  <span>手动下载最新版</span>
+                </button>
+              )}
               <button className="about-action-btn community-action" onClick={onOpenCommunity}>
                 <MessageCircle size={14} />
                 <span>加交流群</span>
@@ -349,6 +370,11 @@ export function SettingsPage({
                 <span>打赏支持</span>
               </button>
             </div>
+            {signatureMismatch && (
+              <p className="update-manual-hint">
+                当前版本无法校验自动更新签名，请前往 GitHub 下载并安装最新版本。
+              </p>
+            )}
           </div>
         </section>
 

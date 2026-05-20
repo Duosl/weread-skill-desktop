@@ -83,9 +83,9 @@ lark-cli base +record-list \
 
 ## 当前推荐
 
-建议下一个启动：`REQ-002 真实 API 数据校准`。
+建议下一个启动：`REQ-007 HTML 阅读报告生成器`。
 
-原因：前端想法分页加载已完成，下一步需要用真实 API 响应校准字段单位、缺省值、分页游标和统计口径。
+原因：`REQ-002` 到 `REQ-006` 已完成质量收敛，`REQ-008` 已确认由现有 Frontmatter 能力覆盖；下一项最高优先级候选是飞书收集来的报告模版能力。
 
 ---
 
@@ -94,13 +94,13 @@ lark-cli base +record-list \
 | ID | 优先级 | 状态 | 模块 | 需求 |
 |----|--------|------|------|------|
 | REQ-001 | P0 | Done | Notes / Export | 前端想法分页加载 |
-| REQ-002 | P0 | Todo | API / QA | 真实 API 数据校准 |
-| REQ-003 | P1 | Todo | Docs | 同步清理 `mvp-design-doc.md` 中过期阶段和 JSON 遗留描述 |
-| REQ-004 | P1 | Todo | Export | 导出边界用例补齐 |
-| REQ-005 | P1 | Todo | UI | 窗口尺寸、长文本、空态/错误态走查 |
-| REQ-006 | P1 | Todo | Search | 书架/笔记本本地搜索增强 |
-| REQ-007 | P2 | Todo | Export | 笔记报告模版 |
-| REQ-008 | P2 | Todo | Export | Obsidian Base 导出增强 |
+| REQ-002 | P0 | Done | API / QA | 真实 API 数据校准 |
+| REQ-003 | P1 | Done | Docs | 同步清理 `mvp-design-doc.md` 中过期阶段和 JSON 遗留描述 |
+| REQ-004 | P1 | Done | Export | 导出边界用例补齐 |
+| REQ-005 | P1 | Done | UI | 窗口尺寸、长文本、空态/错误态走查 |
+| REQ-006 | P1 | Done | Search | 书架/笔记本本地搜索增强 |
+| REQ-007 | P2 | Todo | Export | HTML 阅读报告生成器 |
+| REQ-008 | P2 | Done | Export | Obsidian Base 导出增强 |
 | REQ-009 | P2 | Todo | Export | 导出为 PDF 文档 |
 | REQ-010 | P2 | Todo | Integration | 腾讯 ima 联动 |
 
@@ -127,9 +127,12 @@ lark-cli base +record-list \
 ### REQ-002 真实 API 数据校准
 
 - 优先级：P0
-- 状态：Todo
+- 状态：Done
 - 模块：API 解析、统计展示、导出字段
 - 背景：MVP 已能串起核心流程，但字段单位、缺省值、分页游标和统计口径必须以 `~/.agents/skills/weread-skills/` 和真实账号响应校准。
+- 完成说明：已用真实 API 校准 `shelf_sync`、`notebooks`、`bookmark_list`、`my_reviews`、`reading_stats`、`book_progress`。修正 `reading_stats` 中 `dayAverageReadTime` 不再用 `totalReadTime / readDays` 伪造；兼容点评 `chapterTitle`；兼容阅读统计 `readLongest` 中有声书 `albumInfo`。
+- 验证结果：真实 API 抽样覆盖书架、笔记本分页、大量划线书、只有想法/点评书、阅读统计和阅读进度；`npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过。
+- 剩余风险：真实内容样本只做字段和聚合级验证，未在文档中记录私有书名或笔记内容；`dayAverageReadTime` 在真实回包中可能缺省，前端必须按缺省值处理。
 - 验收：
   - 覆盖 `shelf_sync`、`notebooks`、`bookmark_list`、`my_reviews`、`reading_stats`、`book_progress`。
   - 记录无法稳定获得的字段，不用前端假数据补齐。
@@ -140,9 +143,11 @@ lark-cli base +record-list \
 ### REQ-003 同步清理设计文档遗留描述
 
 - 优先级：P1
-- 状态：Todo
+- 状态：Done
 - 模块：`mvp-design-doc.md`
 - 背景：当前实现已收敛为 Markdown-only 导出，但设计文档的后段阶段计划仍残留 `export_to_json`、选择格式、旧组件拆分和部分未勾选阶段内容。
+- 完成说明：已清理 `mvp-design-doc.md` 中 JSON 导出、保存文件对话框和旧阶段待办描述；第十节改为当前实现与剩余质量收敛，不再充当需求池。
+- 验证结果：`mvp-design-doc.md` 中不再出现 `export_to_json`、`JSON`、`选择格式`、`Markdown 与 JSON` 或旧 `[ ]` 阶段计划残留。
 - 验收：
   - 清理 JSON 导出遗留描述。
   - 将已实现能力与待办能力拆清楚。
@@ -152,9 +157,12 @@ lark-cli base +record-list \
 ### REQ-004 导出边界用例补齐
 
 - 优先级：P1
-- 状态：Todo
+- 状态：Done
 - 模块：`src-tauri/src/export.rs`、导出页
 - 背景：导出是核心价值，需要覆盖空笔记本、只有划线、只有想法、无章节名、无作者名、超长书名、非法文件名、重名文件、目录无权限、用户取消目录选择等情况。
+- 完成说明：导出目录为空直接报错；文件名做非法字符清理、空标题 fallback、长度截断和重名防覆盖；按章节导出时未匹配到章节的划线/想法统一输出到「其他笔记」；空内容输出明确提示；前端展示取消目录、成功消息、失败错误、进度和已生成文件列表。
+- 改动入口：`src-tauri/src/export.rs`、`src/lib/preview/exportPreview.ts`、`src/pages/ExportPage.tsx`。
+- 验证结果：`npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过。
 - 验收：
   - Rust 导出不把系统错误伪装成成功。
   - 文件名处理可靠，必要时避免重名覆盖。
@@ -164,9 +172,12 @@ lark-cli base +record-list \
 ### REQ-005 UI 走查
 
 - 优先级：P1
-- 状态：Todo
+- 状态：Done
 - 模块：全局 UI
 - 背景：应用要符合 `ui-style-guide.md` 的 Quiet Reading Ledger，不应出现错位、拥挤、长文本撑破或通用 SaaS 化。
+- 完成说明：补充导出目录行换行、列表搜索框尺寸、书架底部文本截断、章节/笔记/预览/进度长文本换行或截断规则；Notes 与 Export 保持内容优先布局。
+- 改动入口：`src/index.css`、`src/pages/ExportPage.tsx`、`src/pages/NotesPage.tsx`。
+- 验证结果：`npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过；临时移除代理后已用本机 Chrome 截图检查 `/#/notes` 和 `/#/export`，布局无明显错位。浏览器预览环境缺少 Tauri runtime，会显示 `invoke` 不存在的错误横幅，桌面运行时不受此限制。
 - 验收：
   - macOS 默认窗口、最小窗口、宽屏窗口无明显错位。
   - 长书名、长作者名、长划线、长想法不撑破布局。
@@ -176,33 +187,59 @@ lark-cli base +record-list \
 ### REQ-006 书架/笔记本本地搜索增强
 
 - 优先级：P1
-- 状态：Todo
+- 状态：Done
 - 模块：Dashboard / Notes / Export
 - 背景：MVP 允许本地搜索，当前笔记内容已有搜索，书架和导出范围选择仍可继续增强筛选效率。
+- 完成说明：书架已有标题/作者本地搜索；新增 Notes 左侧笔记本标题/作者搜索；新增 Export 选择书籍标题/作者搜索，支持全选筛选结果。
+- 改动入口：`src/pages/NotesPage.tsx`、`src/pages/ExportPage.tsx`。
+- 验证结果：`npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过。
 - 验收：
   - 书架或笔记本列表支持标题/作者本地搜索。
   - 导出页大量书籍下可快速定位目标。
   - 不引入书城搜索或推荐发现，除非用户明确要求。
 
-### REQ-007 笔记报告模版
+### REQ-007 HTML 阅读报告生成器
 
 - 优先级：P2
 - 状态：Todo
 - 模块：Export
 - 来源：飞书记录 `rec27qYCk2C7z5`，提出人 `Duosl`，创建时间 `2026-05-20 11:44:15`。
-- 背景：支持用户自定义导出模版，将划线、想法、章节等数据按模版渲染输出。飞书收集项补充希望支持内置报告模版、分享，以及区分调用已安装 CLI 版本 / API Key 版本。详见 `mvp-design-doc.md` 5.4 节。
+- 背景：报告能力升级为 HTML 阅读报告生成器：先把阅读统计、书籍、分类、划线、想法等数据整理为统一报告数据模型，再用不同 HTML 风格模版导出静态网页。飞书收集项补充希望支持内置报告模版、分享，以及区分调用已安装 CLI 版本 / API Key 版本。详见 `mvp-design-doc.md` 5.4 节。
+- 产品分层：
+  - 基础模版：不依赖大模型，基于确定数据生成年度 / 月度阅读报告、读书旅程、阅读分析报告、成长路径报告、个人阅读账本。
+  - 高级模版：需要解释和归纳，后续可支持阅读人格分析、阅读画像、阅读局限诊断、MBTI 风格阅读测试、知识结构盲区和下一阶段阅读建议。
+- 第一版范围：
+  - Export 页增加导出类型：`Markdown 笔记` / `HTML 阅读报告`。
+  - HTML 阅读报告支持 3 个内置模版：`阅读分析报告`、`读书旅程`、`年度阅读报告`。
+  - 每次导出生成一个 `.html` 文件，HTML 内联 CSS，尽量不依赖外部网络资源。
+  - 当前 Markdown 导出保持默认能力，不被 HTML 报告影响。
+- 技术边界：
+  - 先定义统一 `ReadingReportData`，模版读取报告模型，不直接读取微信读书原始 API 回包。
+  - 基础数据来自 `reading_stats`、`notebooks`、`bookmark_list`、`my_reviews`、`book_info`、`book_progress`。
+  - 导出预览和最终 HTML 文件应使用同一套报告数据模型。
+  - 高级模版后续通过 `GeneratedInsight[]` 扩展，不让 HTML 模版直接调用模型。
+- 暂不做：
+  - 第一版不做完整 HTML 编辑器。
+  - 第一版不做在线分享平台。
+  - 第一版不做 PDF 渲染，PDF 由 `REQ-009` 单独设计。
+  - 第一版不做 AI 分析；只为后续 `insights` 预留模型字段。
 - 验收：
-  - 先确定模版语法和最小变量集。
-  - 默认模版保持现有 Markdown 输出。
-  - 用户模版错误不影响默认导出能力。
+  - `mvp-design-doc.md` 中明确 HTML 阅读报告的数据模型、基础模版、高级模版和第一版边界。
+  - 实现前先确认 `ReadingReportData` 字段和数据来源。
+  - 第一版至少能导出一个可本地打开的 HTML 报告。
+  - Markdown 导出仍为默认路径，且不被报告功能破坏。
+  - 报告导出失败不影响普通 Markdown 导出。
+  - 高级 AI 分析必须有隐私确认和数据裁剪方案后再进入实现。
 
 ### REQ-008 Obsidian Base 导出增强
 
 - 优先级：P2
-- 状态：Todo
+- 状态：Done
 - 模块：Export
 - 来源：飞书记录 `rec27qYACS18S2`，提出人 `Duosl`，创建时间 `2026-05-20 11:42:39`。
 - 背景：飞书收集项希望 Markdown 支持更适合 Obsidian Base 的 Frontmatter，方便用户在 Obsidian 中创建 Base 并可视化。当前 Markdown Frontmatter 已有基础字段，仍需澄清 Obsidian Base 需要的字段命名、类型和示例视图。
+- 完成说明：现有 Markdown Frontmatter 已包含 `bookId`、`isbn`、`title`、`author`、`cover`、`lastReadDate`、`finishedDate`、`reading-time`、`progress` 等资料库索引字段，可直接支撑 Obsidian Base 建表与视图配置；本轮按用户确认标记为已支持。
+- 验证结果：导出预览和 Rust 实际导出口径已对齐；`npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过。
 - 验收：
   - 明确 Obsidian Base 所需 Frontmatter 字段清单和字段类型。
   - 不破坏现有 Markdown 导出和资料库索引字段。
@@ -239,6 +276,12 @@ lark-cli base +record-list \
 ### 2026-05-20
 
 - REQ-001 前端想法分页加载：Notes 页和导出页单本预览已通过 `src/lib/reviews.ts` 共享分页加载所有想法，不再只取前 100 条；`frontend:typecheck`、`frontend:build`、`cargo check` 通过。
+- REQ-002 真实 API 数据校准：已校准书架、笔记本分页、划线、想法、阅读统计和阅读进度字段；修正统计均值缺省、点评章节字段、有声书 `readLongest` 映射。
+- REQ-003 设计文档清理：已移除 Markdown-only MVP 中的 JSON 导出遗留描述和过期阶段待办。
+- REQ-004 导出边界用例：已补齐文件名安全处理、重名防覆盖、空内容提示、未匹配章节输出、取消/成功/失败反馈和生成文件列表。
+- REQ-005 UI 走查：已补齐长文本、目录行、搜索框、预览和进度布局保护；已用本机 Chrome 截图检查 `/#/notes` 和 `/#/export`，浏览器预览仅受 Tauri runtime 缺失影响。
+- REQ-006 本地搜索增强：Notes 笔记本列表和 Export 导出范围支持标题/作者搜索，导出页支持全选筛选结果。
+- REQ-008 Obsidian Base 导出增强：用户确认现有 Frontmatter 能力已支持，状态更新为 Done。
 - 飞书需求表同步：已用 user 身份读取外部收集表，合并 `rec27qYCk2C7z5` 到 `REQ-007`，新增 `REQ-008`、`REQ-009`、`REQ-010` 作为 P2 外部候选。
 - Markdown-only 导出边界：已移除 JSON 导出命令和前端格式切换，导出入口固定为 `export_to_markdown`。
 - Markdown Frontmatter：导出文件头部包含 `bookId`、`isbn`、`title`、`author`、`cover`、`lastReadDate`、`finishedDate`、`reading-time`、`progress`。
@@ -248,3 +291,5 @@ lark-cli base +record-list \
 - 交流与支持入口：README 中「开发贡献」已移动到交流群和打赏之后；软件内已拆分为「交流群」和「打赏支持」两个入口、两个弹窗。
 - 弹窗视觉增强：交流群弹窗放大二维码并使用蓝色主题；打赏支持弹窗使用红心色主题。
 - 二维码展示归一：四张二维码图在弹窗中使用统一方形裁切展示，个人微信高图通过展示层裁切放大，不改动源图。
+- 自动更新错误展示：签名 key 不匹配会明确显示为「签名密钥不匹配」，并提示用户前往 GitHub 手动下载最新版。
+- 自动更新发布修正：Windows updater 元数据改为使用 Tauri v2 `createUpdaterArtifacts: true` 对应的 `-setup.exe` / `-setup.exe.sig`，缺少任一平台 updater 签名时 release workflow 直接失败，不再生成空签名 `latest.json`。

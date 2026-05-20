@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import { FileDown, FolderOpen } from "lucide-react";
+import { FileDown, FileText, FolderOpen, Search } from "lucide-react";
 import { PageShell } from "../components/layout/PageShell";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -26,6 +26,8 @@ export function ExportPage({ settings }: ExportPageProps) {
   const [outputDir, setOutputDir] = useState(settings.lastExportDir);
   const [includeBookmarks, setIncludeBookmarks] = useState(true);
   const [includeReviews, setIncludeReviews] = useState(true);
+  const [bookQuery, setBookQuery] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
 
@@ -37,6 +39,15 @@ export function ExportPage({ settings }: ExportPageProps) {
     () => notebooks.books.filter((book) => selectedIds.includes(book.bookId)),
     [notebooks.books, selectedIds],
   );
+  const visibleBooks = useMemo(() => {
+    const keyword = bookQuery.trim().toLowerCase();
+    if (!keyword) return notebooks.books;
+    return notebooks.books.filter(
+      (book) =>
+        book.title.toLowerCase().includes(keyword) ||
+        book.author.toLowerCase().includes(keyword),
+    );
+  }, [notebooks.books, bookQuery]);
 
   const previewBook = selectedBooks.length === 1 ? selectedBooks[0] : null;
 
@@ -74,7 +85,9 @@ export function ExportPage({ settings }: ExportPageProps) {
     void loadPreview();
   }, [loadPreview]);
 
-  const allSelected = notebooks.books.length > 0 && selectedIds.length === notebooks.books.length;
+  const visibleIds = useMemo(() => visibleBooks.map((book) => book.bookId), [visibleBooks]);
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((bookId) => selectedIds.includes(bookId));
 
   function toggleBook(bookId: string) {
     setSelectedIds((current) =>
@@ -83,17 +96,26 @@ export function ExportPage({ settings }: ExportPageProps) {
   }
 
   function toggleAll() {
-    setSelectedIds((current) =>
-      current.length === notebooks.books.length ? [] : notebooks.books.map((book) => book.bookId),
-    );
+    setSelectedIds((current) => {
+      if (allVisibleSelected) {
+        return current.filter((bookId) => !visibleIds.includes(bookId));
+      }
+      return [...new Set([...current, ...visibleIds])];
+    });
   }
 
   async function chooseFolder() {
     const selected = await open({ directory: true, multiple: false, defaultPath: outputDir });
-    if (typeof selected === "string") setOutputDir(selected);
+    if (typeof selected === "string") {
+      setOutputDir(selected);
+      setNotice(null);
+    } else {
+      setNotice("已取消选择导出目录");
+    }
   }
 
   async function runExport() {
+    setNotice(null);
     const options: ExportOptions = {
       bookIds: selectedIds,
       format: "markdown",
@@ -102,7 +124,11 @@ export function ExportPage({ settings }: ExportPageProps) {
       includeReviews,
       groupByChapter: true,
     };
-    await exporter.runExport(options);
+    try {
+      await exporter.runExport(options);
+    } catch {
+      // useExport has already stored a displayable error message.
+    }
   }
 
   return (
@@ -120,6 +146,8 @@ export function ExportPage({ settings }: ExportPageProps) {
       }
     >
       <ErrorBanner message={notebooks.error ?? exporter.error} />
+      {notice ? <div className="success-text">{notice}</div> : null}
+      {exporter.result ? <div className="success-text">{exporter.result.message}</div> : null}
       <div className="export-layout">
         <Card className="export-picker">
           <div className="section-title">
@@ -132,21 +160,31 @@ export function ExportPage({ settings }: ExportPageProps) {
             <label className="check-row compact">
               <input
                 type="checkbox"
-                checked={allSelected}
-                disabled={notebooks.books.length === 0}
+                checked={allVisibleSelected}
+                disabled={visibleBooks.length === 0}
                 onChange={toggleAll}
               />
-              <span>全选</span>
+              <span>{bookQuery.trim() ? "全选筛选结果" : "全选"}</span>
             </label>
-            <small>{selectedIds.length} / {notebooks.books.length}</small>
+            <small>{selectedIds.length} / {visibleBooks.length} / {notebooks.books.length}</small>
+          </div>
+          <div className="search-box list-search">
+            <Search size={16} />
+            <input
+              value={bookQuery}
+              onChange={(event) => setBookQuery(event.target.value)}
+              placeholder="搜索书名或作者"
+            />
           </div>
           {notebooks.loading ? (
             <Spinner label="正在读取笔记本" />
           ) : notebooks.books.length === 0 ? (
             <EmptyState title="暂无可导出书籍" description="先在设置中连接 API Key。" />
+          ) : visibleBooks.length === 0 ? (
+            <EmptyState title="没有匹配书籍" description="换一个关键词继续筛选。" />
           ) : (
             <div className="export-books">
-              {notebooks.books.map((book) => (
+              {visibleBooks.map((book) => (
                 <label key={book.bookId} className="check-row">
                   <input
                     type="checkbox"
@@ -237,6 +275,29 @@ export function ExportPage({ settings }: ExportPageProps) {
           ) : exporter.loading ? (
             <Card>
               <Spinner label="正在导出" />
+            </Card>
+          ) : null}
+
+          {exporter.result?.filePaths.length ? (
+            <Card>
+              <div className="section-title">
+                <FileText size={20} />
+                <div>
+                  <h2>已生成文件</h2>
+                  <p>{exporter.result.filePaths.length} 个 Markdown 文件。</p>
+                </div>
+              </div>
+              <div className="file-list">
+                {exporter.result.filePaths.map((filePath) => (
+                  <button
+                    key={filePath}
+                    title={filePath}
+                    onClick={() => void exporter.openExportFolder(filePath)}
+                  >
+                    {filePath}
+                  </button>
+                ))}
+              </div>
             </Card>
           ) : null}
         </div>

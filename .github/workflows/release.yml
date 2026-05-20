@@ -247,10 +247,19 @@ jobs:
           Copy-Item src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64.msi"
           # NSIS for updater
           Copy-Item src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64-setup.exe" -ErrorAction SilentlyContinue
-          # NSIS zip for updater
-          Copy-Item src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64.nsis.zip" -ErrorAction SilentlyContinue
-          # Signatures
-          Copy-Item src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip.sig "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64.nsis.zip.sig" -ErrorAction SilentlyContinue
+          # Updater signature for createUpdaterArtifacts=true
+          Copy-Item src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe.sig "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64-setup.exe.sig" -ErrorAction SilentlyContinue
+
+          Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis
+          Get-ChildItem release-assets/windows
+
+          if (-not (Test-Path "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64-setup.exe")) {
+            throw "Missing Windows updater installer: release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64-setup.exe"
+          }
+
+          if (-not (Test-Path "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64-setup.exe.sig")) {
+            throw "Missing Windows updater signature: release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64-setup.exe.sig"
+          }
 
       - name: Upload Windows Installer
         uses: softprops/action-gh-release@v2
@@ -379,8 +388,23 @@ jobs:
             DARWIN_X86_64_SIG=$(cat "weread-skill-desktop_${VERSION}_macos_intel.app.tar.gz.sig")
           fi
           
-          if [ -f "weread-skill-desktop_${VERSION}_windows_x64.nsis.zip.sig" ]; then
-            WINDOWS_X86_64_SIG=$(cat "weread-skill-desktop_${VERSION}_windows_x64.nsis.zip.sig")
+          if [ -f "weread-skill-desktop_${VERSION}_windows_x64-setup.exe.sig" ]; then
+            WINDOWS_X86_64_SIG=$(cat "weread-skill-desktop_${VERSION}_windows_x64-setup.exe.sig")
+          fi
+
+          if [ -z "$DARWIN_AARCH64_SIG" ]; then
+            echo "Missing darwin-aarch64 updater signature" >&2
+            exit 1
+          fi
+
+          if [ -z "$DARWIN_X86_64_SIG" ]; then
+            echo "Missing darwin-x86_64 updater signature" >&2
+            exit 1
+          fi
+
+          if [ -z "$WINDOWS_X86_64_SIG" ]; then
+            echo "Missing windows-x86_64 updater signature" >&2
+            exit 1
           fi
           
           # Get release notes from CHANGELOG
@@ -431,7 +455,7 @@ jobs:
                 },
                 "windows-x86_64": {
                   signature: $windows_x86_64_sig,
-                  url: "https://github.com/\($repo)/releases/download/\($tag)/weread-skill-desktop_\($version)_windows_x64.nsis.zip"
+                  url: "https://github.com/\($repo)/releases/download/\($tag)/weread-skill-desktop_\($version)_windows_x64-setup.exe"
                 }
               }
             }' > latest.json

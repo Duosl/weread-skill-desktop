@@ -37,6 +37,7 @@ type FlatNote = {
 export function NotesPage() {
   const params = useParams();
   const [selectedBookId, setSelectedBookId] = useState(params.bookId ?? "");
+  const [notebookQuery, setNotebookQuery] = useState("");
   const [query, setQuery] = useState("");
   const [noteType, setNoteType] = useState<NoteType>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("chapter");
@@ -57,6 +58,15 @@ export function NotesPage() {
   }, [selectedBookId]);
 
   const selectedBook = notebooks.books.find((book) => book.bookId === selectedBookId);
+  const filteredNotebooks = useMemo(() => {
+    const keyword = notebookQuery.trim().toLowerCase();
+    if (!keyword) return notebooks.books;
+    return notebooks.books.filter(
+      (book) =>
+        book.title.toLowerCase().includes(keyword) ||
+        book.author.toLowerCase().includes(keyword),
+    );
+  }, [notebooks.books, notebookQuery]);
   const normalizedQuery = query.trim().toLowerCase();
 
   const filteredBookmarks = useMemo(
@@ -143,16 +153,26 @@ export function NotesPage() {
             <MessageSquareQuote size={20} />
             <div>
               <h2>笔记本</h2>
-              <p>{notebooks.books.length} 本有记录的书。</p>
+              <p>{filteredNotebooks.length} / {notebooks.books.length} 本有记录的书。</p>
             </div>
+          </div>
+          <div className="search-box list-search">
+            <Search size={16} />
+            <input
+              value={notebookQuery}
+              onChange={(event) => setNotebookQuery(event.target.value)}
+              placeholder="搜索书名或作者"
+            />
           </div>
           {notebooks.loading ? (
             <Spinner label="正在读取笔记本" />
           ) : notebooks.books.length === 0 ? (
             <EmptyState title="暂无笔记本" description="配置 API Key 后可读取笔记本列表。" />
+          ) : filteredNotebooks.length === 0 ? (
+            <EmptyState title="没有匹配笔记本" description="换一个关键词继续筛选。" />
           ) : (
             <div className="notebook-scroll">
-              {notebooks.books.map((book) => (
+              {filteredNotebooks.map((book) => (
                 <button
                   key={book.bookId}
                   className={book.bookId === selectedBookId ? "notebook active" : "notebook"}
