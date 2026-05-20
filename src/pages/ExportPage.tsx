@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
 import { FileDown, FolderOpen } from "lucide-react";
 import { PageShell } from "../components/layout/PageShell";
 import { Button } from "../components/ui/Button";
@@ -11,7 +12,7 @@ import { useExport } from "../hooks/useExport";
 import { useNotebooks } from "../hooks/useNotebooks";
 import { buildMarkdownPreview } from "../lib/preview/exportPreview";
 import { noteTotal } from "../lib/format";
-import type { AppSettings, ExportOptions } from "../types";
+import type { AppSettings, BookmarkListResult, BookInfo, BookProgress, ExportOptions, ReviewListResult } from "../types";
 
 type ExportPageProps = {
   settings: AppSettings;
@@ -24,6 +25,8 @@ export function ExportPage({ settings }: ExportPageProps) {
   const [outputDir, setOutputDir] = useState(settings.lastExportDir);
   const [includeBookmarks, setIncludeBookmarks] = useState(true);
   const [includeReviews, setIncludeReviews] = useState(true);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewContent, setPreviewContent] = useState<string | null>(null);
 
   useEffect(() => {
     void notebooks.loadNotebooks();
@@ -34,7 +37,46 @@ export function ExportPage({ settings }: ExportPageProps) {
     [notebooks.books, selectedIds],
   );
 
-  const preview = buildMarkdownPreview(selectedBooks);
+  const previewBook = selectedBooks.length === 1 ? selectedBooks[0] : null;
+
+  const loadPreview = useCallback(async () => {
+    if (!previewBook) {
+      setPreviewContent(null);
+      return;
+    }
+
+    setPreviewLoading(true);
+    try {
+      const [bookmarkResult, reviewResult, progress, bookInfo] = await Promise.all([
+        invoke<BookmarkListResult>("get_bookmarks", { bookId: previewBook.bookId }),
+        invoke<ReviewListResult>("get_my_reviews", {
+          bookId: previewBook.bookId,
+          synckey: 0,
+          count: 100,
+        }),
+        invoke<BookProgress>("get_book_progress", { bookId: previewBook.bookId }).catch(() => null),
+        invoke<BookInfo>("get_book_info", { bookId: previewBook.bookId }).catch(() => null),
+      ]);
+      const markdown = buildMarkdownPreview(
+        previewBook,
+        bookmarkResult.bookmarks ?? [],
+        reviewResult.reviews ?? [],
+        bookmarkResult.chapters ?? [],
+        progress,
+        bookInfo?.isbn,
+      );
+      setPreviewContent(markdown);
+    } catch {
+      setPreviewContent(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [previewBook]);
+
+  useEffect(() => {
+    void loadPreview();
+  }, [loadPreview]);
+
   const allSelected = notebooks.books.length > 0 && selectedIds.length === notebooks.books.length;
 
   function toggleBook(bookId: string) {
@@ -83,7 +125,7 @@ export function ExportPage({ settings }: ExportPageProps) {
       <ErrorBanner message={notebooks.error ?? exporter.error} />
       <div className="export-layout">
         <Card className="export-picker">
-          <div className="section-title">            
+          <div className="section-title">
             <div>
               <h2>选择导出范围</h2>
               <p>仅导出包含划线或想法的笔记本。</p>
@@ -163,8 +205,21 @@ export function ExportPage({ settings }: ExportPageProps) {
           </Card>
 
           <Card className="preview-card">
-            <h2>预览</h2>
-            <pre>{preview}</pre>
+            <div className="preview-header">
+              <h2>预览</h2>
+              {selectedBooks.length > 1 ? (
+                <small className="preview-hint">选中 {selectedBooks.length} 本书，选择单本可预览内容</small>
+              ) : null}
+            </div>
+            {previewLoading ? (
+              <div className="preview-loading">
+                <Spinner label="正在加载预览" />
+              </div>
+            ) : previewContent ? (
+              <pre>{previewContent}</pre>
+            ) : (
+              <div className="preview-empty">选择一本书以预览导出内容</div>
+            )}
           </Card>
 
           {exporter.loading && exporter.progress ? (

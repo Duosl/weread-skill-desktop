@@ -32,7 +32,6 @@ pub fn run() {
             commands::get_notebooks,
             commands::get_reading_stats,
             commands::export_to_markdown,
-            commands::export_to_json,
             commands::open_export_folder,
             commands::open_in_weread,
             commands::get_app_version,

@@ -149,7 +149,7 @@ export interface ReadingStatsResult {
 
 export interface ExportOptions {
   bookIds: string[];
-  format: "markdown" | "json";
+  format: "markdown";
   outputDir: string;
   includeBookmarks: boolean;
   includeReviews: boolean;

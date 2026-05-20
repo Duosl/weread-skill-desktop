@@ -25,8 +25,7 @@ export function useExport() {
     setResult(null);
     setProgress(null);
     try {
-      const command = options.format === "json" ? "export_to_json" : "export_to_markdown";
-      const exportResult = await invoke<ExportResult>(command, { options });
+      const exportResult = await invoke<ExportResult>("export_to_markdown", { options });
       setResult(exportResult);
       return exportResult;
     } catch (err) {

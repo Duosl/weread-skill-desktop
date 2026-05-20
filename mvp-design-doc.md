@@ -11,7 +11,7 @@
 ### 核心用户流程
 
 ```
-用户打开应用 → 输入 API Key → 查看书架 → 选择书籍 → 查看笔记/划线 → 导出为 Markdown/JSON
+用户打开应用 → 输入 API Key → 查看书架 → 选择书籍 → 查看笔记/划线 → 导出为 Markdown
                                                                     ↓
                                                               查看阅读统计
 ```
@@ -23,7 +23,7 @@
 | P0 | 设置管理 | API Key 输入/保存/脱敏显示 | - |
 | P0 | 书架概览 | 书架列表、已读/在读状态、最近阅读时间 | `shelf_sync` |
 | P0 | 笔记中心 | 划线列表、点评卡片、章节导航 | `bookmark_list`, `my_reviews` |
-| P0 | 导出功能 | 单本/批量导出 Markdown、JSON | - |
+| P0 | 导出功能 | 单本/批量导出 Markdown | - |
 | P0 | 阅读统计 | 时长、天数、偏好分类图表 | `reading_stats` |
 | P0.5 | 笔记本概览 | 所有笔记本列表、笔记计数、只导出有笔记的书 | `notebooks` |
 | P1 | 搜索功能 | 书架/笔记本本地搜索；可选书城搜索 | 本地过滤；`search` |
@@ -196,7 +196,6 @@ API 规则以 `/tmp/weread-skills/weread-skills/` 为准。本设计文档只定
 | **书籍** | `get_book_info` | 获取书籍基本信息 |
 | **统计** | `get_reading_stats` | 获取阅读统计 |
 | **导出** | `export_to_markdown` | 导出为 Markdown 文件 |
-| | `export_to_json` | 导出为 JSON 文件 |
 | | `select_export_dir` | 选择导出目录 |
 | | `open_export_folder` | 打开导出目录 |
 | **系统** | `open_in_weread` | 深度链接跳转 |
@@ -212,16 +211,10 @@ use tauri::AppHandle;
 /// 导出选项
 pub struct ExportOptions {
     pub book_ids: Vec<String>,       // 要导出的书籍 ID 列表（空=全部）
-    pub format: ExportFormat,         // Markdown 或 JSON
     pub output_dir: PathBuf,         // 输出目录
     pub include_bookmarks: bool,     // 包含划线
     pub include_reviews: bool,       // 包含点评
-    pub group_by_chapter: bool,      // 按章节分组（仅 Markdown）
-}
-
-pub enum ExportFormat {
-    Markdown,
-    Json,
+    pub group_by_chapter: bool,      // 按章节分组
 }
 
 /// 执行导出，返回生成的文件路径
@@ -336,7 +329,7 @@ impl AppConfig {
 │                                                     │
 │  2. 导出选项                                        │
 │  ┌─────────────────────────────────────────────┐    │
-│  │ 格式:  ● Markdown  ○ JSON                   │    │
+│  │ 格式:  Markdown                              │    │
 │  │ 内容:  ☑ 划线  ☑ 点评                       │    │
 │  │ 组织:  ☑ 按章节分组                          │    │
 │  │ 输出到: ~/Documents/WereadNotes/  [更改...]  │    │
@@ -376,7 +369,7 @@ impl AppConfig {
 │                                                     │
 │  默认导出设置                                       │
 │  ┌─────────────────────────────────────────────┐    │
-│  │ 默认格式:  [Markdown ▼]                      │    │
+│  │ 默认格式:  Markdown                           │    │
 │  │ 输出目录:  [~/Documents/WereadNotes/] [浏览] │    │
 │  │ 默认内容:  ☑ 划线  ☑ 点评  ☑ 按章分组       │    │
 │  └─────────────────────────────────────────────┘    │
@@ -420,60 +413,7 @@ impl AppConfig {
 *由 WeRead Skill Desktop 导出*
 ```
 
-### 5.2 JSON 导出格式示例
-
-```json
-{
-  "version": "1.0",
-  "exportTime": "2026-05-19T10:30:00Z",
-  "source": "weread",
-  "book": {
-    "id": "123456",
-    "title": "原则",
-    "author": "瑞·达利欧",
-    "cover": "https://..."
-  },
-  "stats": {
-    "totalBookmarks": 156,
-    "totalReviews": 23,
-    "chaptersCount": 12
-  },
-  "chapters": [
-    {
-      "chapterUid": 123,
-      "title": "第一章 生活原则",
-      "bookmarks": [
-        {
-          "id": "bm001",
-          "content": "拥抱现实并妥善处理现实",
-          "rangeStart": 0,
-          "rangeEnd": 100,
-          "range": "0-100",
-          "createdAt": "2026-01-15T08:30:00Z",
-          "reviews": []
-        }
-      ],
-      "reviews": [
-        {
-          "id": "rv001",
-          "content": "这句话是全书的核心...",
-          "createdAt": "2026-01-15T09:00:00Z",
-          "chapterName": "第一章 生活原则"
-        }
-      ]
-    }
-  ]
-}
-```
-
-说明：
-
-- `/book/bookmarklist` 不提供稳定页码，导出不应承诺 page 字段。
-- 划线位置使用 `range`，可拆为 `rangeStart` / `rangeEnd`。
-- 点评/想法不总能可靠关联到某条划线。能关联时可放入对应 bookmark 的 `reviews`；不能关联时放入章节级 `reviews`。
-- 书签内容当前不可导出，只能在统计中体现数量。
-
-### 5.3 导出流程
+### 5.2 导出流程
 
 ```
 前端选择选项 → invoke("export_to_markdown", options)
@@ -481,11 +421,52 @@ impl AppConfig {
     → 循环 book_ids:
         → 调用 bookmark_list + my_reviews
         → 组装数据结构
-        → 格式化 Markdown/JSON
+        → 格式化 Markdown
         → 写入文件系统（每本书一个文件）
     → 返回成功 + 文件路径列表
     → 前端提示成功 + 提供"打开文件夹"按钮
 ```
+
+### 5.3 Frontmatter 增强（已实现）
+
+导出的 Markdown 文件头部增加 YAML Frontmatter，便于 Obsidian 等工具索引：
+
+```yaml
+---
+title: 原则
+author: 瑞·达利欧
+cover: https://weread-oss.xxx/cover.jpg
+start-date: 2026-01-10
+reading-time: 18640
+progress: 100
+---
+```
+
+字段说明：
+
+| 字段 | 来源 | 说明 |
+|------|------|------|
+| `title` | `book_info.title` | 书名 |
+| `author` | `book_info.author` | 作者名 |
+| `cover` | `book_info.cover` | 封面图 URL |
+| `start-date` | `book_progress.updateTime`（首次） | 开始阅读时间 |
+| `reading-time` | `book_progress.recordReadingTime` | 阅读时长（秒） |
+| `progress` | `book_progress.progress` | 阅读进度百分比 |
+
+> 注意：`start-date` 当前 API 不直接提供"开始阅读时间"，需从 `book_progress` 的最早记录推算，或暂用 `updateTime` 代替。实现时需确认数据可用性。
+
+### 5.4 笔记报告模版（P2，待讨论）
+
+支持用户自定义导出模版，将划线、想法、章节等数据按模版渲染输出。
+
+初步设想：
+
+- 内置默认模版（当前 Markdown 格式）
+- 支持用户在设置中编辑模版字符串
+- 模版变量：`{{title}}`、`{{author}}`、`{{chapter}}`、`{{bookmark}}`、`{{review}}`、`{{date}}`、`{{range}}` 等
+- 模版语法待定（简单替换 vs 模版引擎）
+
+> 此功能优先级较低，需进一步讨论使用场景和模版语法后再实现。
 
 ---
 

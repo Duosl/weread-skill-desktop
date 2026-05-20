@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { Bookmark, BookmarkListResult, Review, ReviewListResult } from "../types";
+import type { Bookmark, BookmarkListResult, ChapterInfo, Review, ReviewListResult } from "../types";
 import { getErrorMessage } from "../lib/format";
 
 export function useNotes(bookId?: string) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,6 +15,7 @@ export function useNotes(bookId?: string) {
       if (!targetBookId) {
         setBookmarks([]);
         setReviews([]);
+        setChapters([]);
         return;
       }
 
@@ -29,6 +31,7 @@ export function useNotes(bookId?: string) {
           }),
         ]);
         setBookmarks(bookmarkResult.bookmarks ?? []);
+        setChapters(bookmarkResult.chapters ?? []);
         setReviews(reviewResult.reviews ?? []);
       } catch (err) {
         const message = getErrorMessage(err);
@@ -41,5 +44,5 @@ export function useNotes(bookId?: string) {
     [bookId],
   );
 
-  return { bookmarks, reviews, loading, error, loadNotes };
+  return { bookmarks, reviews, chapters, loading, error, loadNotes };
 }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Toolbar } from "./components/layout/Toolbar";
-import { RewardDialog } from "./components/RewardDialog";
+import { CommunityDialog, SupportDialog } from "./components/RewardDialog";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ExportPage } from "./pages/ExportPage";
 import { NotesPage } from "./pages/NotesPage";
@@ -17,7 +17,8 @@ import "./index.css";
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [showRewardDialog, setShowRewardDialog] = useState(false);
+  const [showCommunityDialog, setShowCommunityDialog] = useState(false);
+  const [showSupportDialog, setShowSupportDialog] = useState(false);
   const settings = useSettings();
   const shelf = useBookshelf();
   const reading = useReadingStats();
@@ -36,7 +37,8 @@ function App() {
         <div className="app-body">
           {!sidebarCollapsed ? (
             <Sidebar
-              onOpenReward={() => setShowRewardDialog(true)}
+              onOpenCommunity={() => setShowCommunityDialog(true)}
+              onOpenSupport={() => setShowSupportDialog(true)}
             />
           ) : null}
           <Routes>
@@ -77,16 +79,21 @@ function App() {
                   onCheckUpdate={() => checkForUpdates(false)}
                   onDownloadUpdate={downloadUpdate}
                   onInstallUpdate={installUpdate}
-                  onOpenReward={() => setShowRewardDialog(true)}
+                  onOpenCommunity={() => setShowCommunityDialog(true)}
+                  onOpenSupport={() => setShowSupportDialog(true)}
                 />
               }
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
-        <RewardDialog
-          isOpen={showRewardDialog}
-          onClose={() => setShowRewardDialog(false)}
+        <CommunityDialog
+          isOpen={showCommunityDialog}
+          onClose={() => setShowCommunityDialog(false)}
+        />
+        <SupportDialog
+          isOpen={showSupportDialog}
+          onClose={() => setShowSupportDialog(false)}
         />
       </div>
     </HashRouter>

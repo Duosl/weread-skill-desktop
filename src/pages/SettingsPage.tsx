@@ -7,6 +7,7 @@ import {
   EyeOff,
   Heart,
   KeyRound,
+  MessageCircle,
   RefreshCw,
   Save,
   Settings2,
@@ -28,7 +29,8 @@ type SettingsPageProps = {
   onCheckUpdate: () => void;
   onDownloadUpdate: () => void;
   onInstallUpdate: () => void;
-  onOpenReward: () => void;
+  onOpenCommunity: () => void;
+  onOpenSupport: () => void;
 };
 
 export function SettingsPage({
@@ -41,7 +43,8 @@ export function SettingsPage({
   onCheckUpdate,
   onDownloadUpdate,
   onInstallUpdate,
-  onOpenReward,
+  onOpenCommunity,
+  onOpenSupport,
 }: SettingsPageProps) {
   const [tokenDraft, setTokenDraft] = useState(settings.apiKeyFull ?? "");
   const [showToken, setShowToken] = useState(false);
@@ -338,7 +341,11 @@ export function SettingsPage({
                   <span>重启更新</span>
                 </button>
               )}
-              <button className="about-action-btn" onClick={onOpenReward}>
+              <button className="about-action-btn community-action" onClick={onOpenCommunity}>
+                <MessageCircle size={14} />
+                <span>交流群</span>
+              </button>
+              <button className="about-action-btn support-action" onClick={onOpenSupport}>
                 <Heart size={14} />
                 <span>打赏支持</span>
               </button>

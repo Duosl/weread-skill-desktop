@@ -157,20 +157,6 @@ pub async fn export_to_markdown(
 }
 
 #[tauri::command]
-pub async fn export_to_json(
-    app: tauri::AppHandle,
-    state: State<'_, RuntimeState>,
-    options: ExportOptions,
-) -> Result<ExportResult, String> {
-    let file_paths = crate::export::export_to_json(&app, state.inner(), &options).await?;
-    Ok(ExportResult {
-        success: true,
-        message: format!("成功导出 {} 个文件", file_paths.len()),
-        file_paths,
-    })
-}
-
-#[tauri::command]
 pub async fn open_export_folder(path: String) -> Result<(), String> {
     let p = Path::new(&path);
     let dir = if p.is_file() || !p.is_dir() {

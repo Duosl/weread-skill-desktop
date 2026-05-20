@@ -1,71 +1,119 @@
-import type { NotebookBook } from "@/types";
+import type { Bookmark, ChapterInfo, NotebookBook, Review, BookProgress } from "@/types";
 
-export function buildJsonPreview(books: NotebookBook[]): string {
-  const book = books[0];
-  return JSON.stringify(
-    {
-      version: "1.0",
-      source: "weread",
-      book: {
-        id: book?.bookId ?? "bookId",
-        title: book?.title ?? "书名",
-        author: book?.author ?? "作者",
-      },
-      stats: {
-        totalBookmarks: book?.noteCount ?? 0,
-        totalReviews: book?.reviewCount ?? 0,
-      },
-      chapters: [
-        {
-          chapterUid: "章节id",
-          title: "章节标题",
-          bookmarks: [
-            {
-              content: "笔记/划线内容"
-            }
-          ]
-        },
-      ],
-    },
-    null,
-    2,
-  );
-}
+export function buildMarkdownPreview(
+  book: NotebookBook,
+  bookmarks: Bookmark[],
+  reviews: Review[],
+  chapters: ChapterInfo[],
+  progress: BookProgress | null,
+  isbn?: string | null,
+): string {
+  const lines: string[] = [];
 
-export function buildMarkdownPreview(books: NotebookBook[]): string {
-  const book = books[0];
-  return `# ${book?.title ?? "书名"} - ${book?.author ?? "作者"}
+  lines.push("---");
+  lines.push(`书籍编号: ${book.bookId}`);
+  if (isbn) lines.push(`ISBN: ${isbn}`);
+  lines.push(`标题: ${yamlEscape(book.title)}`);
+  lines.push(`作者: ${yamlEscape(book.author || "未知作者")}`);
+  if (book.cover) lines.push(`封面: ${book.cover}`);
+  if (progress) {
+    if (progress.updateTime > 0) {
+      lines.push(`上次阅读时间: ${formatDateTime(progress.updateTime)}`);
+    }
+    if (progress.finishTime && progress.finishTime > 0) {
+      lines.push(`读完时间: ${formatDateTime(progress.finishTime)}`);
+    }
+    if (progress.recordReadingTime > 0) {
+      lines.push(`阅读时长: ${formatDuration(progress.recordReadingTime)}`);
+    }
+    if (progress.progress > 0) {
+      lines.push(`当前进度: ${progress.progress}%`);
+    }
+  }
+  lines.push("---");
+  lines.push("");
 
-> 导出时间：YYYY-MM-DD HH:mm
-> 数据来源：微信读书
+  lines.push(`# ${book.title} - ${book.author || "未知作者"}`);
+  lines.push("");
+  lines.push(`> 导出时间：${new Date().toLocaleString("zh-CN")}`);
+  lines.push("> 数据来源：微信读书");
+  lines.push("");
+  lines.push("---");
+  lines.push("");
 
----
+  if (chapters.length > 0) {
+    for (const chapter of chapters) {
+      const chapterBookmarks = bookmarks.filter((b) => b.chapterUid === chapter.chapterUid);
+      const chapterReviews = reviews.filter(
+        (r) => r.chapterName === chapter.title,
+      );
+      if (chapterBookmarks.length === 0 && chapterReviews.length === 0) continue;
 
-## 章节标题
+      lines.push(`## ${chapter.title}`);
+      lines.push("");
 
-> 划线内容会显示在这里。
+      for (const bookmark of chapterBookmarks) {
+        lines.push(`${bookmark.markText}`);
+        const meta = [`创建时间：${formatDate(bookmark.createTime)}`];
+        if (bookmark.range) meta.push(`位置：\`${bookmark.range}\``);
+        lines.push(`> ${meta.join(" · ")}`);
+        lines.push("");
+      }
 
-**我的思考：** 关联的想法或点评会显示在这里。
-`;
-}
-
-export function buildExportPreview(book?: NotebookBook, format = "markdown"): string {
-  if (format === "json") {
-    return JSON.stringify(
-      {
-        version: "1.0",
-        source: "weread",
-        book: {
-          id: book?.bookId ?? "bookId",
-          title: book?.title ?? "书名",
-          author: book?.author ?? "作者",
-        },
-        chapters: [],
-      },
-      null,
-      2,
-    );
+      for (const review of chapterReviews) {
+        lines.push(`**我的思考：** ${review.content}`);
+        lines.push("");
+      }
+    }
+  } else {
+    for (const bookmark of bookmarks) {
+      lines.push(`> ${bookmark.markText}`);
+      lines.push("");
+    }
+    for (const review of reviews) {
+      lines.push(`**我的思考：** ${review.content}`);
+      lines.push("");
+    }
   }
 
-  return buildMarkdownPreview(book ? [book] : []);
+  lines.push("---");
+  lines.push("*由 WeRead Skill Desktop 导出*");
+
+  return lines.join("\n");
+}
+
+function yamlEscape(value: string): string {
+  if (/[:#"'{}\[\],&*!|>%@`\n]/.test(value) || value.startsWith(" ") || value.startsWith("-")) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+function formatDate(ts: number): string {
+  if (!ts) return "-";
+  return new Date(ts * 1000).toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+function formatDateTime(ts: number): string {
+  if (!ts) return "-";
+  const d = new Date(ts * 1000);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds <= 0) return "0分钟";
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0 && minutes > 0) {
+    return `${hours}小时${minutes}分钟`;
+  }
+  if (hours > 0) {
+    return `${hours}小时`;
+  }
+  return `${minutes}分钟`;
 }
