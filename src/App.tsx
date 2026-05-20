@@ -7,6 +7,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { ExportPage } from "./pages/ExportPage";
 import { NotesPage } from "./pages/NotesPage";
 import { OverviewPage } from "./pages/OverviewPage";
+import { ReportPage } from "./pages/ReportPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { useBookshelf } from "./hooks/useBookshelf";
 import { useNotebooks } from "./hooks/useNotebooks";
@@ -66,6 +67,15 @@ function App() {
             <Route path="/notes" element={<NotesPage />} />
             <Route path="/notes/:bookId" element={<NotesPage />} />
             <Route path="/export" element={<ExportPage settings={settings.settings} />} />
+            <Route
+              path="/reports"
+              element={
+                <ReportPage
+                  apiKeySet={settings.settings.apiKeySet}
+                  settings={settings.settings}
+                />
+              }
+            />
             <Route
               path="/settings"
               element={

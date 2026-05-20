@@ -514,12 +514,13 @@ type ReadingReportData = {
 
 第一版只做基础 HTML 报告，不做用户自定义 HTML 编辑器，不做大模型分析：
 
-- Export 页增加导出类型：`Markdown 笔记` / `HTML 阅读报告`。
+- 新增独立 `阅读报告` 页面；报告不是 Markdown 导出的附属选项，而是可浏览、可切换、可预览的内容页。
 - HTML 阅读报告支持 3 个内置模版：
   - `阅读分析报告`：数据分析型，偏统计和结构化视图。
   - `读书旅程`：时间线型，偏阅读路径和代表性摘录。
   - `年度阅读报告`：总结型，偏视觉化年度 / 月度汇总。
-- 每次导出生成一个 `.html` 文件。
+- 浏览器预览会先把当前报告 HTML 写入 App 私有目录，再用系统默认浏览器打开；预览文件不进入用户导出目录。
+- 正式导出时必须让用户选择目标目录，再在该目录下生成 `.html` 文件。
 - HTML 使用内联 CSS，尽量不依赖外部网络资源，保证本地可打开。
 - 导出预览和最终文件使用同一套报告数据模型。
 - 当前 Markdown 导出保持默认且不被破坏。
@@ -541,6 +542,100 @@ type GeneratedInsight = {
   suggestions: string[];
 };
 ```
+
+#### 高级报告完整实现方案
+
+高级报告按“模板包 + 数据准备 + 本地 CLI 任务 + 输出登记 + 应用预览/分享”实现。CLI 的具体封装库和调用参数后续再接入；本阶段先固定应用侧目录、数据契约和模板发现方式。
+
+目录约定：
+
+```text
+AppData/
+└── reports/
+    ├── templates/
+    │   ├── personality/
+    │   │   ├── template.json
+    │   │   ├── prompt.md
+    │   │   ├── renderer.html
+    │   │   └── assets/
+    │   └── knowledge-gap/
+    │       ├── template.json
+    │       ├── prompt.md
+    │       ├── renderer.html
+    │       └── assets/
+    ├── jobs/
+    │   └── <job-id>/
+    │       ├── input/
+    │       │   ├── report-data.json
+    │       │   ├── prompt.md
+    │       │   └── excerpts.json
+    │       ├── output/
+    │       │   ├── insights.json
+    │       │   ├── report.html
+    │       │   └── share.html
+    │       └── job.json
+    └── preview/
+```
+
+`template.json` 用于应用发现高级模板：
+
+```json
+{
+  "id": "personality",
+  "name": "阅读人格分析",
+  "kind": "advanced",
+  "version": "0.1.0",
+  "description": "基于阅读统计、分类偏好和代表性摘录生成阅读者画像。",
+  "prompt": "prompt.md",
+  "renderer": "renderer.html",
+  "requires": {
+    "cli": true,
+    "excerpts": "optional",
+    "privacyConfirmation": true
+  },
+  "outputs": ["insights.json", "report.html", "share.html"]
+}
+```
+
+输入数据分三层：
+
+- `report-data.json`：统一 `ReadingReportData`，只包含统计、书籍、分类、排行、时间线和数据覆盖摘要。
+- `excerpts.json`：代表性划线 / 想法，必须由用户确认是否纳入；默认只抽样，不传全量笔记。
+- `prompt.md`：由模板包提供，应用在 job 目录中展开变量，例如报告周期、隐私级别、输出 schema 和模板目标。
+
+CLI 调用边界：
+
+- Rust 新增 `advanced_report` 模块，负责模板扫描、job 目录创建、输入写入、调用本地 CLI、读取输出和错误映射。
+- 前端不拼命令、不读任意路径，只通过 Tauri 命令拿模板清单、创建任务、查看任务状态、打开输出文件。
+- CLI 必须输出稳定 `insights.json`；HTML 渲染可以由 CLI 直接产出，也可以由应用用 `renderer.html` + `insights.json` 生成。
+- CLI 失败时保留 `job.json`、输入文件和错误摘要，便于用户重试或排查。
+
+建议 Tauri 命令：
+
+| 命令 | 说明 |
+|------|------|
+| `list_report_templates` | 扫描内置与用户模板目录，返回基础/高级模板清单 |
+| `prepare_report_job` | 创建 job，写入 `report-data.json`、`excerpts.json`、展开后的 `prompt.md` |
+| `run_advanced_report` | 调用本地 CLI，生成 `insights.json`、`report.html` 和可选 `share.html` |
+| `get_report_job` | 查询任务状态、输出路径和错误 |
+| `open_report_file` | 用系统默认应用打开报告文件 |
+| `export_report_artifact` | 将 job 输出复制到用户选择目录 |
+| `create_report_share_file` | 生成带应用署名和传播入口的分享版 HTML |
+
+前端工作流：
+
+1. 阅读报告页展示基础报告模板和高级报告模板；普通 Markdown 导出页保持现有导出工作台，不纳入报告模板目录。
+2. 点击高级模板后进入接近全屏的报告工作台。
+3. 报告工作台展示数据范围、隐私确认、输出目录、预览区和任务状态。
+4. 用户确认后创建 job 并调用本地 CLI。
+5. 成功后应用读取 `report.html` 预览；用户可导出正式版或生成分享版。
+
+分享能力：
+
+- 分享版与正式导出版分离，文件名建议为 `<title>-share.html`。
+- 分享版可以加入应用署名、项目名、下载/主页链接、二维码占位和“由微信读书 Skill 桌面端生成”的弱提示。
+- 分享版默认不包含用户未确认的原文摘录；如果包含摘录，必须沿用高级模板的隐私确认。
+- 第一阶段只生成本地分享 HTML，不建设在线托管平台；用户自行上传或发送文件。
 
 #### 不做内容
 

@@ -251,3 +251,11 @@ pub struct ExportProgressPayload {
     pub total: usize,
     pub title: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportHtmlExportResult {
+    pub success: bool,
+    pub file_path: String,
+    pub message: String,
+}

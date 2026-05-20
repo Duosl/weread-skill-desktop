@@ -3,6 +3,7 @@ mod cache;
 mod commands;
 mod config;
 mod export;
+mod report;
 mod state;
 mod types;
 
@@ -32,7 +33,10 @@ pub fn run() {
             commands::get_notebooks,
             commands::get_reading_stats,
             commands::export_to_markdown,
+            commands::export_report_html,
+            commands::preview_report_html,
             commands::open_export_folder,
+            commands::open_report_file,
             commands::open_in_weread,
             commands::get_app_version,
         ])

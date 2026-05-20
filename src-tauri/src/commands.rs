@@ -170,6 +170,38 @@ pub async fn open_export_folder(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub async fn export_report_html(
+    output_dir: String,
+    title: String,
+    html: String,
+) -> Result<ReportHtmlExportResult, String> {
+    let file_path = crate::report::export_report_html(&output_dir, &title, &html)?;
+    Ok(ReportHtmlExportResult {
+        success: true,
+        file_path,
+        message: "HTML 阅读报告已导出".to_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn preview_report_html(
+    title: String,
+    html: String,
+) -> Result<ReportHtmlExportResult, String> {
+    let file_path = crate::report::preview_report_html(&title, &html)?;
+    Ok(ReportHtmlExportResult {
+        success: true,
+        file_path,
+        message: "HTML 阅读报告预览已生成".to_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn open_report_file(path: String) -> Result<(), String> {
+    open_path(path).map_err(|e| format!("无法打开报告文件: {e}"))
+}
+
+#[tauri::command]
 pub async fn get_app_version() -> Result<String, String> {
     Ok(env!("CARGO_PKG_VERSION").to_string())
 }
