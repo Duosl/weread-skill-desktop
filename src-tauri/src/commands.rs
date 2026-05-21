@@ -179,7 +179,7 @@ pub async fn export_report_html(
     Ok(ReportHtmlExportResult {
         success: true,
         file_path,
-        message: "HTML 阅读报告已导出".to_string(),
+        message: "阅读报告已导出".to_string(),
     })
 }
 
@@ -192,13 +192,119 @@ pub async fn preview_report_html(
     Ok(ReportHtmlExportResult {
         success: true,
         file_path,
-        message: "HTML 阅读报告预览已生成".to_string(),
+        message: "阅读报告预览已生成".to_string(),
     })
 }
 
 #[tauri::command]
 pub async fn open_report_file(path: String) -> Result<(), String> {
-    open_path(path).map_err(|e| format!("无法打开报告文件: {e}"))
+    open_path(path).map_err(|e| format!("无法打开报告: {e}"))
+}
+
+#[tauri::command]
+pub async fn detect_local_agents() -> Result<Vec<crate::agent_bridge::DetectedAgentDto>, String> {
+    Ok(crate::agent_bridge::list_detected_agents())
+}
+
+#[tauri::command]
+pub async fn invoke_local_agent(
+    app: tauri::AppHandle,
+    state: State<'_, RuntimeState>,
+    request: crate::agent_bridge::AgentInvokeRequest,
+) -> Result<crate::agent_bridge::AgentInvokeResult, String> {
+    crate::agent_bridge::invoke_local_agent(app, state, request).await
+}
+
+#[tauri::command]
+pub async fn cancel_local_agent(
+    state: State<'_, RuntimeState>,
+    job_id: String,
+) -> Result<bool, String> {
+    crate::agent_bridge::cancel_local_agent(state, job_id).await
+}
+
+#[tauri::command]
+pub async fn list_advanced_report_templates(
+) -> Result<Vec<crate::advanced_report::AdvancedReportTemplate>, String> {
+    Ok(crate::advanced_report::list_advanced_report_templates())
+}
+
+#[tauri::command]
+pub async fn create_advanced_report_job(
+    state: State<'_, RuntimeState>,
+    request: crate::advanced_report::AdvancedReportJobRequest,
+) -> Result<crate::advanced_report::AdvancedReportJob, String> {
+    let client = state.client().await?;
+    crate::advanced_report::create_advanced_report_job(client, request).await
+}
+
+#[tauri::command]
+pub async fn read_advanced_report_output(
+    job_id: String,
+) -> Result<crate::advanced_report::AdvancedReportOutput, String> {
+    crate::advanced_report::read_advanced_report_output(&job_id)
+}
+
+#[tauri::command]
+pub async fn read_advanced_report_logs(
+    job_id: String,
+) -> Result<Vec<crate::advanced_report::AdvancedReportLogEvent>, String> {
+    crate::advanced_report::read_advanced_report_logs(&job_id)
+}
+
+#[tauri::command]
+pub async fn export_advanced_report_output(
+    request: crate::advanced_report::AdvancedReportExportRequest,
+) -> Result<crate::advanced_report::AdvancedReportExportResult, String> {
+    crate::advanced_report::export_advanced_report_output(request)
+}
+
+#[tauri::command]
+pub async fn start_advanced_report_task(
+    app: tauri::AppHandle,
+    state: State<'_, RuntimeState>,
+    request: crate::advanced_report::StartAdvancedReportRequest,
+) -> Result<crate::advanced_report::AdvancedReportTask, String> {
+    let client = state.client().await?;
+    crate::advanced_report::start_advanced_report_task(app, state.inner(), client, request).await
+}
+
+#[tauri::command]
+pub async fn list_advanced_report_tasks(
+    state: State<'_, RuntimeState>,
+) -> Result<Vec<crate::advanced_report::AdvancedReportTask>, String> {
+    crate::advanced_report::merge_advanced_report_tasks(state.advanced_report_tasks().await)
+}
+
+#[tauri::command]
+pub async fn cancel_advanced_report_task(
+    state: State<'_, RuntimeState>,
+    job_id: String,
+) -> Result<bool, String> {
+    let canceled = state.cancel_agent_job(&job_id).await;
+    if canceled {
+        state
+            .update_advanced_report_task_status(
+                &job_id,
+                crate::advanced_report::AdvancedReportTaskStatus::Canceled,
+                Some("已请求取消".to_string()),
+            )
+            .await;
+    }
+    Ok(canceled)
+}
+
+#[tauri::command]
+pub async fn delete_advanced_report_job(
+    state: State<'_, RuntimeState>,
+    job_id: String,
+) -> Result<bool, String> {
+    if state.has_active_advanced_report_job(&job_id).await {
+        return Err("任务正在生成中，请先取消后再删除。".to_string());
+    }
+    let deleted = crate::advanced_report::delete_advanced_report_job(&job_id)?;
+    state.remove_advanced_report_task(&job_id).await;
+    Ok(deleted)
 }
 
 #[tauri::command]

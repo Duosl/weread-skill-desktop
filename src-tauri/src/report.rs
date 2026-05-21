@@ -16,9 +16,9 @@ pub fn export_report_html(output_dir: &str, title: &str, html: &str) -> Result<S
     fs::create_dir_all(&output_dir).map_err(|e| format!("创建报告目录失败: {e}"))?;
 
     let file_path = unique_html_path(&output_dir, title);
-    fs::write(&file_path, html).map_err(|e| format!("写入 HTML 报告失败: {e}"))?;
+    fs::write(&file_path, html).map_err(|e| format!("写入报告失败: {e}"))?;
     if !file_path.exists() {
-        return Err(format!("写入验证失败，文件未生成: {}", file_path.display()));
+        return Err("写入验证失败，报告未生成".to_string());
     }
     Ok(file_path.to_string_lossy().to_string())
 }
@@ -34,7 +34,7 @@ pub fn preview_report_html(title: &str, html: &str) -> Result<String, String> {
     let file_path = preview_dir.join(format!("{}.html", safe_file_name(title)));
     fs::write(&file_path, html).map_err(|e| format!("写入报告预览失败: {e}"))?;
     if !file_path.exists() {
-        return Err(format!("写入验证失败，文件未生成: {}", file_path.display()));
+        return Err("写入验证失败，报告预览未生成".to_string());
     }
     Ok(file_path.to_string_lossy().to_string())
 }

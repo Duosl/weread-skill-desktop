@@ -45,8 +45,8 @@ impl AppConfig {
         if let Some(parent) = self.config_path.parent() {
             fs::create_dir_all(parent).map_err(|e| format!("创建配置目录失败: {e}"))?;
         }
-        let content = serde_json::to_string_pretty(self)
-            .map_err(|e| format!("序列化配置失败: {e}"))?;
+        let content =
+            serde_json::to_string_pretty(self).map_err(|e| format!("序列化配置失败: {e}"))?;
         fs::write(&self.config_path, content).map_err(|e| format!("写入配置文件失败: {e}"))
     }
 

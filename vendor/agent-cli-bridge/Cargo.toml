@@ -1,0 +1,28 @@
+[package]
+name = "agent-cli-bridge"
+version = "0.1.0"
+edition = "2021"
+description = "Detect and invoke locally installed AI coding agent CLIs"
+license = "MIT"
+readme = "README.md"
+keywords = ["cli", "ai", "agent", "claude", "codex"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "5"
+thiserror = "1"
+log = "0.4"
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[[example]]
+name = "detect"
+path = "examples/detect.rs"
+
+[[example]]
+name = "invoke"
+path = "examples/invoke.rs"

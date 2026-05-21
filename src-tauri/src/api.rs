@@ -64,7 +64,9 @@ impl WeReadClient {
                 401 | 403 => {
                     format!("{api_name} 请求失败 (HTTP {status})：API Key 无效或已过期，请检查设置。响应：{detail}")
                 }
-                429 => format!("{api_name} 请求失败 (HTTP 429)：请求过于频繁，请稍后再试。响应：{detail}"),
+                429 => format!(
+                    "{api_name} 请求失败 (HTTP 429)：请求过于频繁，请稍后再试。响应：{detail}"
+                ),
                 _ => format!("{api_name} 请求失败 (HTTP {status})。响应：{detail}"),
             });
         }
@@ -147,7 +149,12 @@ impl WeReadClient {
             update_time: first_int(book, &["updateTime", "readUpdateTime"]),
             record_reading_time: first_int(
                 book,
-                &["recordReadingTime", "readingTime", "readTime", "totalReadTime"],
+                &[
+                    "recordReadingTime",
+                    "readingTime",
+                    "readTime",
+                    "totalReadTime",
+                ],
             ),
             finish_time: int_optional(book, "finishTime"),
             is_start_reading: first_int(book, &["isStartReading"]) as i32,
@@ -155,8 +162,20 @@ impl WeReadClient {
     }
 
     pub async fn bookmark_list(&self, book_id: &str) -> Result<BookmarkListResult, String> {
+        self.bookmark_list_with_cache(book_id, false).await
+    }
+
+    pub async fn bookmark_list_with_cache(
+        &self,
+        book_id: &str,
+        force_refresh: bool,
+    ) -> Result<BookmarkListResult, String> {
         let value = self
-            .gateway_value("/book/bookmarklist", json!({ "bookId": book_id }))
+            .gateway_value_with_cache(
+                "/book/bookmarklist",
+                json!({ "bookId": book_id }),
+                force_refresh,
+            )
             .await?;
         let chapters: Vec<ChapterInfo> = value
             .get("chapters")
@@ -195,10 +214,22 @@ impl WeReadClient {
         synckey: i64,
         count: i32,
     ) -> Result<ReviewListResult, String> {
+        self.my_reviews_with_cache(book_id, synckey, count, false)
+            .await
+    }
+
+    pub async fn my_reviews_with_cache(
+        &self,
+        book_id: &str,
+        synckey: i64,
+        count: i32,
+        force_refresh: bool,
+    ) -> Result<ReviewListResult, String> {
         let value = self
-            .gateway_value(
+            .gateway_value_with_cache(
                 "/review/list/mine",
                 json!({ "bookid": book_id, "synckey": synckey, "count": count }),
+                force_refresh,
             )
             .await?;
         let reviews = value
@@ -291,7 +322,10 @@ impl WeReadClient {
                         Some(ReadStatItem {
                             stat: str_field(item, "stat"),
                             counts: str_field(item, "counts"),
-                            scheme: item.get("scheme").and_then(Value::as_str).map(str::to_string),
+                            scheme: item
+                                .get("scheme")
+                                .and_then(Value::as_str)
+                                .map(str::to_string),
                         })
                     })
                     .collect()
@@ -355,7 +389,10 @@ fn parse_shelf_album(value: &Value) -> Option<ShelfAlbum> {
         track_count: int_field(info, "trackCount") as i32,
         finish_status: str_field(info, "finishStatus"),
         finish: int_field(info, "finish") as i32,
-        secret: extra.and_then(|v| v.get("secret")).and_then(Value::as_i64).unwrap_or(0) as i32,
+        secret: extra
+            .and_then(|v| v.get("secret"))
+            .and_then(Value::as_i64)
+            .unwrap_or(0) as i32,
     })
 }
 
@@ -432,7 +469,10 @@ fn parse_review(value: &Value) -> Option<Review> {
             .or_else(|| review.get("chapterTitle"))
             .and_then(Value::as_str)
             .map(str::to_string),
-        range: review.get("range").and_then(Value::as_str).map(str::to_string),
+        range: review
+            .get("range")
+            .and_then(Value::as_str)
+            .map(str::to_string),
     })
 }
 
@@ -510,7 +550,10 @@ fn int_field(value: &Value, key: &str) -> i64 {
 }
 
 fn int_optional(value: &Value, key: &str) -> Option<i64> {
-    value.get(key).map(value_to_i64).filter(|number| *number > 0)
+    value
+        .get(key)
+        .map(value_to_i64)
+        .filter(|number| *number > 0)
 }
 
 fn first_int(value: &Value, keys: &[&str]) -> i64 {

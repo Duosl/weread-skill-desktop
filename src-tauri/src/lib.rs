@@ -1,3 +1,5 @@
+mod advanced_report;
+mod agent_bridge;
 mod api;
 mod cache;
 mod commands;
@@ -39,6 +41,18 @@ pub fn run() {
             commands::open_report_file,
             commands::open_in_weread,
             commands::get_app_version,
+            commands::detect_local_agents,
+            commands::invoke_local_agent,
+            commands::cancel_local_agent,
+            commands::list_advanced_report_templates,
+            commands::create_advanced_report_job,
+            commands::read_advanced_report_output,
+            commands::read_advanced_report_logs,
+            commands::export_advanced_report_output,
+            commands::start_advanced_report_task,
+            commands::list_advanced_report_tasks,
+            commands::cancel_advanced_report_task,
+            commands::delete_advanced_report_job,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -29,11 +29,14 @@ pub async fn export_to_markdown(
             return Err(format!("写入验证失败，文件未生成: {}", file_path.display()));
         }
         file_paths.push(file_path.to_string_lossy().to_string());
-        let _ = app.emit("export-progress", ExportProgressPayload {
-            current: i + 1,
-            total,
-            title: data.title.clone(),
-        });
+        let _ = app.emit(
+            "export-progress",
+            ExportProgressPayload {
+                current: i + 1,
+                total,
+                title: data.title.clone(),
+            },
+        );
     }
 
     Ok(file_paths)
@@ -80,11 +83,14 @@ async fn load_export_book(
     book_id: &str,
     options: &ExportOptions,
 ) -> Result<ExportBook, String> {
-    let info = client.book_info(book_id).await.unwrap_or_else(|_| BookInfo {
-        book_id: book_id.to_string(),
-        title: "未知书籍".to_string(),
-        ..Default::default()
-    });
+    let info = client
+        .book_info(book_id)
+        .await
+        .unwrap_or_else(|_| BookInfo {
+            book_id: book_id.to_string(),
+            title: "未知书籍".to_string(),
+            ..Default::default()
+        });
 
     let progress = client.book_progress(book_id).await.ok();
 
@@ -157,10 +163,7 @@ fn build_markdown(data: &ExportBook, options: &ExportOptions) -> String {
         }
         if let Some(finish_time) = progress.finish_time {
             if finish_time > 0 {
-                markdown.push_str(&format!(
-                    "读完时间: {}\n",
-                    format_datetime(finish_time)
-                ));
+                markdown.push_str(&format!("读完时间: {}\n", format_datetime(finish_time)));
             }
         }
         if progress.record_reading_time > 0 {
@@ -249,10 +252,7 @@ fn build_markdown(data: &ExportBook, options: &ExportOptions) -> String {
 
 fn push_bookmark_markdown(markdown: &mut String, bookmark: &Bookmark) {
     markdown.push_str(&format!("> {}\n\n", bookmark.mark_text));
-    markdown.push_str(&format!(
-        "创建时间：{}",
-        format_date(bookmark.create_time)
-    ));
+    markdown.push_str(&format!("创建时间：{}", format_date(bookmark.create_time)));
     if !bookmark.range.is_empty() {
         markdown.push_str(&format!("  \n位置：`{}`", bookmark.range));
     }
@@ -326,13 +326,26 @@ fn safe_file_name(title: &str, fallback: &str) -> String {
 }
 
 fn yaml_escape(value: &str) -> String {
-    if value.contains(':') || value.contains('#') || value.contains('"')
-        || value.contains('\'') || value.contains('\n') || value.contains('{')
-        || value.contains('}') || value.contains('[') || value.contains(']')
-        || value.contains(',') || value.contains('&') || value.contains('*')
-        || value.contains('!') || value.contains('|') || value.contains('>')
-        || value.contains('%') || value.contains('@') || value.contains('`')
-        || value.starts_with(' ') || value.starts_with('-')
+    if value.contains(':')
+        || value.contains('#')
+        || value.contains('"')
+        || value.contains('\'')
+        || value.contains('\n')
+        || value.contains('{')
+        || value.contains('}')
+        || value.contains('[')
+        || value.contains(']')
+        || value.contains(',')
+        || value.contains('&')
+        || value.contains('*')
+        || value.contains('!')
+        || value.contains('|')
+        || value.contains('>')
+        || value.contains('%')
+        || value.contains('@')
+        || value.contains('`')
+        || value.starts_with(' ')
+        || value.starts_with('-')
     {
         format!("\"{}\"", value.replace('"', "\"\""))
     } else {

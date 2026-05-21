@@ -23,6 +23,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+agent-cli-bridge = { path = "../vendor/agent-cli-bridge" }
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "5"
 open = "5"

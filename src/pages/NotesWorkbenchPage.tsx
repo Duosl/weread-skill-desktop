@@ -1,7 +1,9 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { FileDown, MessageSquareQuote } from "lucide-react";
 import { PageShell } from "../components/layout/PageShell";
+import { Button } from "../components/ui/Button";
+import { ErrorBanner } from "../components/ui/ErrorBanner";
 import { ExportPage } from "./ExportPage";
 import { NotesPage } from "./NotesPage";
 import type { AppSettings } from "../types";
@@ -19,6 +21,8 @@ export function NotesWorkbenchPage({ settings }: NotesWorkbenchPageProps) {
   const activeTab: WorkbenchTab = rawTab === "export" ? "export" : "browse";
   const exportBookId = searchParams.get("bookId");
   const routeBookId = params.bookId ?? "";
+  const [selectedBookId, setSelectedBookId] = useState(routeBookId);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const tabs = useMemo(
     () => [
@@ -29,6 +33,7 @@ export function NotesWorkbenchPage({ settings }: NotesWorkbenchPageProps) {
   );
 
   function setTab(tab: WorkbenchTab, bookId?: string) {
+    setActionError(null);
     const next = new URLSearchParams(searchParams);
     if (tab === "browse") {
       next.delete("tab");
@@ -44,36 +49,60 @@ export function NotesWorkbenchPage({ settings }: NotesWorkbenchPageProps) {
     setTab("export", bookId);
   }
 
+  useEffect(() => {
+    setSelectedBookId(routeBookId);
+  }, [routeBookId]);
+
   if (rawTab && rawTab !== "export" && rawTab !== "browse") {
     return <Navigate to="/notes" replace />;
   }
 
   return (
     <PageShell
-      title="笔记"
+      title={
+        <span className="page-title-stack notes-workbench-title">
+          <span className="notes-title-row">
+            <span>笔记</span>
+            <span className="workbench-tabs" role="tablist" aria-label="笔记工作台">
+              {tabs.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  className={activeTab === id ? "active" : ""}
+                  onClick={() => setTab(id)}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === id}
+                >
+                  <Icon size={16} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </span>
+          </span>
+          <small>查看单本书的划线与想法，需要导出时可直接切到导出区。</small>
+        </span>
+      }
       action={
-        <div className="workbench-tabs" role="tablist" aria-label="笔记工作台">
-          {tabs.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              className={activeTab === id ? "active" : ""}
-              onClick={() => setTab(id)}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === id}
+        activeTab === "browse" ? (
+          <div className="workbench-actions">
+            <Button
+              variant="secondary"
+              icon={<FileDown size={16} />}
+              disabled={!selectedBookId}
+              onClick={() => exportCurrentBook(selectedBookId)}
             >
-              <Icon size={16} />
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
+              导出当前书
+            </Button>
+          </div>
+        ) : null
       }
     >
+      <ErrorBanner message={actionError} />
       {activeTab === "browse" ? (
         <NotesPage
           embedded
           initialBookId={routeBookId}
-          onExportBook={exportCurrentBook}
+          onSelectedBookChange={setSelectedBookId}
         />
       ) : (
         <ExportPage

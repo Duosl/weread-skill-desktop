@@ -10,6 +10,7 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorBanner } from "../components/ui/ErrorBanner";
 import { Spinner } from "../components/ui/Spinner";
 import { formatDate, formatDuration, noteTotal } from "../lib/format";
+import { getShelfReadingStatus } from "../hooks/useBookshelf";
 import type { useBookshelf } from "../hooks/useBookshelf";
 import { useNotebooks } from "../hooks/useNotebooks";
 import type { useReadingStats } from "../hooks/useReadingStats";
@@ -57,6 +58,7 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
   }
 
   const selectedNotebook = selectedBook ? notebookByBookId.get(selectedBook.bookId) : undefined;
+  const selectedBookStatus = selectedBook ? getShelfReadingStatus(selectedBook) : null;
 
   return (
     <PageShell
@@ -81,30 +83,50 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
         <>
           <ErrorBanner message={shelf.error} />
           <ErrorBanner message={notebooks.error} />
-          <Card className="toolbar-card">
-            <div className="search-box">
-              <Search size={18} />
-              <input
-                value={shelf.query}
-                onChange={(event) => shelf.setQuery(event.target.value)}
-                placeholder="搜索书名或作者"
-              />
+          <Card className="toolbar-card bookshelf-toolbar">
+            <div className="toolbar-main-row">
+              <div className="search-box">
+                <Search size={18} />
+                <input
+                  value={shelf.query}
+                  onChange={(event) => shelf.setQuery(event.target.value)}
+                  placeholder="搜索书名或作者"
+                />
+              </div>
+              <div className="segmented">
+                {[
+                  ["all", "全部"],
+                  ["finished", "已读完"],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    className={shelf.filter === value ? "active" : ""}
+                    onClick={() => shelf.setFilter(value as "all" | "finished")}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="segmented">
-              {[
-                ["all", "全部"],
-                ["reading", "在读"],
-                ["finished", "已读"],
-              ].map(([value, label]) => (
+            {shelf.categories.length > 0 ? (
+              <div className="category-filter-row" aria-label="类别筛选">
                 <button
-                  key={value}
-                  className={shelf.filter === value ? "active" : ""}
-                  onClick={() => shelf.setFilter(value as never)}
+                  className={shelf.categoryFilter === "all" ? "active" : ""}
+                  onClick={() => shelf.setCategoryFilter("all")}
                 >
-                  {label}
+                  全部类别
                 </button>
-              ))}
-            </div>
+                {shelf.categories.map((category) => (
+                  <button
+                    key={category}
+                    className={shelf.categoryFilter === category ? "active" : ""}
+                    onClick={() => shelf.setCategoryFilter(category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </Card>
 
           {shelf.loading ? (
@@ -112,24 +134,28 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
               <Spinner label="正在同步书架" />
             </Card>
           ) : shelf.books.length === 0 ? (
-            <EmptyState title="暂无书籍" description="同步后会在这里显示已读和在读书籍。" />
+            <EmptyState title="暂无书籍" description="同步后会在这里显示书架书籍。" />
           ) : (
             <div className="book-grid">
-              {shelf.books.map((book) => (
-                <button className="book-card" key={book.bookId} onClick={() => void openBookDetail(book)}>
-                  <div className="cover">
-                    {book.cover ? <img src={book.cover} alt="" /> : <BookOpen size={28} />}
-                  </div>
-                  <div className="book-meta">
-                    <h2>{book.title}</h2>
-                    <p>{book.author || "未知作者"}</p>
-                    <div className="book-footer">
-                      <Badge>{book.finishReading === 1 ? "已读" : "在读"}</Badge>
-                      <span>{formatDate(book.updateTime || book.readUpdateTime)}</span>
+              {shelf.books.map((book) => {
+                const status = getShelfReadingStatus(book);
+                return (
+                  <button className="book-card" key={book.bookId} onClick={() => void openBookDetail(book)}>
+                    <div className="cover">
+                      {book.cover ? <img src={book.cover} alt="" /> : <BookOpen size={28} />}
                     </div>
-                  </div>
-                </button>
-              ))}
+                    <div className="book-meta">
+                      <h2>{book.title}</h2>
+                      <p>{book.author || "未知作者"}</p>
+                      <span className="book-category">{book.category.trim() || "未分类"}</span>
+                      <div className="book-footer">
+                        {status === "finished" ? <Badge>读完</Badge> : null}
+                        <span>{formatDate(book.readUpdateTime || book.updateTime)}</span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -151,6 +177,7 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
                     <h2>{selectedBook.title}</h2>
                     <p>{selectedBook.author || "未知作者"}</p>
                     {selectedBook.category ? <Badge>{selectedBook.category}</Badge> : null}
+                    {selectedBookStatus === "finished" ? <Badge>读完</Badge> : null}
                   </div>
                 </div>
 
@@ -179,7 +206,7 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
                 <div className="detail-progress">
                   <div>
                     <span>阅读进度</span>
-                    <strong>{bookProgress?.progress ?? (selectedBook.finishReading === 1 ? 100 : 0)}%</strong>
+                    <strong>{bookProgress?.progress ?? (selectedBookStatus === "finished" ? 100 : 0)}%</strong>
                   </div>
                   <div>
                     <span>阅读时长</span>
@@ -187,7 +214,7 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
                   </div>
                   <div>
                     <span>最近阅读</span>
-                    <strong>{formatDate(bookProgress?.updateTime || selectedBook.updateTime || selectedBook.readUpdateTime)}</strong>
+                    <strong>{formatDate(bookProgress?.updateTime || selectedBook.readUpdateTime || selectedBook.updateTime)}</strong>
                   </div>
                 </div>
 

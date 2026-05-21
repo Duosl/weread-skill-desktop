@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, FileDown, MessageSquareQuote, Search } from "lucide-react";
+import { ExternalLink, MessageSquareQuote, Search } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { PageShell } from "../components/layout/PageShell";
@@ -37,10 +37,14 @@ type FlatNote = {
 type NotesPageProps = {
   embedded?: boolean;
   initialBookId?: string;
-  onExportBook?: (bookId: string) => void;
+  onSelectedBookChange?: (bookId: string) => void;
 };
 
-export function NotesPage({ embedded = false, initialBookId, onExportBook }: NotesPageProps = {}) {
+export function NotesPage({
+  embedded = false,
+  initialBookId,
+  onSelectedBookChange,
+}: NotesPageProps = {}) {
   const params = useParams();
   const [selectedBookId, setSelectedBookId] = useState(initialBookId ?? params.bookId ?? "");
   const [notebookQuery, setNotebookQuery] = useState("");
@@ -66,6 +70,10 @@ export function NotesPage({ embedded = false, initialBookId, onExportBook }: Not
   useEffect(() => {
     if (selectedBookId) void notes.loadNotes(selectedBookId);
   }, [selectedBookId]);
+
+  useEffect(() => {
+    if (embedded) onSelectedBookChange?.(selectedBookId);
+  }, [embedded, onSelectedBookChange, selectedBookId]);
 
   const selectedBook = notebooks.books.find((book) => book.bookId === selectedBookId);
   const filteredNotebooks = useMemo(() => {
@@ -144,34 +152,6 @@ export function NotesPage({ embedded = false, initialBookId, onExportBook }: Not
 
   const content = (
     <>
-      {embedded ? (
-        <div className="workbench-section-header">
-          <div>
-            <h2>浏览笔记</h2>
-            <p>查看单本书的划线与想法，需要导出时可直接切到导出区。</p>
-          </div>
-          <div className="workbench-actions">
-            {onExportBook ? (
-              <Button
-                variant="secondary"
-                icon={<FileDown size={16} />}
-                disabled={!selectedBookId}
-                onClick={() => onExportBook(selectedBookId)}
-              >
-                导出当前书
-              </Button>
-            ) : null}
-            <Button
-              variant="secondary"
-              icon={<ExternalLink size={16} />}
-              disabled={!selectedBookId}
-              onClick={() => void openInWeread()}
-            >
-              微信读书
-            </Button>
-          </div>
-        </div>
-      ) : null}
       <ErrorBanner message={notebooks.error ?? notes.error ?? actionError} />
       <div className="notes-layout">
         <Card className="notebook-list">
