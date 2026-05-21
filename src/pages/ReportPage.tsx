@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Eye, RefreshCw, Trash2, X } from "lucide-react";
+import { Eye, RefreshCw, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageShell } from "../components/layout/PageShell";
+import { ConfirmDialog } from "../components/report/ConfirmDialog";
+import { GenerationSettings } from "../components/report/GenerationSettings";
+import { ModelOutput } from "../components/report/ModelOutput";
+import type { ModelOutputBlock } from "../components/report/ModelOutput";
+import { TemplateCard } from "../components/report/TemplateCard";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorBanner } from "../components/ui/ErrorBanner";
+import { IconButton } from "../components/ui/IconButton";
+import { SegmentedControl } from "../components/ui/SegmentedControl";
 import { Spinner } from "../components/ui/Spinner";
 import { useAgentBridge } from "../hooks/useAgentBridge";
 import { useAdvancedReport } from "../hooks/useAdvancedReport";
@@ -33,15 +40,8 @@ type ReportHtmlPreviewResult = {
 };
 
 type TemplateTab = "basic" | "advanced";
-type LogViewMode = "brief" | "detail";
 const USER_PROMPT_MAX_LENGTH = 2000;
 const SEEN_ADVANCED_TASKS_STORAGE_KEY = "weread-desktop:seen-advanced-report-tasks";
-
-type ModelOutputBlock = {
-  kind: "thinking" | "output" | "system" | "error";
-  title: string;
-  text: string;
-};
 
 function advancedTaskStatus(task: AdvancedReportTask) {
   if (task.status === "completed") {
@@ -181,14 +181,20 @@ function leadingEllipsisLine(text: string, maxLength = 96) {
   return `…${chars.slice(-maxLength).join("")}`;
 }
 
-function templateDataAccessLabel(requiresRawNotesConsent: boolean) {
-  return requiresRawNotesConsent ? "需确认隐私" : "可直接生成";
-}
-
 function templateDataAccessDescription(requiresRawNotesConsent: boolean) {
   return requiresRawNotesConsent
-    ? "这个模板会使用你的划线和想法，生成前会请你确认。"
+    ? "这个模板需要使用你的划线和想法，请你手动授权。"
     : "使用书架、阅读统计和笔记数量生成；也可以在设置里加入划线和想法。";
+}
+
+function templateCategoryLabel(category: string) {
+  if (category === "share-ready") return "适合截图";
+  if (category === "advanced") return "深度分析";
+  return "智能体模板";
+}
+
+function outputShapeName(template: { defaultOutputShape: string; outputShapes: Array<{ id: string; name: string }> }) {
+  return template.outputShapes.find((shape) => shape.id === template.defaultOutputShape)?.name ?? template.defaultOutputShape;
 }
 
 function taskCreatedTime(task: AdvancedReportTask) {
@@ -226,7 +232,6 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [selectedTask, setSelectedTask] = useState<AdvancedReportTask | null>(null);
   const [taskPendingDelete, setTaskPendingDelete] = useState<AdvancedReportTask | null>(null);
-  const [logViewMode, setLogViewMode] = useState<LogViewMode>("brief");
   const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
   const [advancedOutputShapeByTemplate, setAdvancedOutputShapeByTemplate] = useState<Record<string, string>>({});
   const [advancedUserPromptByTemplate, setAdvancedUserPromptByTemplate] = useState<Record<string, string>>({});
@@ -266,9 +271,9 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
     selectedAdvancedTemplateId && selectedTask?.templateId === selectedAdvancedTemplateId
       ? selectedTask
       : null;
-  const selectedDetailTaskActive =
-    selectedTemplateDetailTask?.status === "running" || selectedTemplateDetailTask?.status === "preparing";
-  const showSelectedTemplateResult = Boolean(selectedTemplateDetailTask && !selectedDetailTaskActive);
+  const selectedTemplateCurrentTask = selectedAdvancedTemplateId ? taskByTemplate.get(selectedAdvancedTemplateId) : null;
+  const selectedTemplateCurrentTaskActive =
+    selectedTemplateCurrentTask?.status === "running" || selectedTemplateCurrentTask?.status === "preparing";
   const selectedDetailTaskLogs = selectedTemplateDetailTask
     ? (advancedReport.logsByJob[selectedTemplateDetailTask.jobId] ?? [])
     : [];
@@ -278,14 +283,6 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
     ? lastVisibleLine(selectedDetailTaskLatestBlock.text)
     : "";
   const selectedDetailTaskBriefLine = leadingEllipsisLine(selectedDetailTaskLatestLine || "正在等待新的输出。");
-  const shouldShowSelectedDetailTaskLogs = selectedDetailTaskActive || selectedDetailTaskLogs.length > 0;
-  const selectedDetailTaskOutput =
-    selectedTemplateDetailTask && advancedReport.output?.jobId === selectedTemplateDetailTask.jobId
-      ? advancedReport.output
-      : null;
-  const selectedDetailTaskCompleted = selectedTemplateDetailTask?.status === "completed";
-  const selectedDetailTaskReportAvailable =
-    Boolean(selectedDetailTaskOutput?.reportHtml) || selectedDetailTaskCompleted;
   const showAdvancedSettings = Boolean(selectedAdvancedTemplate && advancedSettingsOpen);
   const supportedAgentOptions = agentBridge.agents.filter((agent) => !agent.unsupported);
   const availableAgents = agentBridge.agents.filter((agent) => agent.available && !agent.unsupported);
@@ -410,7 +407,6 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
         agent: selectedAgent.id,
       });
       setSelectedTask(task);
-      setLogViewMode("brief");
       setActionNotice(`${task.templateName} 已开始生成，可离开当前页面`);
       void advancedReport.readLogs(task.jobId);
     } catch (error) {
@@ -578,22 +574,21 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
               <p>{selectedAdvancedTemplate.styleSummary || selectedAdvancedTemplate.description}</p>
             </div>
             <div className="advanced-template-primary-actions">
-              {selectedTemplateDetailTask?.status === "running" ||
-              selectedTemplateDetailTask?.status === "preparing" ? (
+              {selectedTemplateCurrentTaskActive && selectedTemplateCurrentTask ? (
                 <Button
                   className="template-action-danger"
                   variant="danger"
-                  onClick={() => void cancelTask(selectedTemplateDetailTask)}
+                  onClick={() => void cancelTask(selectedTemplateCurrentTask)}
                 >
                   取消生成
                 </Button>
-              ) : selectedTemplateDetailTask?.status === "completed" ? (
+              ) : selectedTemplateCurrentTask?.status === "completed" ? (
                 <>
                   <Button
                     className="template-action-main"
                     variant="primary"
                     icon={<Eye size={16} />}
-                    onClick={() => void openAdvancedReport(selectedTemplateDetailTask)}
+                    onClick={() => void openAdvancedReport(selectedTemplateCurrentTask)}
                   >
                     查看最新报告
                   </Button>
@@ -624,99 +619,6 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
           </section>
 
           <div className="advanced-template-workspace">
-            {showSelectedTemplateResult && selectedTemplateDetailTask ? (
-              <section className="advanced-template-panel advanced-template-result">
-                <div className="template-detail-section-title">
-                  <span>当前结果</span>
-                  <p>从模板卡片进入的最近一次生成结果。</p>
-                </div>
-                <>
-                  <section className={`advanced-task-status-card ${advancedTaskStatus(selectedTemplateDetailTask).tone}`}>
-                    <div>
-                      <span>{advancedTaskStatus(selectedTemplateDetailTask).label}</span>
-                      <h3>{selectedTemplateDetailTask.status === "completed" ? "报告已生成" : "报告未完成"}</h3>
-                      <p>
-                        {selectedTemplateDetailTask.status === "completed"
-                          ? "可以直接用浏览器打开查看完整报告。"
-                          : selectedTemplateDetailTask.message ?? "这次生成没有产出可查看的报告。"}
-                      </p>
-                    </div>
-                    <div className="advanced-result-actions">
-                      <Button
-                        variant="secondary"
-                        icon={<Eye size={16} />}
-                        disabled={!selectedDetailTaskReportAvailable}
-                        onClick={() => void openAdvancedReport(selectedTemplateDetailTask)}
-                      >
-                        浏览器打开
-                      </Button>
-                      <Button
-                        variant="danger"
-                        icon={<Trash2 size={16} />}
-                        onClick={() => requestDeleteAdvancedJob(selectedTemplateDetailTask)}
-                      >
-                        删除任务
-                      </Button>
-                    </div>
-                  </section>
-
-                  {shouldShowSelectedDetailTaskLogs ? (
-                    <section className="advanced-task-log-section">
-                      <div className="advanced-task-log-header">
-                        <div className="advanced-task-log-title">
-                          <strong>生成过程</strong>
-                          <small>
-                            {logViewMode === "brief"
-                              ? "简洁模式只显示状态和最新内容"
-                              : selectedDetailTaskOutputBlocks.length
-                                ? `${selectedDetailTaskOutputBlocks.length} 段内容`
-                                : "正在等待输出"}
-                          </small>
-                        </div>
-                        <div className="segmented advanced-task-log-mode" role="tablist" aria-label="生成过程显示模式">
-                          <button
-                            type="button"
-                            role="tab"
-                            aria-selected={logViewMode === "brief"}
-                            className={logViewMode === "brief" ? "active" : ""}
-                            onClick={() => setLogViewMode("brief")}
-                          >
-                            简洁
-                          </button>
-                          <button
-                            type="button"
-                            role="tab"
-                            aria-selected={logViewMode === "detail"}
-                            className={logViewMode === "detail" ? "active" : ""}
-                            onClick={() => setLogViewMode("detail")}
-                          >
-                            详细
-                          </button>
-                        </div>
-                      </div>
-                      <div className={`advanced-task-log-panel ${logViewMode === "brief" ? "brief" : ""}`} aria-live="off">
-                        {selectedDetailTaskOutputBlocks.length === 0 ? (
-                          <p className="advanced-task-log-empty">这次生成没有记录到可展示的过程。</p>
-                        ) : logViewMode === "brief" ? (
-                          <p className={`advanced-task-log-brief ${selectedDetailTaskLatestBlock?.kind ?? "system"}`}>
-                            <strong>{advancedTaskStatus(selectedTemplateDetailTask).label}</strong>
-                            <span title={selectedDetailTaskLatestLine || undefined}>{selectedDetailTaskBriefLine}</span>
-                          </p>
-                        ) : (
-                          selectedDetailTaskOutputBlocks.map((block, index) => (
-                            <article key={`${block.kind}-${index}`} className={`model-output-block ${block.kind}`}>
-                              <span>{block.title}</span>
-                              <p>{block.text}</p>
-                            </article>
-                          ))
-                        )}
-                      </div>
-                    </section>
-                  ) : null}
-                </>
-              </section>
-            ) : null}
-
             <section className={`advanced-template-panel advanced-generation-config ${showAdvancedSettings ? "is-open" : ""}`}>
               <div className="advanced-generation-strip">
                 <div>
@@ -737,132 +639,33 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
               </div>
 
               {showAdvancedSettings ? (
-                <div className="advanced-template-settings">
-                  <p className="advanced-template-description">
-                    {selectedAdvancedTemplate.styleSummary || selectedAdvancedTemplate.description}
-                  </p>
-                  {agentBridge.agents.length > 0 &&
-                  agentBridge.agents.every((agent) => !agent.available || agent.unsupported) ? (
-                    <ErrorBanner message="没有检测到可用的本地 Agent。安装 Claude Code、Codex 或其他支持的 CLI 后再生成智能体报告。" />
-                  ) : null}
-                  <div className="advanced-settings-strip template-settings-strip">
-                    <label className="advanced-setting-block">
-                      <span>
-                        <strong>数据范围</strong>
-                        <small>决定本次模板使用哪个时间范围的数据。</small>
-                      </span>
-                      <select value={period} onChange={(event) => setPeriod(event.target.value as ReportPeriod)}>
-                        {periodOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="advanced-setting-block privacy">
-                      <input
-                        type="checkbox"
-                        checked={rawNotesConsent}
-                        onChange={(event) => setRawNotesConsent(event.target.checked)}
-                      />
-                      <span>
-                        <strong>
-                          {selectedAdvancedTemplate.requiresRawNotesConsent
-                            ? "允许读取划线原文和个人想法"
-                            : "加入划线原文和个人想法"}
-                        </strong>
-                        <small>
-                          {selectedAdvancedTemplate.requiresRawNotesConsent
-                            ? "这个模板需要这些内容才能生成；只会写入本地报告工作区。"
-                            : "默认关闭。开启后报告会更具体，但会读取你的原文摘录。"}
-                        </small>
-                      </span>
-                    </label>
-                    <label className="advanced-setting-block">
-                      <span>
-                        <strong>本地 Agent CLI</strong>
-                        <small>选择用于生成报告的本地 CLI。</small>
-                      </span>
-                      <select
-                        value={selectedAgent?.id ?? ""}
-                        disabled={availableAgents.length === 0}
-                        onChange={(event) => setSelectedAgentId(event.target.value)}
-                      >
-                        {supportedAgentOptions.length === 0 ? (
-                          <option value="">未检测到可用 Agent</option>
-                        ) : (
-                          supportedAgentOptions.map((agent) => {
-                            const disabled = !agent.available;
-                            return (
-                              <option key={agent.id} value={agent.id} disabled={disabled}>
-                                {agent.label}
-                                {agent.available ? "" : "（未安装）"}
-                              </option>
-                            );
-                          })
-                        )}
-                      {supportedAgentOptions.length > 0 && availableAgents.length === 0 ? (
-                        <option value="" disabled>
-                          没有可用的本地 Agent CLI
-                        </option>
-                      ) : null}
-                      </select>
-                      <small>
-                        {selectedAgent?.path ??
-                          (availableAgents.length > 0
-                            ? "未安装的 CLI 会显示在列表中，但不能选择。"
-                            : "列表中的 CLI 都未安装，请先安装可用的本地 Agent CLI。")}
-                      </small>
-                    </label>
-                    <label className="advanced-setting-block">
-                      <span>
-                        <strong>输出形态</strong>
-                        <small>最终都会生成 HTML；PPT 风格不是 `.pptx`。</small>
-                      </span>
-                      <select
-                        value={selectedAdvancedOutputShape}
-                        onChange={(event) =>
-                          setAdvancedOutputShapeByTemplate((current) => ({
-                            ...current,
-                            [selectedAdvancedTemplate.id]: event.target.value,
-                          }))
-                        }
-                      >
-                        {selectedAdvancedTemplate.outputShapes.map((shape) => (
-                          <option key={shape.id} value={shape.id}>
-                            {shape.name}
-                          </option>
-                        ))}
-                      </select>
-                      <small>
-                        {
-                          selectedAdvancedTemplate.outputShapes.find((shape) => shape.id === selectedAdvancedOutputShape)
-                            ?.description
-                        }
-                      </small>
-                    </label>
-                    <label className="advanced-setting-block advanced-setting-block-wide">
-                      <span>
-                        <strong>自定义要求</strong>
-                        <small>写本次重点、语气或结构偏好；不能覆盖隐私和输出约束。</small>
-                      </span>
-                      <textarea
-                        value={selectedAdvancedUserPrompt}
-                        maxLength={USER_PROMPT_MAX_LENGTH}
-                        placeholder="例如：重点分析我为什么偏好历史与商业类书；结尾给出 3 条下一阶段阅读建议。"
-                        onChange={(event) =>
-                          setAdvancedUserPromptByTemplate((current) => ({
-                            ...current,
-                            [selectedAdvancedTemplate.id]: event.target.value,
-                          }))
-                        }
-                      />
-                      <small>
-                        {selectedAdvancedUserPrompt.length}/{USER_PROMPT_MAX_LENGTH}
-                      </small>
-                    </label>
-                  </div>
-                </div>
+                <GenerationSettings
+                  template={selectedAdvancedTemplate}
+                  period={period}
+                  periodOptions={periodOptions}
+                  rawNotesConsent={rawNotesConsent}
+                  supportedAgents={supportedAgentOptions}
+                  availableAgents={availableAgents}
+                  selectedAgent={selectedAgent}
+                  outputShape={selectedAdvancedOutputShape}
+                  userPrompt={selectedAdvancedUserPrompt}
+                  maxUserPromptLength={USER_PROMPT_MAX_LENGTH}
+                  onPeriodChange={setPeriod}
+                  onRawNotesConsentChange={setRawNotesConsent}
+                  onAgentChange={setSelectedAgentId}
+                  onOutputShapeChange={(shapeId) =>
+                    setAdvancedOutputShapeByTemplate((current) => ({
+                      ...current,
+                      [selectedAdvancedTemplate.id]: shapeId,
+                    }))
+                  }
+                  onUserPromptChange={(prompt) =>
+                    setAdvancedUserPromptByTemplate((current) => ({
+                      ...current,
+                      [selectedAdvancedTemplate.id]: prompt,
+                    }))
+                  }
+                />
               ) : null}
             </section>
 
@@ -880,17 +683,25 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                   const completed = task.status === "completed";
                   const active = task.status === "running" || task.status === "preparing";
                   const status = advancedTaskStatus(task);
+                  const expanded = selectedTemplateDetailTask?.jobId === task.jobId;
                   return (
-                    <article key={task.jobId} className="report-history-row">
+                    <article
+                      key={task.jobId}
+                      className={`report-history-row ${expanded ? "is-expanded" : ""}`}
+                      onClick={() => {
+                        if (expanded) {
+                          setSelectedTask(null);
+                          return;
+                        }
+                        void openAdvancedTask(task);
+                      }}
+                    >
                       <div>
                         <span className={`report-history-status ${status.tone}`}>{status.label}</span>
                         <small>{new Date(task.createdAt).toLocaleString()}</small>
                         {task.message ? <p>{task.message}</p> : null}
                       </div>
-                      <div className="report-history-actions">
-                        <button type="button" className="inline-secondary-action" onClick={() => void openAdvancedTask(task)}>
-                          查看详情
-                        </button>
+                      <div className="report-history-actions" onClick={(event) => event.stopPropagation()}>
                         <button
                           type="button"
                           className="inline-secondary-action"
@@ -908,6 +719,21 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                           删除
                         </button>
                       </div>
+                      {expanded ? (
+                        <div className="report-history-expanded">
+                          <ModelOutput
+                            blocks={selectedDetailTaskOutputBlocks}
+                            mode="detail"
+                            onModeChange={() => undefined}
+                            statusLabel={status.label}
+                            latestLine={selectedDetailTaskLatestLine}
+                            briefLine={selectedDetailTaskBriefLine}
+                            latestKind={selectedDetailTaskLatestBlock?.kind}
+                            autoScrollToEnd
+                            hideModeSwitch
+                          />
+                        </div>
+                      ) : null}
                     </article>
                   );
                 })}
@@ -927,26 +753,16 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
         <section className="report-template-section">
           <div className="report-section-heading">
             <div>
-              <div className="segmented report-template-tabs" role="tablist" aria-label="模板类型">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={templateTab === "basic"}
-                  className={templateTab === "basic" ? "active" : ""}
-                  onClick={() => setTemplateTab("basic")}
-                >
-                  基础模板
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={templateTab === "advanced"}
-                  className={templateTab === "advanced" ? "active" : ""}
-                  onClick={() => setTemplateTab("advanced")}
-                >
-                  智能体模板
-                </button>
-              </div>
+              <SegmentedControl
+                className="report-template-tabs"
+                ariaLabel="模板类型"
+                value={templateTab}
+                onChange={setTemplateTab}
+                options={[
+                  { value: "basic", label: "基础模板" },
+                  { value: "advanced", label: "智能体模板" },
+                ]}
+              />
               <p>
                 {templateTab === "basic"
                   ? "不调用大模型，直接基于本地整理后的阅读数据生成报告，千人一面。"
@@ -958,17 +774,21 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
           {templateTab === "basic" ? (
             <div className="report-template-grid">
               {reportTemplates.map((template) => (
-                <button
+                <TemplateCard
                   key={template.id}
-                  className="report-gallery-card"
+                  label={template.tagline}
+                  title={template.name}
+                  description={template.description}
+                  footer=""
                   disabled={!report.data}
                   onClick={() => setSelectedTemplateId(template.id)}
-                >
-                  <span>{template.tagline}</span>
-                  <strong>{template.name}</strong>
-                  <small>{template.description}</small>
-                  <em>查看报告</em>
-                </button>
+                  meta={
+                    <>
+                      <small>无需大模型</small>
+                      <small>{selectedPeriodLabel}</small>
+                    </>
+                  }
+                />
               ))}
             </div>
           ) : (
@@ -983,18 +803,12 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                 const interrupted = showTaskStatus && task?.message?.includes("中断");
                 const status = showTaskStatus && task ? advancedTaskStatus(task) : null;
                 return (
-                  <button
+                  <TemplateCard
                     key={template.id}
-                    type="button"
-                    className={`report-gallery-card advanced-template-tile ${
-                      active ? "is-running" : completed ? "is-completed" : failed ? "is-failed" : ""
-                    }`}
-                    onClick={() => void openAdvancedTemplateDetail(template.id)}
-                  >
-                    <span>{status?.label ?? templateDataAccessLabel(template.requiresRawNotesConsent)}</span>
-                    <strong>{template.name}</strong>
-                    <small>
-                      {active
+                    label={status?.label ?? ""}
+                    title={template.name}
+                    description={
+                      active
                         ? "正在后台生成，可以离开页面。"
                         : completed
                           ? "报告已生成，点击查看详情。"
@@ -1002,13 +816,20 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                             ? "上次生成被中断，点击后可重新开始。"
                             : failed
                               ? task?.message ?? "上次生成未完成，点击后可重新开始。"
-                              : template.description}
-                    </small>
-                    <div className="template-card-footer">
-                      <em>打开模板</em>
-                      {selectedAdvancedTemplateId === template.id ? <i aria-hidden="true" /> : null}
-                    </div>
-                  </button>
+                              : template.description
+                    }
+                    statusTone={active ? "running" : completed ? "success" : failed ? "danger" : undefined}
+                    selected={selectedAdvancedTemplateId === template.id}
+                    footer=""
+                    onClick={() => void openAdvancedTemplateDetail(template.id)}
+                    meta={
+                      <>
+                        <small>{templateCategoryLabel(template.category)}</small>
+                        <small>{outputShapeName(template)}</small>
+                        <small>{template.requiresRawNotesConsent ? "需授权原文" : "默认统计数据"}</small>
+                      </>
+                    }
+                  />
                 );
               })}
             </div>
@@ -1030,14 +851,11 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                     <h2>{selectedTemplate.name}</h2>
                     <p>{selectedTemplate.description}</p>
                   </div>
-                  <button
-                    className="icon-button"
-                    type="button"
+                  <IconButton
                     aria-label="关闭"
+                    icon={<X size={18} />}
                     onClick={() => setSelectedTemplateId(null)}
-                  >
-                    <X size={18} />
-                  </button>
+                  />
                 </header>
 
                 <div className="report-modal-body">
@@ -1068,14 +886,6 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                         ))}
                       </select>
                     </div>
-                    {report.data ? (
-                      <div>
-                        <span>数据覆盖</span>
-                        <strong>
-                          {report.data.sourceSummary.notebookBooks} 本笔记书 · {report.data.sourceSummary.excerptCount} 条摘录
-                        </strong>
-                      </div>
-                    ) : null}
                     <Button
                       variant="secondary"
                       icon={<Eye size={16} />}
@@ -1097,28 +907,14 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
       )}
 
       {taskPendingDelete ? (
-        <div className="report-modal-backdrop confirm-backdrop" role="presentation">
-          <section
-            className="confirm-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-label="确认删除报告记录"
-          >
-            <div>
-              <span>确认删除</span>
-              <h2>删除这条报告记录？</h2>
-              <p>删除后会移除这次生成的本地任务记录和报告文件，无法从应用内恢复。</p>
-            </div>
-            <div className="confirm-dialog-actions">
-              <Button variant="ghost" onClick={() => setTaskPendingDelete(null)}>
-                取消
-              </Button>
-              <Button variant="danger" onClick={() => void confirmDeleteAdvancedJob()}>
-                确认删除
-              </Button>
-            </div>
-          </section>
-        </div>
+        <ConfirmDialog
+          eyebrow="确认删除"
+          title="删除这条报告记录？"
+          description="删除后会移除这次生成的本地任务记录和报告文件，无法从应用内恢复。"
+          confirmLabel="确认删除"
+          onCancel={() => setTaskPendingDelete(null)}
+          onConfirm={() => void confirmDeleteAdvancedJob()}
+        />
       ) : null}
     </PageShell>
   );

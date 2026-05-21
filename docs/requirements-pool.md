@@ -83,9 +83,9 @@ lark-cli base +record-list \
 
 ## 当前推荐
 
-建议下一个启动：`REQ-009 导出为 PDF 文档`。
+建议下一个启动：`REQ-014 智能体模板原文权限策略优化`。
 
-原因：`REQ-012` 已完成第一阶段，自定义要求和输出形态已接入智能体报告生成链路；剩余 Todo 中 `REQ-009` 与导出主流程关联更直接，优先于外部集成类 `REQ-010`。
+原因：智能体报告已进入可用性打磨阶段，原文划线 / 想法属于高敏数据，但部分模板不应因为未授权原文就完全阻断生成；先收敛权限策略能减少用户理解成本，也能避免模板继续扩展时把隐私、数据质量和降级体验混在一个布尔字段里。
 
 ---
 
@@ -100,12 +100,14 @@ lark-cli base +record-list \
 | REQ-005 | P1 | Done | UI | 窗口尺寸、长文本、空态/错误态走查 |
 | REQ-006 | P1 | Done | Search | 书架/笔记本本地搜索增强 |
 | REQ-007 | P2 | Doing | Export | HTML 阅读报告生成器 |
+| REQ-007.1 | P1 | Doing | Report / UI | 阅读报告模板体验与产物质量打磨 |
 | REQ-008 | P2 | Done | Export | Obsidian Base 导出增强 |
 | REQ-009 | P2 | Todo | Export | 导出为 PDF 文档 |
 | REQ-010 | P2 | Todo | Integration | 腾讯 ima 联动 |
 | REQ-011 | P1 | Done | Notes / Export | 合并为笔记工作台 |
 | REQ-012 | P2 | Done | Report / Agent | 智能体报告自定义提示词与模板形态 |
 | REQ-013 | P0 | Done | UI / Design System | 全应用 UI 风格统一与设计系统收敛 |
+| REQ-014 | P1 | Todo | Report / Privacy | 智能体模板原文权限策略优化 |
 
 ---
 
@@ -221,7 +223,7 @@ lark-cli base +record-list \
   - 已新增独立 `阅读报告` 页面和侧边栏入口。
   - 已定义 `ReadingReportData`，并用 `reading_stats`、`notebooks`、代表性 `bookmark_list` / `my_reviews` 抽样构建报告数据。
   - 已实现 3 个基础报告预览模版：阅读分析报告、读书旅程、年度阅读报告。
-  - 已加入规则化结论、分类偏好、读书路径、Top 书籍、代表性划线 / 想法摘录。
+  - 已加入规则化结论、分类偏好、读书路径、Top 书籍和笔记行为统计；基础模板不再展示原划线 / 个人想法。
   - 已扩展源数据覆盖：笔记最多的前 10 本书抽样、最多 24 条代表性摘录，新增完成率、日均阅读、笔记/书密度、分类占比、时间线峰值/趋势、长读排行、划线排行、想法排行、进度排行和数据覆盖摘要。
   - 模版模块已按数据存在与否条件渲染，月度等数据较少场景不会展示空模块。
   - 已实现 `.html` 文件导出、App 私有目录预览文件和系统默认浏览器打开能力；当前还未实现更完整的 AI 叙事报告。
@@ -252,6 +254,7 @@ lark-cli base +record-list \
   - 已在用户授权“使用个人划线和想法”后实际预取原始笔记内容：按有划线 / 想法的笔记本逐本写入 `data/notes.raw.json`，包含章节、划线和分页拉取后的个人想法 / 点评，供智能体报告在本地工作区内读取。
   - 已在智能体模板清单中新增偏传播的模板：年度阅读关键词、年度 Top 书单、阅读偏好雷达、精神书架；仍输出 `output/report.html`，不新增分享网页或在线托管。
   - 已先移除基础模板和智能体模板工作台中的 HTML 导出入口，当前只保留浏览器打开；后端复制导出能力暂时保留，便于后续需要时恢复。
+  - 已修正智能体报告关键数字口径：job 数据目录新增 `data/profile.summary.json` 作为权威指标摘要，明确书架总数、读过、读完、阅读时长、阅读天数和笔记数；任务书要求模型优先使用该摘要，避免把“有笔记书籍数”误写成书架总数。摘要和 `reading-stats.*.json` 中的阅读时长只提供转换后的中文真实值，例如 `xx小时xx分钟`、`xx小时` 或 `xx分钟`，不在模型数据目录暴露秒数 / 小数小时，禁止模型写成 `a.b 小时`。
 - 技术边界：
   - 先定义统一 `ReadingReportData`，模版读取报告模型，不直接读取微信读书原始 API 回包。
   - 基础数据来自 `reading_stats`、`notebooks`、`bookmark_list`、`my_reviews`、`book_info`、`book_progress`。
@@ -273,6 +276,39 @@ lark-cli base +record-list \
   - Markdown 导出仍为默认路径，且不被报告功能破坏。
   - 报告导出失败不影响普通 Markdown 导出。
   - 高级 AI 分析必须有隐私确认和数据裁剪方案后再进入实现。
+
+### REQ-007.1 阅读报告模板体验与产物质量打磨
+
+- 优先级：P1
+- 状态：Doing
+- 模块：`ReportPage`、智能体模板、报告 HTML 产物
+- 来源：用户对话，2026-05-22。
+- 背景：阅读报告模板已经打通生成闭环，但当前 `ReportPage` 同时承担模板目录、配置、任务状态、历史记录、日志流、基础模板预览和删除确认，后续继续堆功能会让体验和代码都变重。下一步应把报告模板从“能生成”打磨到“愿意反复使用”。
+- 任务拆分：
+  - 结构拆分：抽出 `TemplateCard`、`GenerationSettings`、`TaskStateCard`、`ModelOutput`、`ConfirmDialog` 等组件，降低 `ReportPage` 复杂度。
+  - 模板目录升级：模板卡片明确展示适用场景、默认输出形态、数据权限、最近生成状态和下一步操作。
+  - 工作台收敛：智能体模板工作台聚焦生成配置、当前结果、生成过程和历史记录，减少重复状态和散落按钮。
+  - Prompt 与产物标准：为每个智能体模板补强目标、章节、证据引用、禁忌输出和不同输出形态的版式标准。
+- 当前进展：
+  - 已新增 `src/components/report/TemplateCard.tsx`、`GenerationSettings.tsx`、`TaskStateCard.tsx`、`ModelOutput.tsx`、`ConfirmDialog.tsx`。
+  - 模板目录卡片已展示模板场景、默认输出形态、数据权限和最近生成状态。
+  - 智能体模板工作台已把生成配置、任务状态、模型输出和删除确认拆到独立组件。
+  - 已将智能体模板历史记录改为点击整行展开：展开后只显示详细生成过程，并自动定位到最后一条内容；历史报告、最近结果和生成中任务不再共用错误文案。
+  - 智能体任务书已增加报告质量标准：主要结论必须可追溯到阅读统计、分类占比、书目、笔记数量、划线或想法；避免空泛建议。
+  - 7 个内置智能体模板已补充版式建议、必须包含内容、证据要求和禁忌输出。
+  - 已重构基础报告的浏览器打开版 HTML：阅读分析报告、读书旅程、年度阅读报告现在分别使用数据档案、时间线旅程和年度数字墙结构，不再共用同一份 HTML body。
+  - 已新增智能体报告质量提醒：检查证据链偏弱、小红书图文缺少卡片化结构、PPT 风格缺少演示页式结构等问题。
+  - 已移除基础模板中的原文摘录区块，改为“笔记信号”统计；浏览器打开版也不再输出原划线和个人想法。
+  - 本轮验证：`npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check`、`git diff --check` 通过。
+- 下一步：
+  - 用真实数据打开三套基础报告做视觉回归，重点检查长书名、排行密度和小窗口下的排版。
+  - 继续打磨智能体输出形态，给 `report`、`slides`、`xiaohongshu` 增加更明确的 HTML 结构示例。
+- 验收：
+  - 报告页核心 UI 结构有可复用组件，不再全部堆在 `ReportPage.tsx` 中。
+  - 模板目录中用户无需打开详情也能判断模板适合什么、是否会读取划线和想法、默认输出形态是什么。
+  - 智能体模板工作台中主操作唯一且清晰；生成配置、当前结果、生成过程和历史记录层级明确。
+  - 智能体模板 prompt 明确要求证据链、报告主语、输出边界和形态差异，减少泛泛而谈。
+  - `npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过。
 
 ### REQ-008 Obsidian Base 导出增强
 
@@ -365,6 +401,38 @@ lark-cli base +record-list \
   - 选择不同形态后，Agent brief 中有明确差异化输出要求。
   - 不填写自定义要求时，现有内置模板生成流程不受影响。
   - 自定义要求不能绕过原始笔记授权开关。
+  - `npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过。
+
+### REQ-014 智能体模板原文权限策略优化
+
+- 优先级：P1
+- 状态：Todo
+- 模块：Report / Privacy / Agent
+- 来源：用户对话，2026-05-22。
+- 背景：当前智能体模板使用 `requiresRawNotesConsent` 表达是否必须授权读取划线原文和个人想法。这个布尔字段能保护高敏数据，但也把“必须原文才能生成”和“原文只会提升质量”混在一起，导致部分模板在未授权时只能阻断，而不能以统计、书架和笔记数量做降级报告。
+- 产品结论：
+  - 隐私确认必须继续严格：只要读取划线原文、书摘原文或个人想法，就必须由用户显式确认。
+  - 模板门槛应拆为三档：`required`、`optional`、`none`。
+  - `required`：没有原文授权不能生成，适用于精神书架、深度摘录分析等以原文为核心证据的模板。
+  - `optional`：没有原文授权也能生成，但只使用统计、书架、笔记数量和分类等低敏数据，并在报告中明确“未使用划线原文和个人想法”。
+  - `none`：模板不需要原文，生成流程不展示原文授权为必需项。
+- 技术边界：
+  - 后端模板字段从单一 `requiresRawNotesConsent` 逐步收敛为 `rawNotesPolicy`，旧字段可在过渡期兼容输出。
+  - `rawNotesPolicy=required` 且未授权时继续后端硬校验。
+  - `rawNotesPolicy=optional` 且未授权时不写入 `data/notes.raw.json`，并在 `input/user-policy.json`、`input/brief.md` 或等价输入中标记未使用原文。
+  - 用户自定义要求不能覆盖原文授权策略，不能通过 prompt 要求读取未授权数据。
+- UI / 文案要求：
+  - 不向用户展示 `requiresRawNotesConsent`、`rawNotesPolicy` 等工程字段。
+  - `required` 使用“需要允许读取划线原文和个人想法后才能生成”。
+  - `optional` 使用“可不授权生成；允许后报告会更具体”。
+  - `none` 使用“不读取划线原文和个人想法”。
+- 验收：
+  - 智能体模板清单能区分 required / optional / none 三种原文权限策略。
+  - required 模板未授权时无法开始生成，并给出用户可理解的原因。
+  - optional 模板未授权时可以生成，且 job 数据目录不包含 `notes.raw.json`。
+  - optional 模板授权后才预取原文划线和个人想法。
+  - 生成 brief 明确告知 Agent 当前是否可用原文，并要求数据不足时不要编造。
+  - 前端模板卡片和工作台用用户语言解释数据读取范围。
   - `npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过。
 
 ### REQ-013 全应用 UI 风格统一与设计系统收敛

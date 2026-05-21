@@ -856,11 +856,16 @@ async fn prefetch_default_data(
 ) -> Result<Vec<Value>, String> {
     let mut data_index = Vec::new();
     let mut notebooks_for_notes = None;
+    let mut shelf_context = None;
+    let mut scoped_notebooks_context = None;
+    let mut scoped_stats_context = None;
+    let mut overall_stats_context = None;
     let period_start = report_period_start(report_period);
 
     if has_capability(template.default_capabilities, "shelf.sync") {
         let result = client.shelf_sync(force_refresh).await?;
         write_data_file(data_dir, "shelf.context.json", &result, &mut data_index)?;
+        shelf_context = Some(result);
     }
 
     if has_capability(template.default_capabilities, "notes.notebooks") {
@@ -872,21 +877,26 @@ async fn prefetch_default_data(
             &scoped_notebooks,
             &mut data_index,
         )?;
+        scoped_notebooks_context = Some(scoped_notebooks.clone());
         notebooks_for_notes = Some(scoped_notebooks);
     }
 
     if has_capability(template.default_capabilities, "reading.stats") {
         let (mode, base_time, file_name) = reading_stats_request_for_period(report_period);
         let scoped = client.reading_stats(mode, base_time, force_refresh).await?;
-        write_data_file(data_dir, file_name, &scoped, &mut data_index)?;
+        let scoped_for_agent = reading_stats_for_agent(&scoped);
+        write_data_file(data_dir, file_name, &scoped_for_agent, &mut data_index)?;
+        scoped_stats_context = Some(scoped);
         if report_period != "all" {
             let overall = client.reading_stats("overall", 0, force_refresh).await?;
+            let overall_for_agent = reading_stats_for_agent(&overall);
             write_data_file(
                 data_dir,
                 "reading-stats.overall.json",
-                &overall,
+                &overall_for_agent,
                 &mut data_index,
             )?;
+            overall_stats_context = Some(overall);
         }
     }
 
@@ -906,7 +916,267 @@ async fn prefetch_default_data(
         write_data_file(data_dir, "notes.raw.json", &notes, &mut data_index)?;
     }
 
+    let profile_summary = build_profile_summary(
+        report_period,
+        shelf_context.as_ref(),
+        scoped_notebooks_context.as_ref(),
+        scoped_stats_context.as_ref(),
+        overall_stats_context.as_ref(),
+    );
+    write_data_file(
+        data_dir,
+        "profile.summary.json",
+        &profile_summary,
+        &mut data_index,
+    )?;
+
     Ok(data_index)
+}
+
+fn build_profile_summary(
+    report_period: &str,
+    shelf: Option<&ShelfSyncResult>,
+    notebooks: Option<&NotebooksResult>,
+    scoped_stats: Option<&ReadingStatsResult>,
+    overall_stats: Option<&ReadingStatsResult>,
+) -> Value {
+    let stats_for_canonical = if report_period == "all" {
+        scoped_stats
+    } else {
+        overall_stats.or(scoped_stats)
+    };
+    let scoped_reading_seconds = scoped_stats.map(|stats| stats.total_read_time).unwrap_or(0);
+    let canonical_reading_seconds = stats_for_canonical
+        .map(|stats| stats.total_read_time)
+        .unwrap_or(scoped_reading_seconds);
+    let note_totals = notebooks.map(notebook_note_totals);
+
+    json!({
+        "version": 1,
+        "generatedAt": Utc::now().to_rfc3339(),
+        "sourceOfTruth": "WeRead Skill Desktop normalized summary",
+        "displayRules": [
+            "Key metrics in this file are authoritative. Use them exactly when rendering counts.",
+            "All raw reading time fields from reading-stats are seconds. Never treat them as minutes or hours.",
+            "shelf.totalItems is the bookshelf total. notebooks.bookCount is only books with notes in the selected report range.",
+            "Do not label notebooks.bookCount as bookshelf books, shelf collection, or total books.",
+            "Use formatted reading time labels from readingTime.display when writing user-facing HTML."
+        ],
+        "period": {
+            "id": report_period,
+            "label": report_period_label(report_period)
+        },
+        "canonicalMetrics": {
+            "bookshelfTotal": shelf.map(|item| item.total_count).unwrap_or(0),
+            "readBooks": read_stat_number(stats_for_canonical, "读过"),
+            "finishedBooks": read_stat_number(stats_for_canonical, "读完"),
+            "readDays": stats_for_canonical.map(|stats| stats.read_days).unwrap_or(0),
+            "noteCount": read_stat_number(stats_for_canonical, "笔记")
+                .or_else(|| note_totals.as_ref().map(|totals| totals.total))
+                .unwrap_or(0),
+            "readingTime": reading_time_display(canonical_reading_seconds)
+        },
+        "canonicalDisplay": {
+            "bookshelfTotal": count_label_usize(shelf.map(|item| item.total_count).unwrap_or(0), "本"),
+            "readBooks": optional_count_label(read_stat_number(stats_for_canonical, "读过"), "本"),
+            "finishedBooks": optional_count_label(read_stat_number(stats_for_canonical, "读完"), "本"),
+            "readDays": count_label_i32(stats_for_canonical.map(|stats| stats.read_days).unwrap_or(0), "天"),
+            "noteCount": count_label_i32(
+                read_stat_number(stats_for_canonical, "笔记")
+                    .or_else(|| note_totals.as_ref().map(|totals| totals.total))
+                    .unwrap_or(0),
+                "条"
+            ),
+            "readingTime": reading_time_display(canonical_reading_seconds)
+        },
+        "selectedPeriodMetrics": {
+            "readBooks": read_stat_number(scoped_stats, "读过"),
+            "finishedBooks": read_stat_number(scoped_stats, "读完"),
+            "readDays": scoped_stats.map(|stats| stats.read_days).unwrap_or(0),
+            "noteCount": read_stat_number(scoped_stats, "笔记")
+                .or_else(|| note_totals.as_ref().map(|totals| totals.total))
+                .unwrap_or(0),
+            "readingTime": reading_time_display(scoped_reading_seconds)
+        },
+        "selectedPeriodDisplay": {
+            "readBooks": optional_count_label(read_stat_number(scoped_stats, "读过"), "本"),
+            "finishedBooks": optional_count_label(read_stat_number(scoped_stats, "读完"), "本"),
+            "readDays": count_label_i32(scoped_stats.map(|stats| stats.read_days).unwrap_or(0), "天"),
+            "noteCount": count_label_i32(
+                read_stat_number(scoped_stats, "笔记")
+                    .or_else(|| note_totals.as_ref().map(|totals| totals.total))
+                    .unwrap_or(0),
+                "条"
+            ),
+            "readingTime": reading_time_display(scoped_reading_seconds)
+        },
+        "shelf": shelf.map(|item| json!({
+            "totalItems": item.total_count,
+            "ebookItems": item.books.len(),
+            "albumItems": item.albums.len(),
+            "hasArticleCollection": item.has_mp,
+            "finishedEbookItems": item.books.iter().filter(|book| book.finish_reading == 1).count()
+        })),
+        "notebooks": notebooks.map(|item| {
+            let totals = notebook_note_totals(item);
+            json!({
+                "bookCount": item.books.len(),
+                "totalBookCountFromApi": item.total_book_count,
+                "totalNoteCountFromApi": item.total_note_count,
+                "highlightCount": totals.highlights,
+                "reviewCount": totals.reviews,
+                "bookmarkCount": totals.bookmarks,
+                "totalNoteCountComputed": totals.total,
+                "meaning": "books with notes in the selected report range, not bookshelf total"
+            })
+        }),
+        "fieldMeanings": {
+            "bookshelfTotal": "书架总数，来自 /shelf/sync 的 books + albums + mp",
+            "readBooks": "读过的书，来自 /readdata/detail readStat",
+            "finishedBooks": "读完的书，来自 /readdata/detail readStat",
+            "readDays": "阅读天数，来自 /readdata/detail readDays",
+            "noteCount": "笔记总数，优先来自 /readdata/detail readStat 的 笔记；缺失时用 reviewCount + noteCount + bookmarkCount",
+            "readingTime.seconds": "阅读时长秒数，来自 /readdata/detail totalReadTime"
+        }
+    })
+}
+
+#[derive(Debug)]
+struct NotebookNoteTotals {
+    highlights: i32,
+    reviews: i32,
+    bookmarks: i32,
+    total: i32,
+}
+
+fn notebook_note_totals(notebooks: &NotebooksResult) -> NotebookNoteTotals {
+    let highlights = notebooks.books.iter().map(|book| book.note_count).sum();
+    let reviews = notebooks.books.iter().map(|book| book.review_count).sum();
+    let bookmarks = notebooks.books.iter().map(|book| book.bookmark_count).sum();
+    NotebookNoteTotals {
+        highlights,
+        reviews,
+        bookmarks,
+        total: highlights + reviews + bookmarks,
+    }
+}
+
+fn read_stat_number(stats: Option<&ReadingStatsResult>, name: &str) -> Option<i32> {
+    stats.and_then(|stats| {
+        stats
+            .read_stat
+            .iter()
+            .find(|item| item.stat == name)
+            .and_then(|item| parse_count_prefix(&item.counts))
+    })
+}
+
+fn parse_count_prefix(value: &str) -> Option<i32> {
+    let digits = value
+        .chars()
+        .take_while(|ch| ch.is_ascii_digit())
+        .collect::<String>();
+    digits.parse::<i32>().ok()
+}
+
+fn reading_time_display(seconds: i64) -> String {
+    let safe_seconds = seconds.max(0);
+    let hours = safe_seconds / 3600;
+    let minutes = (safe_seconds % 3600) / 60;
+    if hours > 0 && minutes > 0 {
+        format!("{hours}小时{minutes}分钟")
+    } else if hours > 0 {
+        format!("{hours}小时")
+    } else {
+        format!("{minutes}分钟")
+    }
+}
+
+fn count_label_i32(value: i32, unit: &str) -> String {
+    format!("{value}{unit}")
+}
+
+fn count_label_usize(value: usize, unit: &str) -> String {
+    format!("{value}{unit}")
+}
+
+fn optional_count_label(value: Option<i32>, unit: &str) -> Option<String> {
+    value.map(|value| count_label_i32(value, unit))
+}
+
+fn reading_stats_for_agent(stats: &ReadingStatsResult) -> Value {
+    let read_times = stats
+        .read_times
+        .iter()
+        .map(|(key, value)| {
+            let seconds = value.as_i64().unwrap_or(0);
+            json!({
+                "bucket": key,
+                "readingTime": reading_time_display(seconds)
+            })
+        })
+        .collect::<Vec<_>>();
+    let daily_read_times = stats
+        .daily_read_times
+        .iter()
+        .map(|(key, value)| {
+            let seconds = value.as_i64().unwrap_or(0);
+            json!({
+                "day": key,
+                "readingTime": reading_time_display(seconds)
+            })
+        })
+        .collect::<Vec<_>>();
+    let read_longest = stats
+        .read_longest
+        .iter()
+        .map(|item| {
+            json!({
+                "book": item.book,
+                "readingTime": reading_time_display(item.read_time),
+                "tags": item.tags
+            })
+        })
+        .collect::<Vec<_>>();
+    let prefer_category = stats
+        .prefer_category
+        .iter()
+        .map(|item| {
+            json!({
+                "categoryTitle": item.category_title,
+                "val": item.val,
+                "readingTime": reading_time_display(item.reading_time),
+                "readingCount": item.reading_count
+            })
+        })
+        .collect::<Vec<_>>();
+    let prefer_time = stats
+        .prefer_time
+        .iter()
+        .enumerate()
+        .map(|(index, seconds)| {
+            json!({
+                "hourIndexFrom6": index,
+                "readingTime": reading_time_display(*seconds)
+            })
+        })
+        .collect::<Vec<_>>();
+
+    json!({
+        "baseTime": stats.base_time,
+        "readDays": count_label_i32(stats.read_days, "天"),
+        "totalReadTime": reading_time_display(stats.total_read_time),
+        "dayAverageReadTime": reading_time_display(stats.day_average_read_time),
+        "compare": stats.compare,
+        "readStat": stats.read_stat,
+        "readLongest": read_longest,
+        "preferCategory": prefer_category,
+        "preferTime": prefer_time,
+        "readTimes": read_times,
+        "dailyReadTimes": daily_read_times,
+        "registTime": stats.regist_time,
+        "unitNote": "本文件中的阅读时长均已转换为中文展示值，报告中请直接使用，不要改写为小数小时。"
+    })
 }
 
 async fn load_raw_notes_for_report(
@@ -1476,10 +1746,16 @@ fn build_agent_brief(
 {data_files}
 
 数据文件口径：
-- `reading-stats.*` 使用本次选择的数据范围。
+- `profile.summary.json` 是关键数字的权威摘要，报告封面、指标卡、摘要文案中的书架数、读过数、读完数、阅读时长、阅读天数、笔记数必须优先使用它，不要从其他 JSON 重新推算。
+- `reading-stats.*` 使用本次选择的数据范围，文件中的阅读时长已转换为中文展示值。
 - `notebooks.selected.json` 只保留本次数据范围内有新笔记活动的书。
 - `notes.raw.json` 只包含本次数据范围内创建的划线和想法。
 - `shelf.context.json` 是完整书架上下文，只能用于理解长期阅读背景，不要把它当作本次数据范围内的书单或排行依据。
+- 严禁把 `notebooks.selected.json` 的书本数写成“书架藏书 / 书架在册 / 书架总数”。书架总数只使用 `profile.summary.json` 的 `canonicalMetrics.bookshelfTotal` 或 `shelf.totalItems`。
+- `profile.summary.json` 里的 `canonicalMetrics.readingTime`、`selectedPeriodMetrics.readingTime` 已经是转换后的真实中文时长，不是秒数；报告封面和指标卡直接照抄这个值。
+- 不要尝试把 `reading-stats.*` 里的中文阅读时长再换算成小时、小数小时或分钟。
+- 阅读时长禁止写成 `a.b 小时`、`8218 小时` 这类小数或错位单位；必须写成 `xx小时xx分钟`、`xx小时` 或 `xx分钟`。
+- 指标卡上的单位优先使用 `profile.summary.json` 里的 `canonicalDisplay` / `selectedPeriodDisplay`，例如 `184本`、`112本`、`136小时52分钟`、`565天`、`624条`。
 
 如果数据不足以支撑完整判断，不要硬编。可以在 `output/data-requests.json` 写出你还需要的数据。
 
@@ -1503,6 +1779,8 @@ fn build_agent_brief(
    - 完整分析版，内容要完整。
    - 至少包含：开场摘要、核心结论、证据数据、解释分析、可分享摘要或关键句、下一阶段建议（如果模板适用）。
    - 不能只有概览卡片，必须有成段分析。
+   - 每个主要结论都要能追溯到至少一种证据：阅读统计、分类占比、书目、笔记数量、划线或想法。
+   - 不要输出泛泛的“你很热爱阅读”“继续保持”等空话；建议必须具体到主题、节奏、书目方向或使用场景。
 2. `output/report.meta.json`
    - 必须记录使用的数据文件、核心结论列表、是否包含品牌标识、是否遵守二人称。
 
@@ -1642,6 +1920,34 @@ fn validate_output(report_html: Option<&str>) -> AdvancedReportValidation {
             if !html.contains("WeRead Skill Desktop") {
                 warnings.push("分析版缺少 WeRead Skill Desktop 软件标识".to_string());
             }
+            let evidence_markers = [
+                "证据",
+                "依据",
+                "来自",
+                "数据",
+                "阅读时长",
+                "笔记",
+                "划线",
+                "想法",
+            ];
+            let evidence_hits = evidence_markers
+                .iter()
+                .filter(|marker| html.contains(*marker))
+                .count();
+            if evidence_hits < 3 {
+                warnings.push("分析版证据链偏弱，主要结论可能缺少数据依据".to_string());
+            }
+            let xhs_markers = ["卡片", "截图", "图文", "轮播"];
+            if html.contains("小红书") && !xhs_markers.iter().any(|marker| html.contains(*marker))
+            {
+                warnings.push("小红书图文风格缺少卡片化或截图友好的结构提示".to_string());
+            }
+            let slide_markers = ["PPT", "演示", "第 1 屏", "第一屏", "Slide", "slide"];
+            if html.contains("PPT 风格")
+                && !slide_markers.iter().any(|marker| html.contains(*marker))
+            {
+                warnings.push("PPT 风格缺少演示页式结构提示".to_string());
+            }
         }
         None => warnings.push("缺少报告".to_string()),
     }
@@ -1730,36 +2036,64 @@ use chrono::Datelike;
 const PERSONALITY_STYLE: &str = r#"# 阅读人格分析风格
 
 整体像一份私人阅读侧写档案。允许使用人物画像、阅读倾向坐标、证据摘录、节奏曲线和书目索引。避免泛 SaaS 卡片堆叠、大面积渐变、夸张心理诊断和无证据判断。
+
+版式建议：先给出一句“你的阅读人格不是标签，而是一种使用书的方式”，再分成 3 到 5 个画像维度，每个维度包含短标题、解释、证据和一个可行动提醒。
 "#;
 
 const PERSONALITY_PROMPT: &str = r#"# 阅读人格分析
 
-请根据可用数据判断这个用户如何选书、如何投入注意力、如何表达想法。报告结构由你决定，不要套固定模板。结论必须能回到数据证据。
+请根据可用数据判断你如何选书、如何投入注意力、如何表达想法。报告结构由你决定，不要套固定模板。结论必须能回到数据证据。
+
+必须包含：
+- 一个不超过 16 字的阅读人格命名。
+- 3 到 5 个维度，例如选书动机、注意力投入方式、笔记表达方式、主题偏好、完成倾向。
+- 每个维度至少引用一种证据：分类、书名、阅读时长、笔记数量、划线或想法。
+- 结尾给出 3 条下一阶段建议，每条都说明适合你的原因。
+
+不要做 MBTI 式伪科学诊断，不要把分数写得像医学或心理测评。
 "#;
 
 const KNOWLEDGE_STYLE: &str = r#"# 知识结构盲区风格
 
 整体像知识地图和研究索引。允许使用主题地图、连接关系、盲区雷达、书目矩阵和下一步路径。避免把分类列表机械堆成表格。
+
+版式建议：把已有知识区、重复投入区、薄弱连接区和下一步补齐区分开。每个区块都要有“为什么这么判断”和“下一步怎么补”的小结。
 "#;
 
 const KNOWLEDGE_PROMPT: &str = r#"# 知识结构盲区
 
-请识别用户已经投入的主题、主题之间的连接、重复投入区域、薄弱区域和下一阶段可以补齐的知识结构。不要伪造不存在的阅读经历。
+请识别你已经投入的主题、主题之间的连接、重复投入区域、薄弱区域和下一阶段可以补齐的知识结构。不要伪造不存在的阅读经历。
+
+必须包含：
+- 当前知识地图：3 到 6 个主题区，每个主题区列出代表书或数据证据。
+- 结构盲区：只写能从数据中推断的缺口，不要凭空劝读热门领域。
+- 重复投入区：说明哪些主题被反复阅读，可能代表兴趣、工作需要或理解瓶颈。
+- 补齐路线：给出 3 条主题路径，每条包含“为什么补、怎么补、先看什么类型的书”。
 "#;
 
 const GROWTH_STYLE: &str = r#"# 下一阶段阅读建议风格
 
 整体像可执行的私人阅读路线图。允许使用阶段计划、主题路径、节奏建议和轻量书单方向。保持克制、具体、可行动。
+
+版式建议：用路线图而不是普通建议清单。把建议分为“继续深挖”“横向连接”“节奏调整”三类，最后给出一个 30 天轻量行动表。
 "#;
 
 const GROWTH_PROMPT: &str = r#"# 下一阶段阅读建议
 
-请基于已有阅读轨迹生成下一阶段阅读方向。重点是方向和策略，不要凭空指定用户没有兴趣的路线。
+请基于已有阅读轨迹生成你的下一阶段阅读方向。重点是方向和策略，不要凭空指定你没有兴趣的路线。
+
+必须包含：
+- 先判断当前阶段：你更像在积累、探索、验证、补课还是输出前整理。
+- 给出 3 条下一阶段路线，每条都有目标、适合原因、可选书籍类型和一条执行方式。
+- 给出一份轻量节奏建议，例如每周阅读、笔记整理和复盘方式。
+- 如果数据不足，明确哪些判断只是保守建议。
 "#;
 
 const ANNUAL_KEYWORDS_STYLE: &str = r#"# 年度阅读关键词风格
 
 整体像一组可以截图分享的年度阅读标签页。允许使用关键词云、年度标签、短句标题、少量关键数字和代表性书目。保持纸面感和档案感，避免夸张营销、情绪煽动和空泛金句。
+
+版式建议：输出适合截图的纵向卡片组。每张卡片只有一个关键词、一个解释、2 到 3 个证据点。标题短，正文可读，不使用 emoji。
 "#;
 
 const ANNUAL_KEYWORDS_PROMPT: &str = r#"# 年度阅读关键词
@@ -1770,6 +2104,8 @@ const ANNUAL_KEYWORDS_PROMPT: &str = r#"# 年度阅读关键词
 const TOP_BOOKS_STYLE: &str = r#"# 年度 Top 书单风格
 
 整体像私人年度书单榜。允许使用榜单、书封占位、推荐语、选择理由和主题标签。版面要适合手机截图，标题清楚、信息密度适中，避免把所有书机械排成表格。
+
+版式建议：每本书是一张可截图书单卡，包含排名、书名、入选理由、证据标签和一句私人推荐语。不要把书单做成纯表格。
 "#;
 
 const TOP_BOOKS_PROMPT: &str = r#"# 年度 Top 书单
@@ -1780,6 +2116,8 @@ const TOP_BOOKS_PROMPT: &str = r#"# 年度 Top 书单
 const READING_RADAR_STYLE: &str = r#"# 阅读偏好雷达风格
 
 整体像一份可解释的个人阅读偏好仪表。允许使用雷达图、维度条、坐标轴、评分说明和证据卡片。视觉要克制、清晰、可截图，不要使用无法从数据解释的伪精密分数。
+
+版式建议：PPT 风格下按一屏一个维度组织：总览雷达、维度解释、证据卡、下一步建议。分数只能作为相对表达，不能伪装成精密测评。
 "#;
 
 const READING_RADAR_PROMPT: &str = r#"# 阅读偏好雷达
@@ -1790,6 +2128,8 @@ const READING_RADAR_PROMPT: &str = r#"# 阅读偏好雷达
 const SPIRIT_BOOKSHELF_STYLE: &str = r#"# 精神书架风格
 
 整体像一面私人精神书架。允许使用分层书架、主题分区、少量摘录、书目标签和短评。强调安静、珍藏、可回看；如果使用原始划线或想法，只选少量代表性内容并避免暴露过于私密的上下文。
+
+版式建议：把书架分为 3 到 5 层，每层像一块真实书架标签。每层包含主题名、代表书、少量解释和一条可选摘录。
 "#;
 
 const SPIRIT_BOOKSHELF_PROMPT: &str = r#"# 精神书架

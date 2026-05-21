@@ -1,4 +1,4 @@
-import { BookOpen, Clock, Compass, Library, ListOrdered, PenLine, PieChart, Quote, Route, Sparkles, Target, TrendingUp } from "lucide-react";
+import { BookOpen, Clock, Compass, Library, ListOrdered, PenLine, PieChart, Route, Sparkles, Target, TrendingUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { formatDuration } from "../format";
 import type { ReadingReportData, ReportRankItem, ReportTemplateId } from "./types";
@@ -99,24 +99,6 @@ function InsightList({ data }: ReportTemplateProps) {
   );
 }
 
-function ExcerptList({ data, limit = 3 }: ReportTemplateProps & { limit?: number }) {
-  if (data.excerpts.length === 0) return null;
-
-  return (
-    <div className="report-excerpt-list">
-      {data.excerpts.slice(0, limit).map((item, index) => (
-        <figure key={`${item.bookId}-${item.kind}-${index}`}>
-          <blockquote>{item.content}</blockquote>
-          <figcaption>
-            {item.kind === "review" ? "想法" : "划线"} · {item.bookTitle}
-            {item.chapter ? ` · ${item.chapter}` : ""}
-          </figcaption>
-        </figure>
-      ))}
-    </div>
-  );
-}
-
 function RankList({ items, limit = 6 }: { items: ReportRankItem[]; limit?: number }) {
   if (items.length === 0) return null;
   const max = Math.max(...items.map((item) => item.score), 1);
@@ -184,16 +166,33 @@ function TimelinePanel({ data }: ReportTemplateProps) {
   );
 }
 
-function SourcePanel({ data }: ReportTemplateProps) {
+function SourcePanel({ }: ReportTemplateProps) {
   return (
     <div className="report-source-panel">
-      <span>数据覆盖</span>
-      <strong>
-        {data.sourceSummary.notebookBooks} 本笔记书 · {data.sourceSummary.categoryCount} 个分类 · {data.sourceSummary.timelinePoints} 个时间节点
-      </strong>
-      <small>
-        已从 {data.sourceSummary.sampledBooks} 本重点书抽取 {data.sourceSummary.excerptCount} 条代表性划线/想法。
-      </small>
+      <strong>WeRead Skill Desktop</strong>
+      <span>数据来源：微信读书 Skill</span>
+    </div>
+  );
+}
+
+function NoteSignalPanel({ data }: ReportTemplateProps) {
+  return (
+    <div className="report-highlight-list">
+      <div>
+        <span>划线密度</span>
+        <strong>{data.profile.bookmarkCount} 条划线</strong>
+        <small>用于衡量阅读过程中留下痕迹的频率，不展示原文。</small>
+      </div>
+      <div>
+        <span>想法密度</span>
+        <strong>{data.profile.reviewCount} 条想法</strong>
+        <small>用于衡量主动表达和复盘强度，不展示个人想法内容。</small>
+      </div>
+      <div>
+        <span>样本覆盖</span>
+        <strong>{data.sourceSummary.sampledBooks} 本重点书</strong>
+        <small>报告基于统计摘要和书籍维度生成，避免在基础模板铺开原始笔记。</small>
+      </div>
     </div>
   );
 }
@@ -300,13 +299,13 @@ function AnalysisReportTemplate({ data }: ReportTemplateProps) {
         </div> : null}
       </section>
 
-      {data.excerpts.length > 0 ? <section className="report-deep-section">
+      <section className="report-deep-section">
         <div className="report-section-title">
-          <Quote size={18} />
-          <h3>代表性摘录</h3>
+          <PenLine size={18} />
+          <h3>笔记信号</h3>
         </div>
-        <ExcerptList data={data} limit={8} />
-      </section> : null}
+        <NoteSignalPanel data={data} />
+      </section>
 
       <SourcePanel data={data} />
     </article>
@@ -369,13 +368,13 @@ function JourneyReportTemplate({ data }: ReportTemplateProps) {
           </div>
           <InsightList data={data} />
         </div> : null}
-        {data.excerpts.length > 0 ? <div>
+        <div>
           <div className="report-section-title">
-            <Quote size={18} />
-            <h3>路上的句子</h3>
+            <PenLine size={18} />
+            <h3>笔记信号</h3>
           </div>
-          <ExcerptList data={data} limit={6} />
-        </div> : null}
+          <NoteSignalPanel data={data} />
+        </div>
       </section>
 
       <section className="report-deep-section report-three-columns">
@@ -467,10 +466,10 @@ function AnnualReportTemplate({ data }: ReportTemplateProps) {
         <InsightList data={data} />
       </section> : null}
 
-      {data.excerpts.length > 0 ? <section className="annual-quote-strip">
-        <h3>留下来的句子</h3>
-        <ExcerptList data={data} limit={8} />
-      </section> : null}
+      <section className="annual-quote-strip">
+        <h3>笔记信号</h3>
+        <NoteSignalPanel data={data} />
+      </section>
 
       <section className="annual-focus">
         {data.rankings.longReadLeaders.length > 0 ? <div>
