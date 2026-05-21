@@ -8,6 +8,8 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorBanner } from "../components/ui/ErrorBanner";
+import { IconButton } from "../components/ui/IconButton";
+import { SegmentedControl } from "../components/ui/SegmentedControl";
 import { Spinner } from "../components/ui/Spinner";
 import { formatDate, formatDuration, noteTotal } from "../lib/format";
 import { getShelfReadingStatus } from "../hooks/useBookshelf";
@@ -59,15 +61,60 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
 
   const selectedNotebook = selectedBook ? notebookByBookId.get(selectedBook.bookId) : undefined;
   const selectedBookStatus = selectedBook ? getShelfReadingStatus(selectedBook) : null;
+  const shelfToolbar = apiKeySet ? (
+    <Card className="toolbar-card bookshelf-toolbar">
+      <div className="toolbar-main-row">
+        <div className="search-box">
+          <Search size={18} />
+          <input
+            value={shelf.query}
+            onChange={(event) => shelf.setQuery(event.target.value)}
+            placeholder="搜索书名或作者"
+          />
+        </div>
+        <SegmentedControl
+          ariaLabel="书架阅读状态"
+          value={shelf.filter}
+          onChange={(value) => shelf.setFilter(value)}
+          options={[
+            { value: "all", label: "全部" },
+            { value: "finished", label: "已读完" },
+          ]}
+        />
+      </div>
+      {shelf.categories.length > 0 ? (
+        <div className="category-filter-row" aria-label="类别筛选">
+          <button
+            type="button"
+            className={shelf.categoryFilter === "all" ? "active" : ""}
+            onClick={() => shelf.setCategoryFilter("all")}
+          >
+            全部类别
+          </button>
+          {shelf.categories.map((category) => (
+            <button
+              type="button"
+              key={category}
+              className={shelf.categoryFilter === category ? "active" : ""}
+              onClick={() => shelf.setCategoryFilter(category)}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </Card>
+  ) : null;
 
   return (
     <PageShell
       title={
         <>
-          书架
+          我的书架
           {shelf.totalCount > 0 ? <small className="page-title-count">{shelf.totalCount}本</small> : null}
         </>
       }
+      toolbar={shelfToolbar}
     >
       {!apiKeySet ? (
         <EmptyState
@@ -83,52 +130,6 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
         <>
           <ErrorBanner message={shelf.error} />
           <ErrorBanner message={notebooks.error} />
-          <Card className="toolbar-card bookshelf-toolbar">
-            <div className="toolbar-main-row">
-              <div className="search-box">
-                <Search size={18} />
-                <input
-                  value={shelf.query}
-                  onChange={(event) => shelf.setQuery(event.target.value)}
-                  placeholder="搜索书名或作者"
-                />
-              </div>
-              <div className="segmented">
-                {[
-                  ["all", "全部"],
-                  ["finished", "已读完"],
-                ].map(([value, label]) => (
-                  <button
-                    key={value}
-                    className={shelf.filter === value ? "active" : ""}
-                    onClick={() => shelf.setFilter(value as "all" | "finished")}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {shelf.categories.length > 0 ? (
-              <div className="category-filter-row" aria-label="类别筛选">
-                <button
-                  className={shelf.categoryFilter === "all" ? "active" : ""}
-                  onClick={() => shelf.setCategoryFilter("all")}
-                >
-                  全部类别
-                </button>
-                {shelf.categories.map((category) => (
-                  <button
-                    key={category}
-                    className={shelf.categoryFilter === category ? "active" : ""}
-                    onClick={() => shelf.setCategoryFilter(category)}
-                  >
-                    {category}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </Card>
-
           {shelf.loading ? (
             <Card>
               <Spinner label="正在同步书架" />
@@ -140,7 +141,12 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
               {shelf.books.map((book) => {
                 const status = getShelfReadingStatus(book);
                 return (
-                  <button className="book-card" key={book.bookId} onClick={() => void openBookDetail(book)}>
+                  <button
+                    type="button"
+                    className="book-card"
+                    key={book.bookId}
+                    onClick={() => void openBookDetail(book)}
+                  >
                     <div className="cover">
                       {book.cover ? <img src={book.cover} alt="" /> : <BookOpen size={28} />}
                     </div>
@@ -162,9 +168,12 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
           {selectedBook ? (
             <div className="detail-backdrop" onClick={() => setSelectedBook(null)}>
               <aside className="book-detail-panel" onClick={(event) => event.stopPropagation()}>
-                <button className="detail-close" onClick={() => setSelectedBook(null)} aria-label="关闭">
-                  <X size={18} />
-                </button>
+                <IconButton
+                  className="detail-close"
+                  icon={<X size={18} />}
+                  onClick={() => setSelectedBook(null)}
+                  aria-label="关闭书籍详情"
+                />
                 <div className="detail-hero">
                   <div className="cover large">
                     {selectedBook.cover ? (

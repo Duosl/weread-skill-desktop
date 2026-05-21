@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { FileDown, FileText, FolderOpen, Search } from "lucide-react";
@@ -19,9 +19,15 @@ type ExportPageProps = {
   settings: AppSettings;
   embedded?: boolean;
   initialSelectedBookId?: string | null;
+  onHeaderActionChange?: (action: ReactNode) => void;
 };
 
-export function ExportPage({ settings, embedded = false, initialSelectedBookId }: ExportPageProps) {
+export function ExportPage({
+  settings,
+  embedded = false,
+  initialSelectedBookId,
+  onHeaderActionChange,
+}: ExportPageProps) {
   const notebooks = useNotebooks();
   const exporter = useExport();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -121,7 +127,7 @@ export function ExportPage({ settings, embedded = false, initialSelectedBookId }
     }
   }
 
-  async function runExport() {
+  const runExport = useCallback(async () => {
     setNotice(null);
     const options: ExportOptions = {
       bookIds: selectedIds,
@@ -136,26 +142,27 @@ export function ExportPage({ settings, embedded = false, initialSelectedBookId }
     } catch {
       // useExport has already stored a displayable error message.
     }
-  }
+  }, [exporter.runExport, includeBookmarks, includeReviews, outputDir, selectedIds]);
+
+  const exportHeaderAction = useMemo(() => (
+    <Button
+      variant="primary"
+      icon={<FileDown size={16} />}
+      disabled={selectedIds.length === 0 || !outputDir || exporter.loading}
+      onClick={() => void runExport()}
+    >
+      导出
+    </Button>
+  ), [exporter.loading, outputDir, runExport, selectedIds.length]);
+
+  useEffect(() => {
+    if (!embedded || !onHeaderActionChange) return;
+    onHeaderActionChange(exportHeaderAction);
+    return () => onHeaderActionChange(null);
+  }, [embedded, onHeaderActionChange, exportHeaderAction]);
 
   const content = (
     <>
-      {embedded ? (
-        <div className="workbench-section-header">
-          <div>
-            <h2>导出笔记</h2>
-            <p>批量选择笔记本，生成 Markdown 文件并保留真实预览。</p>
-          </div>
-          <Button
-            variant="primary"
-            icon={<FileDown size={16} />}
-            disabled={selectedIds.length === 0 || !outputDir || exporter.loading}
-            onClick={() => void runExport()}
-          >
-            导出
-          </Button>
-        </div>
-      ) : null}
       <ErrorBanner message={notebooks.error ?? exporter.error} />
       {notice ? <div className="success-text">{notice}</div> : null}
       {exporter.result ? <div className="success-text">{exporter.result.message}</div> : null}
@@ -325,16 +332,7 @@ export function ExportPage({ settings, embedded = false, initialSelectedBookId }
   return (
     <PageShell
       title="导出"
-      action={
-        <Button
-          variant="primary"
-          icon={<FileDown size={16} />}
-          disabled={selectedIds.length === 0 || !outputDir || exporter.loading}
-          onClick={() => void runExport()}
-        >
-          导出
-        </Button>
-      }
+      action={exportHeaderAction}
     >
       {content}
     </PageShell>

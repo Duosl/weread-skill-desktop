@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { FileDown, MessageSquareQuote } from "lucide-react";
 import { PageShell } from "../components/layout/PageShell";
 import { Button } from "../components/ui/Button";
 import { ErrorBanner } from "../components/ui/ErrorBanner";
+import { SegmentedControl } from "../components/ui/SegmentedControl";
 import { ExportPage } from "./ExportPage";
 import { NotesPage } from "./NotesPage";
 import type { AppSettings } from "../types";
@@ -22,6 +23,7 @@ export function NotesWorkbenchPage({ settings }: NotesWorkbenchPageProps) {
   const exportBookId = searchParams.get("bookId");
   const routeBookId = params.bookId ?? "";
   const [selectedBookId, setSelectedBookId] = useState(routeBookId);
+  const [exportAction, setExportAction] = useState<ReactNode>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const tabs = useMemo(
@@ -59,30 +61,21 @@ export function NotesWorkbenchPage({ settings }: NotesWorkbenchPageProps) {
 
   return (
     <PageShell
-      title={
-        <span className="page-title-stack notes-workbench-title">
-          <span className="notes-title-row">
-            <span>笔记</span>
-            <span className="workbench-tabs" role="tablist" aria-label="笔记工作台">
-              {tabs.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  className={activeTab === id ? "active" : ""}
-                  onClick={() => setTab(id)}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === id}
-                >
-                  <Icon size={16} />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </span>
-          </span>
-          <small>查看单本书的划线与想法，需要导出时可直接切到导出区。</small>
-        </span>
+      title="划线与想法"
+      subtitle="查看单本书的划线与想法，需要导出时可直接切到导出区。"
+      titleAccessory={
+        <SegmentedControl
+          ariaLabel="划线与想法"
+          value={activeTab}
+          onChange={setTab}
+          options={tabs.map(({ id, label, icon: Icon }) => ({
+            value: id,
+            label,
+            icon: <Icon size={16} />,
+          }))}
+        />
       }
-      action={
+      actions={
         activeTab === "browse" ? (
           <div className="workbench-actions">
             <Button
@@ -94,7 +87,7 @@ export function NotesWorkbenchPage({ settings }: NotesWorkbenchPageProps) {
               导出当前书
             </Button>
           </div>
-        ) : null
+        ) : exportAction
       }
     >
       <ErrorBanner message={actionError} />
@@ -109,6 +102,7 @@ export function NotesWorkbenchPage({ settings }: NotesWorkbenchPageProps) {
           embedded
           settings={settings}
           initialSelectedBookId={exportBookId}
+          onHeaderActionChange={setExportAction}
         />
       )}
     </PageShell>

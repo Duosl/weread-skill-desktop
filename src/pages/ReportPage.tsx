@@ -507,7 +507,7 @@ export function ReportPage({ apiKeySet, settings }: ReportPageProps) {
 
   return (
     <PageShell
-      title="导出模板"
+      title="阅读报告"
       action={
         <Button
           variant="primary"

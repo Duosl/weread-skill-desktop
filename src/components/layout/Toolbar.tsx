@@ -12,6 +12,7 @@ export function Toolbar({ sidebarCollapsed, onToggleSidebar, updateReady, onInst
     <div className="toolbar" data-tauri-drag-region>
       <div className="toolbar-left">
         <button
+          type="button"
           className="toolbar-btn"
           onClick={onToggleSidebar}
           title={sidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
@@ -21,6 +22,7 @@ export function Toolbar({ sidebarCollapsed, onToggleSidebar, updateReady, onInst
         </button>
         {updateReady && onInstallUpdate && (
           <button
+            type="button"
             className="toolbar-update-action"
             onClick={onInstallUpdate}
             title="新版本已下载，点击重启更新"

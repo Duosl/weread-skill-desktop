@@ -122,6 +122,16 @@
 
 ## 三、色彩系统
 
+### 当前实现决策
+
+`design.md` 是当前阶段 UI 落地的执行说明。当前应用实现已采用以下品牌分工：
+
+- 桌面工具主操作色：蓝色 `--brand: #2f80ed`、`--brand-strong: #1769c2`、`--brand-soft: #eaf3ff`。
+- 微信读书绿：作为阅读、完成、成长、成功等语义色，使用 `--reading: #1eb869`、`--reading-strong: #166534`、`--reading-soft: #edfdf4`。
+- 页面纸面与墨色：继续使用 `--paper: #fffdf8`、`--app-surface: #f8f7f3`、`--ink: #171717`。
+
+后续不要在页面局部混用新的蓝、绿、紫、橙等随机色值。新增颜色必须先成为 token，并说明用途。
+
 ### 核心调色板
 
 ```css
@@ -261,6 +271,18 @@
 ---
 
 ## 五、组件设计规范
+
+### 5.0 当前实现入口
+
+后续 UI 开发优先使用现有组件和 class：
+
+- 页面结构：`PageShell`，使用 `title`、`subtitle`、`meta`、`tabs`、`actions`、`toolbar` 插槽。
+- 按钮：`Button`，只使用 `primary`、`secondary`、`ghost`、`danger`。
+- 图标按钮：`IconButton`，必须提供 `aria-label`。
+- 分段控件 / Tabs：`SegmentedControl`，不要再新建页面专属 tabs 样式。
+- 弹窗和覆盖层：使用全局 z-index token：`--z-panel`、`--z-modal`、`--z-confirm`、`--z-toast`。
+
+页面可以扩展布局 class，但不要重写新的按钮系统、Tab 系统或弹窗层级系统。
 
 ### 5.1 卡片 (Card)
 

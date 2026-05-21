@@ -56,11 +56,6 @@ pub async fn run_agent(
         cmd.env(key, value);
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        cmd.shell_create_arg_list(true);
-    }
-
     let mut child = cmd
         .spawn()
         .map_err(|e| crate::Error::SpawnFailed(e.to_string()))?;

@@ -8,6 +8,7 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorBanner } from "../components/ui/ErrorBanner";
+import { SegmentedControl } from "../components/ui/SegmentedControl";
 import { Spinner } from "../components/ui/Spinner";
 import { useNotes } from "../hooks/useNotes";
 import { useNotebooks } from "../hooks/useNotebooks";
@@ -180,6 +181,7 @@ export function NotesPage({
             <div className="notebook-scroll">
               {filteredNotebooks.map((book) => (
                 <button
+                  type="button"
                   key={book.bookId}
                   className={book.bookId === selectedBookId ? "notebook active" : "notebook"}
                   onClick={() => setSelectedBookId(book.bookId)}
@@ -210,37 +212,25 @@ export function NotesPage({
           </Card>
 
           <Card className="notes-filter-card">
-            <div className="segmented">
-              <button className={noteType === "all" ? "active" : ""} onClick={() => setNoteType("all")}>
-                全部
-              </button>
-              <button
-                className={noteType === "bookmarks" ? "active" : ""}
-                onClick={() => setNoteType("bookmarks")}
-              >
-                划线
-              </button>
-              <button
-                className={noteType === "reviews" ? "active" : ""}
-                onClick={() => setNoteType("reviews")}
-              >
-                想法
-              </button>
-            </div>
-            <div className="segmented">
-              <button
-                className={viewMode === "chapter" ? "active" : ""}
-                onClick={() => setViewMode("chapter")}
-              >
-                按章节
-              </button>
-              <button
-                className={viewMode === "timeline" ? "active" : ""}
-                onClick={() => setViewMode("timeline")}
-              >
-                按时间
-              </button>
-            </div>
+            <SegmentedControl
+              ariaLabel="笔记类型"
+              value={noteType}
+              onChange={setNoteType}
+              options={[
+                { value: "all", label: "全部" },
+                { value: "bookmarks", label: "划线" },
+                { value: "reviews", label: "想法" },
+              ]}
+            />
+            <SegmentedControl
+              ariaLabel="笔记视图"
+              value={viewMode}
+              onChange={setViewMode}
+              options={[
+                { value: "chapter", label: "按章节" },
+                { value: "timeline", label: "按时间" },
+              ]}
+            />
           </Card>
 
           {!selectedBookId ? (

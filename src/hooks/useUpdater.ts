@@ -53,7 +53,7 @@ function getUpdaterErrorTitle(error: string) {
     return "签名校验失败";
   }
 
-  return "检查失败";
+  return "检查失败，请稍后再试";
 }
 
 export function useUpdater() {

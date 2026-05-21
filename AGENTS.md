@@ -7,9 +7,10 @@ AI 必须同时参考：
 1. `AGENTS.md`：工程约束、执行顺序、验收入口。
 2. `mvp-design-doc.md`：MVP 范围、页面、命令、数据流、导出格式。
 3. `ui-style-guide.md`：UI 与交互规范。
-4. `~/.agents/skills/weread-skills/`：微信读书 Skill 原始 API 文档。
-5. `docs/requirements-pool.md`：需求池、优先级、状态、下一步建议。
-6. 飞书多维表格「微信读书 SKill 桌面端需求收集表」：外部需求收集入口，按第 9 节流程读取和回写。
+4. `design.md`：UI 审计结论、设计 tokens、组件规则、页面统一方案和后续改造执行蓝图。
+5. `~/.agents/skills/weread-skills/`：微信读书 Skill 原始 API 文档。
+6. `docs/requirements-pool.md`：需求池、优先级、状态、下一步建议。
+7. 飞书多维表格「微信读书 SKill 桌面端需求收集表」：外部需求收集入口，按第 9 节流程读取和回写。
 
 ---
 
@@ -40,7 +41,8 @@ AI 必须同时参考：
 1. `~/.agents/skills/weread-skills/*.md`：API 参数、字段含义、分页、单位、统计口径的最终依据。
 2. `mvp-design-doc.md`：产品范围、页面结构、命令清单、导出格式的最终依据。
 3. `ui-style-guide.md`：UI 与交互的最终依据。
-4. `AGENTS.md`：工程行为与协作规则。
+4. `design.md`：UI 实施与收敛方案的执行依据。
+5. `AGENTS.md`：工程行为与协作规则。
 
 如果本文件与以上专门文档出现实现细节冲突，优先遵循专门文档。
 
@@ -82,8 +84,9 @@ AI 必须同时参考：
 1. 阅读 `mvp-design-doc.md`，确认当前任务属于 MVP 的哪个模块。
 2. 阅读 `ui-style-guide.md`，确认相关 UI 规则。
 3. 阅读 `docs/requirements-pool.md`，确认当前需求状态、优先级和完成后应更新的位置。
-4. 如果任务涉及微信读书 API，阅读 `~/.agents/skills/weread-skills/` 中对应能力文档。
-5. 明确当前改动的边界：前端 UI、前端数据层、Rust API、导出、配置、系统命令中的哪一类。
+4. 如果任务涉及 UI、页面、组件、视觉、交互或布局，阅读 `design.md`，并按其中的 tokens、组件规则、页面统一方案和验收清单执行。
+5. 如果任务涉及微信读书 API，阅读 `~/.agents/skills/weread-skills/` 中对应能力文档。
+6. 明确当前改动的边界：前端 UI、前端数据层、Rust API、导出、配置、系统命令中的哪一类。
 
 不要把其他文档中的内容复制进本文件；需要细节时直接引用并遵循对应文档。
 
@@ -114,9 +117,11 @@ AI 必须同时参考：
 
 ## 6. UI 规则
 
-本文件不维护 UI 细节。所有视觉、布局、组件、状态和交互要求都以 `ui-style-guide.md` 为准。
+本文件不维护 UI 细节。所有视觉、布局、组件、状态和交互要求都以 `ui-style-guide.md` 为准，具体执行、审计结论、tokens、组件规则和改造顺序以 `design.md` 为准。
 
-如果实现中需要 UI 判断，先查 `ui-style-guide.md`，不要在本文件补充新的 UI 规范。
+如果实现中需要 UI 判断，先查 `ui-style-guide.md` 和 `design.md`，不要在本文件补充新的 UI 规范。
+
+涉及全应用 UI 审计、页面风格统一、组件视觉重构或设计系统收敛时，必须额外使用 UI 相关 Skill（当前优先 `frontend-design` 与 `ui-ux-pro-max`）做分析和验收。必须参考 `design.md` 的视觉方向、tokens、组件规则和实现顺序；稳定规则仍回写 `ui-style-guide.md`，不要让 `AGENTS.md` 承载具体样式规范。
 
 ---
 
@@ -171,6 +176,7 @@ API 验收以 `~/.agents/skills/weread-skills/` 为准。
 - 高级报告的本地 CLI 调用只作为后端/系统能力封装，前端只读取模板清单、任务状态、输入输出目录和生成结果。
 - 分享能力必须与正式导出分开设计；分享版 HTML 可以加入应用署名、回链或安装入口，但不能影响用户本地私有导出。
 - UI 保持 Quiet Reading Ledger：模板卡片用于选择，预览像真实文件或报告纸面，主操作保持清晰克制。
+- 下一步最高优先级是全应用 UI 风格统一：先按 `design.md` 锁定 tokens 和基础组件，再收敛页面 shell、标题区、操作区、Tabs、卡片、弹窗、按钮和状态反馈。
 
 ---
 
@@ -213,6 +219,7 @@ API 验收以 `~/.agents/skills/weread-skills/` 为准。
 
 - 产品范围、页面结构、数据流、命令清单、导出格式：写入 `mvp-design-doc.md`。
 - 视觉风格、组件状态、布局规则、交互细节：写入 `ui-style-guide.md`。
+- UI 审计结论、设计 tokens、组件规则、页面统一方案、改造顺序和验收清单：写入 `design.md`。
 - 需求池、优先级、完成记录、下一步开发建议：写入 `docs/requirements-pool.md`。
 - 面向用户的安装、使用、功能说明：写入 `README.md`。
 - 微信读书 API 字段、参数、分页、统计口径：只引用 `~/.agents/skills/weread-skills/`，不要复制到仓库文档。

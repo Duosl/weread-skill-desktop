@@ -83,9 +83,9 @@ lark-cli base +record-list \
 
 ## 当前推荐
 
-建议下一个启动：`REQ-007 HTML 阅读报告生成器` 的智能体报告 CLI 接入。
+建议下一个启动：`REQ-012 智能体报告自定义提示词与模板形态`。
 
-原因：基础 HTML 报告和导出模板入口已经有进展；下一步应接入本地 CLI 封装库，把智能体模板从规划中变成可执行能力。
+原因：`REQ-013` 已完成第一轮设计系统收敛，主要页面的标题区、工具区、按钮、Tabs、弹窗层级和基础 token 已统一；下一步可以回到智能体报告的自定义提示词与模板形态能力。
 
 ---
 
@@ -104,6 +104,8 @@ lark-cli base +record-list \
 | REQ-009 | P2 | Todo | Export | 导出为 PDF 文档 |
 | REQ-010 | P2 | Todo | Integration | 腾讯 ima 联动 |
 | REQ-011 | P1 | Done | Notes / Export | 合并为笔记工作台 |
+| REQ-012 | P2 | Todo | Report / Agent | 智能体报告自定义提示词与模板形态 |
+| REQ-013 | P0 | Done | UI / Design System | 全应用 UI 风格统一与设计系统收敛 |
 
 ---
 
@@ -329,12 +331,84 @@ lark-cli base +record-list \
   - 旧 `/export` 路由可重定向到 `/notes?tab=export`。
   - `npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过。
 
+### REQ-012 智能体报告自定义提示词与模板形态
+
+- 优先级：P2
+- 状态：Todo
+- 模块：Report / Agent
+- 来源：用户对话，2026-05-21。
+- 背景：当前智能体报告只支持内置模板和固定提示词，用户希望能在生成前补充自己的具体要求，让报告更贴合当次诉求；同时希望模板支持不同输出形态，例如 PPT 风格、小红书图文风格，以及当前默认完整报告风格，并能后续继续扩展。
+- 第一阶段建议范围：
+  - 在智能体模板生成设置中增加“自定义要求”输入框，作为本次 job 的补充提示词写入 `input/user-prompt.md` 或合并进 `input/brief.md`。
+  - 自定义要求必须作为用户偏好处理，不能覆盖隐私、安全、只读本地工作区、必须输出 `output/report.html` 等系统约束。
+  - 内置模板增加 `outputShape` / `styleVariant` 配置，至少支持 `默认报告`、`PPT 风格`、`小红书图文风格` 三类形态。
+  - 生成 brief 时把形态要求明确传给 Agent，例如页面比例、版式密度、章节结构、适合截图或演示的视觉约束。
+- 第二阶段候选：
+  - 支持用户创建自定义智能体模板：填写模板名称、描述、提示词、默认形态、是否需要原始笔记授权。
+  - 自定义模板保存到应用私有目录，不和内置模板混写；模板列表合并展示，并标记来源为“自定义”。
+  - 支持编辑、复制、删除自定义模板；内置模板只允许复制，不允许直接修改。
+- 技术边界：
+  - 前端只提交结构化配置，不直接拼接完整系统 prompt。
+  - 后端负责把用户要求、模板提示词、形态配置和隐私策略合成为 job 工作区输入。
+  - 自定义提示词不得允许 Agent 读取工作区外文件、访问网络、自动打开浏览器或绕过隐私授权。
+  - 形态配置先服务 HTML 输出；PPT 风格是 HTML 演示页形态，不等同于导出 `.pptx` 文件。
+- 验收：
+  - 生成智能体报告时可以填写本次自定义要求，并能在 job 输入文件中追溯。
+  - 选择不同形态后，Agent brief 中有明确差异化输出要求。
+  - 不填写自定义要求时，现有内置模板生成流程不受影响。
+  - 自定义要求不能绕过原始笔记授权开关。
+  - `npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过。
+
+### REQ-013 全应用 UI 风格统一与设计系统收敛
+
+- 优先级：P0
+- 状态：Done
+- 模块：UI / Design System
+- 来源：用户对话，2026-05-21。
+- 背景：随着书架、笔记工作台、导出、阅读报告、智能体模板等页面持续开发，当前页面风格开始变乱，存在视觉层级、组件形态、页面密度、弹窗结构、按钮层级和报告相关界面风格不够统一的问题。这里的 UI 范围包括但不限于整体风格，也包括字体大小、字重、行高、间距、颜色、圆角、阴影、边框、图标、状态反馈、滚动区域、响应式和可访问性等细节。下一步开发前必须先做一次全应用 UI 风格审计和统一。
+- 资料与 Skill 要求：
+  - 必须使用 UI 相关 Skill：`frontend-design` 和 `ui-ux-pro-max`。
+  - 必须先读取 `ui-style-guide.md`，确认 Quiet Reading Ledger 的设计方向。
+  - 已新增 `design.md`，后续 UI 开发必须同时参考其中的审计结论、设计 tokens、组件规则、页面统一方案和验收清单。
+  - 统一后的稳定规则应回写 `ui-style-guide.md`；`AGENTS.md` 只记录执行约束和资料入口。
+- 第一阶段范围：
+  - 审计全应用页面：概览 / 书架、笔记工作台、导出、阅读报告、设置、支持弹窗、智能体报告弹窗和任务详情。
+  - 梳理当前不一致点：标题区、页面容器、列表、卡片、表单、按钮、Tabs、弹窗、空态、错误态、加载态、成功态、日志 / 输出流展示。
+  - 提出统一方案：组件层级、间距系统、按钮等级、卡片边界、弹窗宽度、侧栏与页面标题关系、报告页面与普通工作台的差异边界。
+  - 对照 Quiet Reading Ledger 修正过度装饰、过度卡片化、密度失控或普通 SaaS 化的问题。
+- 第二阶段范围：
+  - 已收敛 `src/index.css` 中第一批重复或漂移的样式规则，建立 token aliases、页面 shell、toolbar、card、modal、tab、button、state 基础样式。
+  - 已统一页面头部和工作台布局，不让书架、笔记工作台、笔记筛选等页面继续自行发明标题、操作区和筛选区。
+  - 对所有核心页面做窗口尺寸、长文本和滚动区域回归。
+- 完成说明：
+  - 新增 `design.md` 作为后续 UI 开发的执行型设计说明，并在 `AGENTS.md` 中加入入口要求。
+  - 扩展 `PageShell`，支持 `subtitle`、`meta`、`tabs`、`actions`、`toolbar`，保留旧 `action` 兼容。
+  - 新增 `SegmentedControl` 和 `IconButton`，并把笔记工作台、笔记筛选、书架筛选、书籍详情关闭、支持弹窗关闭接入统一组件。
+  - 在全局 CSS 增加字体、间距、圆角、语义色、surface、shadow、z-index token，补充 `:focus-visible` 和 `prefers-reduced-motion`。
+  - 书架工具区上移到 `PageShell toolbar`，笔记工作台 Tab 移出 H1，设置页关于区按钮改用统一 `Button`。
+  - 统一弹窗和抽屉层级：书籍详情面板、支持弹窗、报告弹窗使用明确 z-index token，避免后续互相覆盖。
+- 改动入口：`design.md`、`AGENTS.md`、`src/components/layout/PageShell.tsx`、`src/components/ui/SegmentedControl.tsx`、`src/components/ui/IconButton.tsx`、`src/index.css`、`src/pages/DashboardPage.tsx`、`src/pages/NotesWorkbenchPage.tsx`、`src/pages/NotesPage.tsx`、`src/pages/SettingsPage.tsx`、`src/components/RewardDialog.tsx`。
+- 验证结果：`npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check`、`git diff --check` 通过。
+- 剩余风险：`ReportPage` 仍是最大样式密度区域，本轮只统一了 modal 层级和基础 token，后续新增报告模板形态时应继续按 `design.md` 抽离报告页内部按钮、历史记录、任务详情和输出流样式。
+- 技术边界：
+  - 本需求优先做“统一和收敛”，不是重新设计整套品牌。
+  - 不改变核心数据流、Tauri 命令或导出格式。
+  - 不引入大面积渐变、玻璃拟态、紫蓝渐变、漂浮光球等与现有设计方向冲突的风格。
+  - 桌面应用优先，移动端只做不破坏的响应式保护。
+- 验收：
+  - 形成一份明确的 UI 审计结论，列出需要统一的页面和组件问题。已完成：`design.md`。
+  - 完成主要页面的视觉统一，页面标题、操作区、筛选区、卡片、弹窗和状态反馈风格一致。
+  - 更新 `ui-style-guide.md` 中稳定的新增规则；必要时补充 `design.md` 或引用其实现方向。
+  - 使用 `frontend-design` / `ui-ux-pro-max` 的规则检查可访问性、触控尺寸、布局响应、字号层级、颜色对比和动效克制。
+  - `npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过。
+
 ---
 
 ## 已完成记录
 
 ### 2026-05-21
 
+- REQ-013 全应用 UI 风格统一与设计系统收敛：新增 `design.md`，扩展 `PageShell`，新增 `SegmentedControl` / `IconButton`，统一书架、笔记工作台、笔记筛选、设置页按钮和支持弹窗的基础交互组件；全局 CSS 增加 token、焦点态、减弱动效和 z-index 层级；`frontend:typecheck`、`frontend:build`、`cargo check`、`git diff --check` 通过。
 - 书架类别筛选：书籍卡片显示完整 `category`，空类别显示「未分类」；书架工具栏新增本地一级类别筛选行，支持与「全部 / 已读完」状态筛选和搜索组合使用；`frontend:typecheck`、`frontend:build`、`cargo check` 通过。
 - 书架页面简化：书架筛选只保留「全部」和「已读完」；书籍卡片与详情面板只在 `finishReading=1` 时显示「读完」标签，未读完书籍不再显示在读/未读标签；`frontend:typecheck`、`frontend:build`、`cargo check` 通过。
 

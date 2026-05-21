@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { ExportOptions, ExportProgress, ExportResult } from "../types";
@@ -19,7 +19,7 @@ export function useExport() {
     };
   }, []);
 
-  async function runExport(options: ExportOptions) {
+  const runExport = useCallback(async (options: ExportOptions) => {
     setLoading(true);
     setError(null);
     setResult(null);
@@ -35,11 +35,11 @@ export function useExport() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function openExportFolder(path: string) {
+  const openExportFolder = useCallback(async (path: string) => {
     await invoke("open_export_folder", { path });
-  }
+  }, []);
 
   return { loading, result, error, progress, runExport, openExportFolder };
 }

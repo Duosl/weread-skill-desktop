@@ -4,6 +4,7 @@
 
 import { type ReactNode, useEffect } from "react";
 import { Heart, MessageCircle, X } from "lucide-react";
+import { IconButton } from "./ui/IconButton";
 import wechatRewardUrl from "../assets/reward-wechat.png";
 import alipayRewardUrl from "../assets/reward-alipay.png";
 import wechatGroupUrl from "../../docs/images/wechat-group-qrcode.jpg";
@@ -102,13 +103,12 @@ function QrDialog({
         aria-labelledby="reward-title"
         onClick={(event) => event.stopPropagation()}
       >
-        <button
+        <IconButton
           className="reward-close-btn"
+          icon={<X size={17} strokeWidth={1.8} />}
           onClick={onClose}
           aria-label={closeLabel}
-        >
-          <X size={17} strokeWidth={1.8} />
-        </button>
+        />
 
         <div className="reward-header">
           <span className="reward-mark" aria-hidden="true">

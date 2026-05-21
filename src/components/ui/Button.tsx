@@ -19,7 +19,7 @@ export function Button({
 }: ButtonProps) {
   const sizeClass = size === "small" ? "button-small" : "";
   return (
-    <button className={`button button-${variant} ${sizeClass} ${className}`} {...props}>
+    <button type="button" className={`button button-${variant} ${sizeClass} ${className}`} {...props}>
       {icon}
       {children ? <span>{children}</span> : null}
     </button>

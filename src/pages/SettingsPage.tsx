@@ -136,7 +136,7 @@ export function SettingsPage({
       case "error":
         return (
           <span className="update-pill error" title={updateState.error}>
-            {updateState.errorTitle ?? "检查失败"}
+            {updateState.errorTitle ?? "检查失败，请稍后再试"}
           </span>
         );
     }
@@ -313,62 +313,76 @@ export function SettingsPage({
             <div className="about-actions-bar">
               {updateState.status !== "available" &&
                 updateState.status !== "ready" && (
-                  <button
-                    className="about-action-btn"
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    icon={
+                      <RefreshCw
+                        size={14}
+                        className={
+                          updateState.status === "checking" ? "spin" : ""
+                        }
+                      />
+                    }
                     onClick={onCheckUpdate}
                     disabled={
                       updateState.status === "checking" ||
                       updateState.status === "downloading"
                     }
                   >
-                    <RefreshCw
-                      size={14}
-                      className={
-                        updateState.status === "checking" ? "spin" : ""
-                      }
-                    />
-                    <span>
-                      {updateState.status === "checking"
-                        ? "检查中"
-                        : "检查更新"}
-                    </span>
-                  </button>
+                    {updateState.status === "checking"
+                      ? "检查中"
+                      : "检查更新"}
+                  </Button>
                 )}
               {updateState.status === "available" && (
-                <button
-                  className="about-action-btn primary"
+                <Button
+                  variant="primary"
+                  size="small"
+                  icon={<Download size={14} />}
                   onClick={onDownloadUpdate}
                 >
-                  <Download size={14} />
-                  <span>下载更新</span>
-                </button>
+                  下载更新
+                </Button>
               )}
               {updateState.status === "ready" && (
-                <button
-                  className="about-action-btn primary"
+                <Button
+                  variant="primary"
+                  size="small"
+                  icon={<RefreshCw size={14} />}
                   onClick={onInstallUpdate}
                 >
-                  <RefreshCw size={14} />
-                  <span>重启更新</span>
-                </button>
+                  重启更新
+                </Button>
               )}
               {signatureMismatch && (
-                <button
-                  className="about-action-btn primary"
+                <Button
+                  variant="primary"
+                  size="small"
+                  icon={<Download size={14} />}
                   onClick={openDownloadPage}
                 >
-                  <Download size={14} />
-                  <span>手动下载最新版</span>
-                </button>
+                  手动下载最新版
+                </Button>
               )}
-              <button className="about-action-btn community-action" onClick={onOpenCommunity}>
-                <MessageCircle size={14} />
-                <span>加交流群</span>
-              </button>
-              <button className="about-action-btn support-action" onClick={onOpenSupport}>
-                <Heart size={14} />
-                <span>打赏支持</span>
-              </button>
+              <Button
+                className="community-action"
+                variant="secondary"
+                size="small"
+                icon={<MessageCircle size={14} />}
+                onClick={onOpenCommunity}
+              >
+                加交流群
+              </Button>
+              <Button
+                className="support-action"
+                variant="secondary"
+                size="small"
+                icon={<Heart size={14} />}
+                onClick={onOpenSupport}
+              >
+                打赏支持
+              </Button>
             </div>
             {signatureMismatch && (
               <p className="update-manual-hint">
