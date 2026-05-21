@@ -548,9 +548,9 @@ type ReadingReportData = {
   - `读书旅程`：时间线型，偏阅读路径和代表性摘录。
   - `年度阅读报告`：总结型，偏视觉化年度 / 月度汇总。
 - 浏览器预览会先把当前报告 HTML 写入 App 私有目录，再用系统默认浏览器打开；预览文件不进入用户导出目录。
-- 正式导出时必须让用户选择目标目录，再在该目录下生成 `.html` 文件。
+- 当前阅读报告页只保留浏览器打开入口，暂不在基础模板或智能体模板工作台展示 `.html` 导出按钮。
 - HTML 使用内联 CSS，尽量不依赖外部网络资源，保证本地可打开。
-- 导出预览和最终文件使用同一套报告数据模型。
+- 浏览器打开和后续可能恢复的导出应使用同一套报告数据模型。
 - 当前 Markdown 导出保持默认且不被破坏。
 
 #### 后续智能体模版边界
@@ -606,7 +606,30 @@ AppData/
     └── preview/
 ```
 
-`template.json` 用于应用发现智能体模板：
+当前智能体模板先以内置 Rust 配置提供，前端通过 `list_advanced_report_templates` 读取；后续迁移到磁盘模板包时，`template.json` 用于应用发现智能体模板。当前返回给前端的模板字段包括：
+
+- `id`：模板 ID。
+- `name`：模板显示名称。
+- `description`：模板说明。
+- `category`：模板分类，例如 `advanced`、`share-ready`。
+- `styleSummary`：卡片上的风格摘要。
+- `defaultOutputShape`：默认输出形态。
+- `outputShapes`：可选输出形态列表，当前全局支持 `report`、`slides`、`xiaohongshu`。
+- `requiresRawNotesConsent`：是否必须获得原始划线 / 想法授权。
+- `defaultCapabilities`：默认预取能力。
+- `optionalCapabilities`：可选数据能力。
+
+当前内置智能体模板：
+
+- `reading-personality`：阅读人格分析。
+- `knowledge-map`：知识结构盲区。
+- `growth-path`：下一阶段阅读建议。
+- `annual-keywords`：年度阅读关键词，默认小红书图文风格。
+- `top-books`：年度 Top 书单，默认小红书图文风格。
+- `reading-radar`：阅读偏好雷达，默认 PPT 风格。
+- `spirit-bookshelf`：精神书架，默认小红书图文风格，需原始笔记授权。
+
+磁盘模板包的 `template.json` 目标形态如下：
 
 ```json
 {
@@ -616,6 +639,8 @@ AppData/
   "version": "0.1.0",
   "description": "基于阅读统计、分类偏好和代表性摘录生成阅读者画像。",
   "prompt": "prompt.md",
+  "defaultOutputShape": "report",
+  "outputShapes": ["report", "slides", "xiaohongshu"],
   "renderer": "renderer.html",
   "requires": {
     "cli": true,
@@ -631,11 +656,13 @@ AppData/
 - `report-data.json`：统一 `ReadingReportData`，只包含统计、书籍、分类、排行、时间线和数据覆盖摘要。
 - `excerpts.json`：代表性划线 / 想法，必须由用户确认是否纳入；默认只抽样，不传全量笔记。
 - `prompt.md`：由模板包提供，应用在 job 目录中展开变量，例如报告周期、隐私级别、输出 schema 和模板目标。
+- `user-prompt.md`：用户本次自定义要求，可为空；只作为偏好和目标说明，不能覆盖隐私、安全、只读工作区、禁止联网、必须输出文件等系统约束。
+- `generation-settings.json`：本次生成形态、数据范围和输入策略。当前内置形态包括 `report`（默认报告）、`slides`（PPT 风格 HTML）和 `xiaohongshu`（适合截图的卡片化图文 HTML）。PPT 风格仍输出 `report.html`，不等同于导出 `.pptx`。
 
 CLI 调用边界：
 
 - Rust 新增 `advanced_report` 模块，负责模板扫描、job 目录创建、输入写入、调用本地 CLI、读取输出和错误映射。
-- 前端不拼命令、不读任意路径，只通过 Tauri 命令拿模板清单、创建任务、查看任务状态、打开输出文件。
+- 前端不拼命令、不读任意路径，只通过 Tauri 命令拿模板清单、创建任务、查看任务状态、打开输出文件；本地 Agent 只在模板生成配置中选择，不放在模板目录页。
 - CLI 必须输出稳定 `insights.json`；HTML 渲染可以由 CLI 直接产出，也可以由应用用 `renderer.html` + `insights.json` 生成。
 - CLI 失败时保留 `job.json`、输入文件和错误摘要，便于用户重试或排查。
 
@@ -655,8 +682,9 @@ CLI 调用边界：
 1. 阅读报告页展示基础模板和智能体模板；普通 Markdown 导出页保持现有导出工作台，不纳入报告模板目录。
 2. 阅读报告页通过「基础模板 / 智能体模板」双 Tab 分开管理模板目录；智能体模板卡片直接展示状态和操作：未开始可生成，生成中可查看/取消，已完成可打开报告/重新生成。
 3. 同一个智能体模板同一时间只允许一个活跃任务；不同模板可以同时生成。
-4. 点击“查看 / 打开报告”后进入接近全屏的报告工作台，展示浏览器打开和导出。
-5. 生成设置只保留必要的隐私确认；本地 Agent 由应用自动选择可用 CLI，模型使用用户 CLI 默认配置，普通用户默认不需要理解 job、目录或 CLI 参数。
+4. 点击智能体模板卡片后进入页面级模板工作台，不使用复杂详情弹窗；工作台展示返回目录、模板说明、生成设置、当前结果、生成过程和历史记录。
+5. 点击“查看 / 打开报告”后用浏览器打开完整报告；当前工作台不展示 HTML 导出入口。
+6. 生成设置保留必要的隐私确认，并支持选择输出形态和填写本次自定义要求；本地 Agent 由应用自动选择可用 CLI，模型使用用户 CLI 默认配置，普通用户默认不需要理解 job、目录或 CLI 参数。
 
 分享能力：
 

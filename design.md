@@ -197,7 +197,7 @@ src/styles/
 - `.overview-stat-card`
 - `.book-card`
 - `.report-gallery-card`
-- `.advanced-template-summary`
+- `.advanced-template-panel`
 - `.advanced-task-status-card`
 - `.reward-code-card`
 
@@ -235,7 +235,7 @@ Tabs 至少存在：
 
 需要收紧的地方：
 
-- 模板卡片、详情弹窗、任务弹窗、确认弹窗的圆角和阴影不统一。
+- 模板卡片、模板工作台、任务状态区、确认弹窗的圆角和阴影不统一。
 - `.report-modal-backdrop` z-index 40 低于 `.detail-backdrop` 300 和 `.reward-overlay` 1100，层级系统混乱。
 - 报告页有许多单独 action class，应该回到 Button / IconButton / InlineAction。
 - 报告生成日志是功能内容，不应像终端，也不应像聊天软件；保持“模型输出流档案”即可。
@@ -686,14 +686,15 @@ ModalBackdrop
 
 - 基础模板 / 智能体模板双 Tab。
 - 模板目录卡片。
-- 接近全屏的报告工作台弹窗。
-- 智能体任务详情和历史。
+- 基础报告预览可以保留接近全屏的报告工作台弹窗。
+- 智能体模板使用页面级工作台承载生成设置、当前结果、生成过程和历史。
+- 数据范围和本地 Agent 选择属于单个模板的生成配置，不放在模板目录页顶部。
 
 收敛：
 
-- 报告页可以有更强 art direction，但入口、弹窗、按钮必须统一。
+- 报告页可以有更强 art direction，但入口、工作台、弹窗和按钮必须统一。
 - 模板卡片统一为 TemplateCard component。
-- 智能体任务详情统一为 TaskModal。
+- 智能体任务状态统一为页面内 StateCard，不再为复杂生成设置创建详情弹窗。
 - 日志输出流统一为 ModelOutput component。
 - 删除确认统一 ConfirmDialog。
 
@@ -829,7 +830,7 @@ ModalBackdrop
 2. Shelf：toolbar + chip + detail panel。
 3. NotesWorkbench：PageShell tabs + shared workbench layout。
 4. Export：纸面预览 + StateCard。
-5. Report：模板卡片、modal、任务详情收敛。
+5. Report：模板卡片、基础预览 modal、智能体模板工作台和任务状态收敛。
 6. Settings：Panel 化。
 
 ### Phase 4: Regression

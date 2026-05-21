@@ -1,7 +1,12 @@
+import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 type PageShellProps = {
   title: ReactNode;
+  backAction?: {
+    label: string;
+    onClick: () => void;
+  };
   titleAccessory?: ReactNode;
   subtitle?: ReactNode;
   meta?: ReactNode;
@@ -14,6 +19,7 @@ type PageShellProps = {
 
 export function PageShell({
   title,
+  backAction,
   titleAccessory,
   subtitle,
   meta,
@@ -30,6 +36,17 @@ export function PageShell({
       <header className="page-header">
         <div className="page-heading">
           <div className="page-title-line">
+            {backAction ? (
+              <button
+                type="button"
+                className="page-back-button"
+                aria-label={backAction.label}
+                onClick={backAction.onClick}
+              >
+                <ArrowLeft size={16} />
+                <span>{backAction.label}</span>
+              </button>
+            ) : null}
             <h1>{title}</h1>
             {titleAccessory ? <div className="page-title-accessory">{titleAccessory}</div> : null}
           </div>

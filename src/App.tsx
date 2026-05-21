@@ -69,10 +69,7 @@ function App() {
             <Route
               path="/reports"
               element={
-                <ReportPage
-                  apiKeySet={settings.settings.apiKeySet}
-                  settings={settings.settings}
-                />
+                <ReportPage apiKeySet={settings.settings.apiKeySet} />
               }
             />
             <Route

@@ -4,7 +4,7 @@ import { NavLink } from "react-router-dom";
 const navItems = [
   { to: "/", label: "概览", icon: BarChart3 },
   { to: "/shelf", label: "我的书架", icon: Library },
-  { to: "/notes", label: "划线/想法", icon: BookOpen },
+  { to: "/notes", label: "划线与想法", icon: BookOpen },
   { to: "/reports", label: "读书报告", icon: FileText },
   { to: "/settings", label: "设置", icon: Settings },
 ];

@@ -283,7 +283,7 @@ AppData/
     {
       "id": "notes.notebooks",
       "title": "笔记本列表",
-      "description": "读取所有有笔记的书及划线/想法数量。",
+      "description": "读取所有有笔记的书及划线和想法数量。",
       "sensitivity": "medium",
       "cache": "prefer"
     },

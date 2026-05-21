@@ -9,15 +9,26 @@ export type AdvancedReportTemplate = {
   description: string;
   category: string;
   styleSummary: string;
+  defaultOutputShape: string;
+  outputShapes: AdvancedReportOutputShape[];
   requiresRawNotesConsent: boolean;
   defaultCapabilities: string[];
   optionalCapabilities: string[];
+};
+
+export type AdvancedReportOutputShape = {
+  id: string;
+  name: string;
+  description: string;
 };
 
 export type AdvancedReportJobRequest = {
   templateId: string;
   rawNotesConsent: boolean;
   forceRefresh?: boolean | null;
+  outputShape?: string | null;
+  userPrompt?: string | null;
+  reportPeriod?: string | null;
 };
 
 export type AdvancedReportTaskStatus = "preparing" | "running" | "completed" | "failed" | "canceled";
@@ -38,6 +49,9 @@ export type StartAdvancedReportRequest = {
   templateId: string;
   rawNotesConsent: boolean;
   forceRefresh?: boolean | null;
+  outputShape?: string | null;
+  userPrompt?: string | null;
+  reportPeriod?: string | null;
   agent: string;
   model?: string | null;
   binOverride?: string | null;
@@ -66,12 +80,6 @@ export type AdvancedReportOutput = {
     ok: boolean;
     warnings: string[];
   };
-};
-
-export type AdvancedReportExportResult = {
-  success: boolean;
-  filePath: string;
-  message: string;
 };
 
 export type AdvancedReportLogEvent = {
@@ -136,20 +144,6 @@ export function useAdvancedReport() {
       throw err;
     }
   }, []);
-
-  const exportOutput = useCallback(
-    async (request: { jobId: string; outputDir: string }) => {
-      setError(null);
-      try {
-        return await invoke<AdvancedReportExportResult>("export_advanced_report_output", { request });
-      } catch (err) {
-        const message = getErrorMessage(err);
-        setError(message);
-        throw err;
-      }
-    },
-    [],
-  );
 
   const loadTasks = useCallback(async () => {
     setError(null);
@@ -269,6 +263,5 @@ export function useAdvancedReport() {
     deleteJob,
     readOutput,
     readLogs,
-    exportOutput,
   };
 }

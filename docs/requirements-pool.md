@@ -83,9 +83,9 @@ lark-cli base +record-list \
 
 ## 当前推荐
 
-建议下一个启动：`REQ-012 智能体报告自定义提示词与模板形态`。
+建议下一个启动：`REQ-009 导出为 PDF 文档`。
 
-原因：`REQ-013` 已完成第一轮设计系统收敛，主要页面的标题区、工具区、按钮、Tabs、弹窗层级和基础 token 已统一；下一步可以回到智能体报告的自定义提示词与模板形态能力。
+原因：`REQ-012` 已完成第一阶段，自定义要求和输出形态已接入智能体报告生成链路；剩余 Todo 中 `REQ-009` 与导出主流程关联更直接，优先于外部集成类 `REQ-010`。
 
 ---
 
@@ -104,7 +104,7 @@ lark-cli base +record-list \
 | REQ-009 | P2 | Todo | Export | 导出为 PDF 文档 |
 | REQ-010 | P2 | Todo | Integration | 腾讯 ima 联动 |
 | REQ-011 | P1 | Done | Notes / Export | 合并为笔记工作台 |
-| REQ-012 | P2 | Todo | Report / Agent | 智能体报告自定义提示词与模板形态 |
+| REQ-012 | P2 | Done | Report / Agent | 智能体报告自定义提示词与模板形态 |
 | REQ-013 | P0 | Done | UI / Design System | 全应用 UI 风格统一与设计系统收敛 |
 
 ---
@@ -215,7 +215,7 @@ lark-cli base +record-list \
 - 第一版范围：
   - 新增独立 `阅读报告` 页面；报告不是 Markdown 导出的附属选项，而是可浏览、可切换、可预览的内容页。
   - HTML 阅读报告支持 3 个内置模版：`阅读分析报告`、`读书旅程`、`年度阅读报告`。
-  - 浏览器预览先生成 App 私有目录下的临时 HTML，再用系统默认浏览器打开；正式导出时再让用户选择目录并写入 `.html` 文件。
+  - 浏览器预览先生成 App 私有目录下的临时 HTML，再用系统默认浏览器打开；当前阅读报告页暂不展示 `.html` 导出入口。
   - 当前 Markdown 导出保持默认能力，不被 HTML 报告影响。
 - 当前进展：
   - 已新增独立 `阅读报告` 页面和侧边栏入口。
@@ -225,14 +225,14 @@ lark-cli base +record-list \
   - 已扩展源数据覆盖：笔记最多的前 10 本书抽样、最多 24 条代表性摘录，新增完成率、日均阅读、笔记/书密度、分类占比、时间线峰值/趋势、长读排行、划线排行、想法排行、进度排行和数据覆盖摘要。
   - 模版模块已按数据存在与否条件渲染，月度等数据较少场景不会展示空模块。
   - 已实现 `.html` 文件导出、App 私有目录预览文件和系统默认浏览器打开能力；当前还未实现更完整的 AI 叙事报告。
-  - 已将阅读报告页重构为模板目录：基础模板卡片点击后进入接近全屏的报告工作台，集中展示预览、浏览器打开和导出入口。
+  - 已将阅读报告页重构为模板目录：基础模板卡片点击后进入接近全屏的报告工作台，集中展示预览、数据范围和浏览器打开入口。
   - 已在 `mvp-design-doc.md` 增补智能体报告完整方案：模板包、提示词模板、输入输出目录、job 目录和 CLI 调用边界。
   - 已在 `AGENTS.md` 记录当前开发偏好：普通 Markdown 导出页保持现有工作台结构；阅读报告页使用模板目录和全屏报告工作台；智能体模板不伪造能力。
   - 已升级 `/Users/duoshilin/duosl/sidework/agent-cli-bridge`：支持 `model` 透传、`Argv` / `ArgvMessage` prompt 传递、`Start.prompt_bytes`、`Raw`、`Canceled` 和取消句柄。
   - 已在 WeRead 后端接入可取消本地 agent job：`RuntimeState` 按 `job_id` 注册取消句柄，新增 `cancel_local_agent(job_id)`；前端 `useAgentBridge` 暴露 `cancelAgent(jobId)`。
   - 已新增智能体报告工作区骨架：`src-tauri/src/advanced_report.rs`、`list_advanced_report_templates`、`create_advanced_report_job`、`src/hooks/useAdvancedReport.ts`。
   - 阅读报告页的智能体模板已从占位变为真实模板清单，可确认隐私授权并准备 `reports/jobs/<job-id>/` 工作区，写入 `input/`、`data/`、`output/` 和 `job.json`。
-  - 智能体模板已打通可用闭环：自动选择可用本地 Agent、调用生成、取消任务、读取 `output/report.html`、浏览器打开、导出 HTML。
+  - 智能体模板已打通可用闭环：自动选择可用本地 Agent、调用生成、取消任务、读取 `output/report.html`、浏览器打开。
   - 已优化智能体模板输入协议：`input/brief.md` 作为唯一任务入口，其他 JSON 作为机器索引备份；prompt 强制报告主语使用“你”，并要求报告包含 `WeRead Skill Desktop` 软件标识。
   - 已新增智能体报告输出质量提醒：内容过短、未使用“你”、残留“这个用户/该用户”、缺少软件标识时在预览区提示。
   - 已将智能体模板交互从“工作流配置”改为“报告任务中心”：普通用户只需选择模板并开始生成；任务在后台运行，支持离开页面后继续、回来查看进行中任务、同时多个任务、取消、打开完成报告。
@@ -240,21 +240,25 @@ lark-cli base +record-list \
   - 已在智能体模板卡片增加“历史”入口：按模板查看生成记录，支持查看、浏览器打开和删除单个 job；后端从运行态任务和本地 job 目录合并历史记录。
   - 已新增智能体报告任务状态持久化：写入 `task.json`，应用重启后未生成 `output/report.html` 的运行中任务会显示为已中断 / 未完成，不再误显示为生成中。
   - 已移除智能体报告分享版：当前版本不要求生成 `share.html`，前端也不展示分享按钮。
-  - 已移除前端本地 Agent 和模型选择表单：应用自动选择可用 CLI，模型使用用户 CLI 默认配置。
-  - 已将智能体模板生成设置从报告列表页移入模板详情弹窗；列表页只保留模板选择和状态，模板详情内集中展示模板说明、生成设置和历史记录。
+  - 已将本地 Agent 选择收敛到单个智能体模板的生成配置中：应用会检测可用 CLI，用户可以在模板工作台内选择本次使用的 Agent；模型仍使用用户 CLI 默认配置。
+  - 已将智能体模板生成设置从报告列表页移入模板工作台页面；列表页只保留模板选择和状态，工作台内集中展示模板说明、生成设置、当前结果和历史记录，避免复杂生成流程挤在弹窗里。
+  - 已将数据范围从阅读报告模板目录页移入单个模板配置：目录页只负责选择基础 / 智能体模板；基础模板在预览工作台内选择范围，智能体模板在生成配置内选择范围并写入 `generation-settings.json`。
   - 已将阅读报告模板目录改为「基础模板 / 智能体模板」双 Tab，并把 Tab 放在原区块标题位置，避免两类模板混在同一滚动页面，便于后续分别管理。
   - 阅读报告页默认选中「智能体模板」Tab，基础模板保留为手动切换入口。
-  - 已将智能体报告生成日志改为完整追加展示，不再只保留最后 500 条；点击「开始生成 / 再次生成」后会直接打开新任务详情并展开生成过程，原模板详情保持打开。
+  - 已将智能体报告生成日志改为完整追加展示，不再只保留最后 500 条；点击「开始生成 / 再次生成」后会在模板工作台内展示当前任务状态和生成过程。
   - 已将生成过程从终端日志改为模型输出流：连续思考和正文输出会合并展示，保留流式片段中的空格，过滤 model/session/cwd/usage 等调试信息，并使用浅色消息块替代黑色日志框。
   - 已为智能体报告生成过程新增简洁 / 详细显示模式：默认简洁模式只显示任务状态和最新一行内容，详细模式保留完整模型输出流样式。
   - 已将 `agent-cli-bridge` vendoring 到仓库内 `vendor/agent-cli-bridge`，`src-tauri` 改用仓库内 path 依赖，避免干净 checkout 或 CI 构建依赖作者本机相邻目录。
   - 已在用户授权“使用个人划线和想法”后实际预取原始笔记内容：按有划线 / 想法的笔记本逐本写入 `data/notes.raw.json`，包含章节、划线和分页拉取后的个人想法 / 点评，供智能体报告在本地工作区内读取。
+  - 已在智能体模板清单中新增偏传播的模板：年度阅读关键词、年度 Top 书单、阅读偏好雷达、精神书架；仍输出 `output/report.html`，不新增分享网页或在线托管。
+  - 已先移除基础模板和智能体模板工作台中的 HTML 导出入口，当前只保留浏览器打开；后端复制导出能力暂时保留，便于后续需要时恢复。
 - 技术边界：
   - 先定义统一 `ReadingReportData`，模版读取报告模型，不直接读取微信读书原始 API 回包。
   - 基础数据来自 `reading_stats`、`notebooks`、`bookmark_list`、`my_reviews`、`book_info`、`book_progress`。
   - 导出预览和最终 HTML 文件应使用同一套报告数据模型。
   - 智能体模版后续通过 `GeneratedInsight[]` 扩展，不让 HTML 模版直接调用模型。
   - 智能体模板目录约定为 `reports/templates/<template-id>/`，任务目录约定为 `reports/jobs/<job-id>/`，应用通过模板清单和 job 状态查看输入输出，不让前端直接操作任意路径。
+  - 当前内置模板字段包括 `id`、`name`、`description`、`category`、`styleSummary`、`defaultOutputShape`、`outputShapes`、`requiresRawNotesConsent`、`defaultCapabilities`、`optionalCapabilities`；输出形态全局支持默认报告、PPT 风格和小红书图文风格。
   - 当前版本不支持分享版 HTML；分享能力后续单独设计，不进入本版输出契约。
   - 第一版智能体报告采用文件工作区协议，不做运行中双向 RPC；如需更多数据，由 Agent 写 `output/data-requests.json`，应用后续补数据再二次调用。
 - 暂不做：
@@ -334,10 +338,14 @@ lark-cli base +record-list \
 ### REQ-012 智能体报告自定义提示词与模板形态
 
 - 优先级：P2
-- 状态：Todo
+- 状态：Done
 - 模块：Report / Agent
 - 来源：用户对话，2026-05-21。
 - 背景：当前智能体报告只支持内置模板和固定提示词，用户希望能在生成前补充自己的具体要求，让报告更贴合当次诉求；同时希望模板支持不同输出形态，例如 PPT 风格、小红书图文风格，以及当前默认完整报告风格，并能后续继续扩展。
+- 完成说明：智能体模板生成设置已新增“输出形态”和“自定义要求”。内置模板返回 `defaultOutputShape` / `outputShapes`，当前支持 `默认报告`、`PPT 风格`、`小红书图文风格`；开始生成时前端提交结构化 `outputShape` / `userPrompt`，后端写入 `input/generation-settings.json` 和可选 `input/user-prompt.md`，并合成到 `input/brief.md`。
+- 改动入口：`src/pages/ReportPage.tsx`、`src/hooks/useAdvancedReport.ts`、`src-tauri/src/advanced_report.rs`、`src/index.css`、`mvp-design-doc.md`。
+- 验证结果：`npm run frontend:typecheck`、`npm run frontend:build`、`cd src-tauri && cargo check` 通过。
+- 剩余风险：第二阶段“用户自定义模板增删改”尚未实现；PPT 风格和小红书图文风格当前是 HTML 输出形态约束，不生成 `.pptx` 或图片文件。
 - 第一阶段建议范围：
   - 在智能体模板生成设置中增加“自定义要求”输入框，作为本次 job 的补充提示词写入 `input/user-prompt.md` 或合并进 `input/brief.md`。
   - 自定义要求必须作为用户偏好处理，不能覆盖隐私、安全、只读本地工作区、必须输出 `output/report.html` 等系统约束。
@@ -424,7 +432,7 @@ lark-cli base +record-list \
 - 飞书需求表同步：已用 user 身份读取外部收集表，合并 `rec27qYCk2C7z5` 到 `REQ-007`，新增 `REQ-008`、`REQ-009`、`REQ-010` 作为 P2 外部候选。
 - Markdown-only 导出边界：已移除 JSON 导出命令和前端格式切换，导出入口固定为 `export_to_markdown`。
 - Markdown Frontmatter：导出文件头部包含 `bookId`、`isbn`、`title`、`author`、`cover`、`lastReadDate`、`finishedDate`、`reading-time`、`progress`。
-- 笔记页视图：支持笔记本列表、关键词搜索、划线/想法筛选，以及「按章节 / 按时间」两种视图。
+- 笔记页视图：支持笔记本列表、关键词搜索、划线与想法筛选，以及「按章节 / 按时间」两种视图。
 - 导出页真实预览：选择单本书时读取真实划线、想法、书籍信息和阅读进度生成 Markdown 预览；多本选择时只展示提示。
 - API 本地缓存：API 响应写入本地缓存，设置页可调整自动刷新间隔。
 - 交流与支持入口：README 中「开发贡献」已移动到交流群和打赏之后；软件内已拆分为「交流群」和「打赏支持」两个入口、两个弹窗。
