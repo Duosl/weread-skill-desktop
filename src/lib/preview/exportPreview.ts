@@ -42,6 +42,9 @@ export function buildMarkdownPreview(
   lines.push("");
 
   if (chapters.length > 0) {
+    const emittedBookmarkIds = new Set<string>();
+    const emittedReviewIds = new Set<string>();
+
     for (const chapter of chapters) {
       const chapterBookmarks = bookmarks.filter((b) => b.chapterUid === chapter.chapterUid);
       const chapterReviews = reviews.filter(
@@ -53,22 +56,33 @@ export function buildMarkdownPreview(
       lines.push("");
 
       for (const bookmark of chapterBookmarks) {
-        lines.push(`${bookmark.markText}`);
-        const meta = [`创建时间：${formatDate(bookmark.createTime)}`];
-        if (bookmark.range) meta.push(`位置：\`${bookmark.range}\``);
-        lines.push(`> ${meta.join(" · ")}`);
-        lines.push("");
+        emittedBookmarkIds.add(bookmark.bookmarkId);
+        pushBookmark(lines, bookmark);
       }
 
       for (const review of chapterReviews) {
+        emittedReviewIds.add(review.reviewId);
+        lines.push(`**我的思考：** ${review.content}`);
+        lines.push("");
+      }
+    }
+
+    const unmatchedBookmarks = bookmarks.filter((bookmark) => !emittedBookmarkIds.has(bookmark.bookmarkId));
+    const unmatchedReviews = reviews.filter((review) => !emittedReviewIds.has(review.reviewId));
+    if (unmatchedBookmarks.length > 0 || unmatchedReviews.length > 0) {
+      lines.push("## 其他笔记");
+      lines.push("");
+      for (const bookmark of unmatchedBookmarks) {
+        pushBookmark(lines, bookmark);
+      }
+      for (const review of unmatchedReviews) {
         lines.push(`**我的思考：** ${review.content}`);
         lines.push("");
       }
     }
   } else {
     for (const bookmark of bookmarks) {
-      lines.push(`> ${bookmark.markText}`);
-      lines.push("");
+      pushBookmark(lines, bookmark);
     }
     for (const review of reviews) {
       lines.push(`**我的思考：** ${review.content}`);
@@ -76,10 +90,25 @@ export function buildMarkdownPreview(
     }
   }
 
+  if (bookmarks.length === 0 && reviews.length === 0) {
+    lines.push("> 暂无可导出的划线或想法。");
+    lines.push("");
+  }
+
   lines.push("---");
   lines.push("*由 WeRead Skill Desktop 导出*");
 
   return lines.join("\n");
+}
+
+function pushBookmark(lines: string[], bookmark: Bookmark) {
+  lines.push(`> ${bookmark.markText}`);
+  lines.push("");
+  lines.push(`创建时间：${formatDate(bookmark.createTime)}`);
+  if (bookmark.range) {
+    lines.push(`位置：\`${bookmark.range}\``);
+  }
+  lines.push("");
 }
 
 function yamlEscape(value: string): string {
