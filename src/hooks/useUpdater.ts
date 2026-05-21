@@ -53,7 +53,8 @@ function getUpdaterErrorTitle(error: string) {
     return "签名校验失败";
   }
 
-  return "检查失败，请稍后再试";
+  // return "检查失败，请稍后再试";
+  return error;
 }
 
 export function useUpdater() {
@@ -166,10 +167,11 @@ export function useUpdater() {
           await downloadUpdate();
         }
       } else {
-        setState((prev) => ({ ...prev, status: silent ? "idle" : "uptodate" }));
+        setState((prev) => ({ ...prev, status: "uptodate" }));
       }
     } catch (error) {
       const msg = normalizeError(error);
+      console.error(msg);
       const isRemoteEmpty =
         /release\s*json|fetch|404|not\s*found|invalid/i.test(msg);
       if (isRemoteEmpty) {

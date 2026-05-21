@@ -31,14 +31,14 @@ function App() {
         <Toolbar
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed((current) => !current)}
-          updateReady={updateState.status === "ready"}
-          onInstallUpdate={installUpdate}
         />
         <div className="app-body">
           {!sidebarCollapsed ? (
             <Sidebar
               onOpenCommunity={() => setShowCommunityDialog(true)}
               onOpenSupport={() => setShowSupportDialog(true)}
+              updateReady={updateState.status === "ready"}
+              onInstallUpdate={installUpdate}
             />
           ) : null}
           <Routes>

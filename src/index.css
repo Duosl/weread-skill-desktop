@@ -200,28 +200,6 @@ a {
   margin-right: 12px;
 }
 
-.update-ready-btn {
-  display: inline-flex !important;
-  align-items: center;
-  gap: 6px;
-  width: auto !important;
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #fff !important;
-  background: var(--brand-strong) !important;
-  border-radius: 8px;
-}
-
-.update-ready-btn:hover {
-  opacity: 0.88;
-  background: var(--brand-strong) !important;
-}
-
-.update-ready-btn span {
-  font-size: 12px;
-}
-
 .sidebar {
   display: flex;
   flex-direction: column;
@@ -301,8 +279,10 @@ a {
 .sidebar-update-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
+  gap: 10px;
   width: 100%;
-  padding: 6px 8px;
+  padding: 8px 8px;
   border: 0;
   border-radius: 10px;
   font-size: 12px;
@@ -945,6 +925,15 @@ h2 {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+@keyframes pulse-scale {
+  0%, 100% { transform: scale(.95); }
+  50% { transform: scale(1.06); }
+}
+
+.update-install-btn {
+  animation: pulse-scale 2s ease-in-out infinite;
 }
 
 .update-manual-hint {

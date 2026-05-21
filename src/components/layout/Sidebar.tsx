@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, FileText, Heart, Library, MessageCircle, Settings } from "lucide-react";
+import { BarChart3, BookOpen, FileText, Heart, Library, MessageCircle, RefreshCw, Settings } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 const navItems = [
@@ -12,9 +12,11 @@ const navItems = [
 type SidebarProps = {
   onOpenCommunity?: () => void;
   onOpenSupport?: () => void;
+  updateReady?: boolean;
+  onInstallUpdate?: () => void;
 };
 
-export function Sidebar({ onOpenCommunity, onOpenSupport }: SidebarProps) {
+export function Sidebar({ onOpenCommunity, onOpenSupport, updateReady, onInstallUpdate }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -35,6 +37,12 @@ export function Sidebar({ onOpenCommunity, onOpenSupport }: SidebarProps) {
       </nav>
 
       <div className="sidebar-footer">
+        {updateReady && onInstallUpdate && (
+          <button type="button" className="sidebar-update-btn update-install-btn" onClick={onInstallUpdate}>
+            <RefreshCw size={14} />
+            <span>重启更新</span>
+          </button>
+        )}
         <div className="sidebar-support-actions">
           <button type="button" className="sidebar-reward-btn community-action" onClick={onOpenCommunity}>
             <MessageCircle size={14} />
