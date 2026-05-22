@@ -490,3 +490,106 @@ jobs:
           git add package.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
           git commit -m "chore: update version to v${VERSION}"
           git push origin sync-version-$VERSION:main
+
+  sync-gitee-release:
+    needs: [create-release, generate-latest-json]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Check Gitee secrets
+        id: gitee_secrets
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_PRIVATE_KEY: ${{ secrets.GITEE_PRIVATE_KEY }}
+        run: |
+          if [ -z "$GITEE_TOKEN" ] || [ -z "$GITEE_PRIVATE_KEY" ]; then
+            echo "::warning::Skipping Gitee release sync because GITEE_TOKEN or GITEE_PRIVATE_KEY is not configured."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install release2gitee
+        if: steps.gitee_secrets.outputs.enabled == 'true'
+        run: cargo install release2gitee --version 1.0.2 --locked
+
+      - name: Sync GitHub Release to Gitee
+        if: steps.gitee_secrets.outputs.enabled == 'true'
+        env:
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO: weread-skill-desktop
+          GITEE_OWNER: duosl
+          GITEE_REPO: weread-skill-desktop
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: release2gitee
+
+      - name: Download GitHub latest.json
+        if: steps.gitee_secrets.outputs.enabled == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.create-release.outputs.tag_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p release-assets/gitee
+          gh release download "$TAG" --repo "$REPO" --pattern latest.json --dir release-assets/gitee --clobber
+
+      - name: Generate Gitee updater latest.json
+        if: steps.gitee_secrets.outputs.enabled == 'true'
+        env:
+          TAG: ${{ needs.create-release.outputs.tag_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          cd release-assets/gitee
+
+          GITHUB_BASE="https://github.com/${REPO}/releases/download/${TAG}/"
+          GITEE_BASE="https://gitee.com/duosl/weread-skill-desktop/releases/download/${TAG}/"
+
+          jq \
+            --arg github_base "$GITHUB_BASE" \
+            --arg gitee_base "$GITEE_BASE" \
+            '(.platforms[]?.url) |= (if startswith($github_base) then $gitee_base + ltrimstr($github_base) else . end)' \
+            latest.json > latest-gitee.json
+
+          cat latest-gitee.json
+
+      - name: Publish stable updater manifest
+        if: steps.gitee_secrets.outputs.enabled == 'true'
+        env:
+          GITEE_PRIVATE_KEY: ${{ secrets.GITEE_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.create-release.outputs.tag_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$GITEE_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan gitee.com >> ~/.ssh/known_hosts
+
+          mkdir -p updater-manifest
+          cd updater-manifest
+          git init
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git"
+          git remote add gitee git@gitee.com:duosl/weread-skill-desktop.git
+
+          if git ls-remote --exit-code --heads origin updater >/dev/null 2>&1; then
+            git fetch --depth 1 origin updater:refs/remotes/origin/updater
+            git checkout -B updater origin/updater
+          else
+            git checkout --orphan updater
+            git rm -rf . || true
+          fi
+
+          cp ../release-assets/gitee/latest-gitee.json latest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add latest.json
+
+          if git diff --cached --quiet; then
+            echo "Gitee updater latest.json is already up to date."
+          else
+            git commit -m "chore: update Gitee updater manifest for ${TAG}"
+          fi
+
+          git push origin updater
+          git push gitee updater

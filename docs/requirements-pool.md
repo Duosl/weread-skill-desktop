@@ -502,6 +502,10 @@ lark-cli base +record-list \
 
 ## 已完成记录
 
+### 2026-05-23
+
+- 自动更新国内源：Tauri updater 新增 Gitee 固定清单 endpoint 作为首选源，Release workflow 增加 `release2gitee` 同步 GitHub Release 到 Gitee Release，并将改写为 Gitee 下载地址的 `latest.json` 推送到 GitHub / Gitee `updater` 分支；GitHub latest endpoint 保留为 fallback。
+
 ### 2026-05-22
 
 - 设置页 Token 获取引导：已将 README 中的微信读书 API Token 获取步骤加入应用内设置页，支持一键打开微信读书 Skill 配置页；获取说明支持展开 / 收起，未配置时默认展开，保存后自动收起，并补充 Token 只保存在本机的说明；`frontend:typecheck`、`frontend:build` 通过。
