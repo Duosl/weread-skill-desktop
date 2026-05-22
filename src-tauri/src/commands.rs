@@ -1,8 +1,35 @@
 use crate::state::RuntimeState;
 use crate::types::*;
 use open::that as open_path;
-use std::path::Path;
+use std::collections::HashMap;
+use std::fs;
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::thread;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::State;
+
+static REPORT_PREVIEW_SERVER: OnceLock<ReportPreviewServer> = OnceLock::new();
+static REPORT_PREVIEW_COUNTER: AtomicU64 = AtomicU64::new(1);
+
+struct ReportPreviewServer {
+    base_url: String,
+    routes: Arc<Mutex<HashMap<String, PathBuf>>>,
+}
+
+impl ReportPreviewServer {
+    fn register(&self, path: PathBuf) -> Result<String, String> {
+        let token = new_report_preview_token();
+        self.routes
+            .lock()
+            .map_err(|_| "报告预览服务状态异常".to_string())?
+            .insert(token.clone(), path);
+        Ok(format!("{}/report/{}", self.base_url, token))
+    }
+}
 
 #[tauri::command]
 pub async fn get_settings() -> Result<AppSettings, String> {
@@ -198,7 +225,118 @@ pub async fn preview_report_html(
 
 #[tauri::command]
 pub async fn open_report_file(path: String) -> Result<(), String> {
-    open_path(path).map_err(|e| format!("无法打开报告: {e}"))
+    let report_path = PathBuf::from(path);
+    if !report_path.exists() {
+        return Err("报告文件不存在".to_string());
+    }
+    if report_path.extension().and_then(|value| value.to_str()) == Some("html") {
+        let url = report_preview_url(report_path)?;
+        return open_path(url).map_err(|e| format!("无法打开报告: {e}"));
+    }
+    open_path(report_path).map_err(|e| format!("无法打开报告: {e}"))
+}
+
+fn report_preview_url(path: PathBuf) -> Result<String, String> {
+    if REPORT_PREVIEW_SERVER.get().is_none() {
+        let server = start_report_preview_server()?;
+        let _ = REPORT_PREVIEW_SERVER.set(server);
+    }
+    let server = REPORT_PREVIEW_SERVER
+        .get()
+        .ok_or_else(|| "报告预览服务未启动".to_string())?;
+    server.register(path)
+}
+
+fn start_report_preview_server() -> Result<ReportPreviewServer, String> {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .map_err(|e| format!("启动报告预览服务失败: {e}"))?;
+    let addr = listener
+        .local_addr()
+        .map_err(|e| format!("读取报告预览服务地址失败: {e}"))?;
+    let server = ReportPreviewServer {
+        base_url: format!("http://{}", addr),
+        routes: Arc::new(Mutex::new(HashMap::new())),
+    };
+    let routes = Arc::clone(&server.routes);
+
+    thread::spawn(move || {
+        for stream in listener.incoming().flatten() {
+            handle_report_preview_request(stream, &routes);
+        }
+    });
+
+    Ok(server)
+}
+
+fn handle_report_preview_request(
+    mut stream: TcpStream,
+    routes: &Mutex<HashMap<String, PathBuf>>,
+) {
+    let mut buffer = [0_u8; 2048];
+    let Ok(size) = stream.read(&mut buffer) else {
+        return;
+    };
+    let request = String::from_utf8_lossy(&buffer[..size]);
+    let Some(path) = request
+        .lines()
+        .next()
+        .and_then(parse_report_preview_request_path)
+    else {
+        let _ = write_http_response(&mut stream, 400, "text/plain; charset=utf-8", b"Bad Request");
+        return;
+    };
+    let Some(token) = path.strip_prefix("/report/") else {
+        let _ = write_http_response(&mut stream, 404, "text/plain; charset=utf-8", b"Not Found");
+        return;
+    };
+    let Some(file_path) = routes.lock().ok().and_then(|map| map.get(token).cloned()) else {
+        let _ = write_http_response(&mut stream, 404, "text/plain; charset=utf-8", b"Not Found");
+        return;
+    };
+    let Ok(content) = fs::read(file_path) else {
+        let _ = write_http_response(&mut stream, 404, "text/plain; charset=utf-8", b"Not Found");
+        return;
+    };
+    let _ = write_http_response(&mut stream, 200, "text/html; charset=utf-8", &content);
+}
+
+fn parse_report_preview_request_path(line: &str) -> Option<String> {
+    let mut parts = line.split_whitespace();
+    let method = parts.next()?;
+    let path = parts.next()?;
+    if method != "GET" && method != "HEAD" {
+        return None;
+    }
+    Some(path.to_string())
+}
+
+fn write_http_response(
+    stream: &mut TcpStream,
+    status: u16,
+    content_type: &str,
+    body: &[u8],
+) -> std::io::Result<()> {
+    let reason = match status {
+        200 => "OK",
+        400 => "Bad Request",
+        404 => "Not Found",
+        _ => "Error",
+    };
+    write!(
+        stream,
+        "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
+        body.len()
+    )?;
+    stream.write_all(body)
+}
+
+fn new_report_preview_token() -> String {
+    let counter = REPORT_PREVIEW_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default();
+    format!("{millis}-{counter}")
 }
 
 #[tauri::command]

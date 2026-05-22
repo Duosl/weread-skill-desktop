@@ -41,6 +41,12 @@ export type AdvancedReportTask = {
   templateName: string;
   status: AdvancedReportTaskStatus;
   message?: string | null;
+  outputShape?: string | null;
+  outputShapeName?: string | null;
+  reportPeriod?: string | null;
+  reportPeriodLabel?: string | null;
+  agent?: string | null;
+  model?: string | null;
   jobDir: string;
   reportPath: string;
   createdAt: string;

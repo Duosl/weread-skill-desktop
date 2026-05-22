@@ -7,7 +7,7 @@ export type ModelOutputBlock = {
   text: string;
 };
 
-type ModelOutputMode = "brief" | "detail";
+export type ModelOutputMode = "brief" | "detail";
 
 type ModelOutputProps = {
   blocks: ModelOutputBlock[];
@@ -33,16 +33,25 @@ export function ModelOutput({
   hideModeSwitch = false,
 }: ModelOutputProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const shouldStickToEndRef = useRef(true);
+
+  function handlePanelScroll() {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const distanceToBottom = panel.scrollHeight - panel.scrollTop - panel.clientHeight;
+    shouldStickToEndRef.current = distanceToBottom < 48;
+  }
 
   useEffect(() => {
     if (!autoScrollToEnd) return;
     const panel = panelRef.current;
     if (!panel) return;
+    if (!shouldStickToEndRef.current) return;
     panel.scrollTop = panel.scrollHeight;
   }, [autoScrollToEnd, blocks, mode]);
 
   return (
-    <section className="advanced-task-log-section">
+    <section className={`advanced-task-log-section ${mode === "brief" ? "is-brief" : "is-detail"}`}>
       <div className="advanced-task-log-header">
         <div className="advanced-task-log-title">
           <strong>生成过程</strong>
@@ -61,7 +70,12 @@ export function ModelOutput({
           />
         )}
       </div>
-      <div ref={panelRef} className={`advanced-task-log-panel ${mode === "brief" ? "brief" : ""}`} aria-live="off">
+      <div
+        ref={panelRef}
+        className={`advanced-task-log-panel ${mode === "brief" ? "brief" : ""}`}
+        aria-live="off"
+        onScroll={handlePanelScroll}
+      >
         {blocks.length === 0 ? (
           <p className="advanced-task-log-empty">这次生成没有记录到可展示的过程。</p>
         ) : mode === "brief" ? (

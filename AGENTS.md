@@ -10,7 +10,8 @@ AI 必须同时参考：
 4. `design.md`：UI 审计结论、设计 tokens、组件规则、页面统一方案和后续改造执行蓝图。
 5. `~/.agents/skills/weread-skills/`：微信读书 Skill 原始 API 文档。
 6. `docs/requirements-pool.md`：需求池、优先级、状态、下一步建议。
-7. 飞书多维表格「微信读书 SKill 桌面端需求收集表」：外部需求收集入口，按第 9 节流程读取和回写。
+7. `/Users/duoshilin/duosl/forks/html-anything`：智能体报告输出形态与风格拓展参考，尤其是 deck / 小红书 / 卡片 / 海报类 HTML skill。
+8. 飞书多维表格「微信读书 SKill 桌面端需求收集表」：外部需求收集入口，按第 9 节流程读取和回写。
 
 ---
 
@@ -42,9 +43,12 @@ AI 必须同时参考：
 2. `mvp-design-doc.md`：产品范围、页面结构、命令清单、导出格式的最终依据。
 3. `ui-style-guide.md`：UI 与交互的最终依据。
 4. `design.md`：UI 实施与收敛方案的执行依据。
-5. `AGENTS.md`：工程行为与协作规则。
+5. `/Users/duoshilin/duosl/forks/html-anything`：智能体报告输出形态、版式池、交互和截图友好结构的参考依据；只用于抽象设计原则和产物约束，不覆盖本项目隐私、数据口径、UI 气质和版权边界。
+6. `AGENTS.md`：工程行为与协作规则。
 
 如果本文件与以上专门文档出现实现细节冲突，优先遵循专门文档。
+
+`html-anything` 中的模板包含第三方来源和各自 LICENSE。后续拓展 PPT、小红书、海报、卡片、数据报告等风格时，可以参考其 `next/src/lib/templates/skills/*/SKILL.md` 的版式池、比例、交互和输出结构，但不要直接整段复制第三方模板文本或视觉资产；如实质复用某个模板或来源作品，必须保留原始署名和许可证要求。
 
 ---
 
@@ -87,7 +91,8 @@ AI 必须同时参考：
 3. 阅读 `docs/requirements-pool.md`，确认当前需求状态、优先级和完成后应更新的位置。
 4. 如果任务涉及 UI、页面、组件、视觉、交互或布局，阅读 `design.md`，并按其中的 tokens、组件规则、页面统一方案和验收清单执行。
 5. 如果任务涉及微信读书 API，阅读 `~/.agents/skills/weread-skills/` 中对应能力文档。
-6. 明确当前改动的边界：前端 UI、前端数据层、Rust API、导出、配置、系统命令中的哪一类。
+6. 如果任务涉及智能体报告输出形态、PPT 风格、小红书图文、海报、卡片、数据报告或新风格拓展，阅读 `/Users/duoshilin/duosl/forks/html-anything/next/src/lib/templates/skills/` 中对应 skill，提炼成符合本项目 Quiet Reading Ledger 的约束。
+7. 明确当前改动的边界：前端 UI、前端数据层、Rust API、导出、配置、系统命令中的哪一类。
 
 不要把其他文档中的内容复制进本文件；需要细节时直接引用并遵循对应文档。
 
@@ -184,6 +189,7 @@ API 验收以 `~/.agents/skills/weread-skills/` 为准。
 - 高级报告的本地 CLI 调用只作为后端/系统能力封装，前端只读取模板清单、任务状态、输入输出目录和生成结果。
 - 分享能力必须与正式导出分开设计；分享版 HTML 可以加入应用署名、回链或安装入口，但不能影响用户本地私有导出。
 - UI 保持 Quiet Reading Ledger：模板卡片用于选择，预览像真实文件或报告纸面，主操作保持清晰克制。
+- 智能体报告的输出形态拓展默认参考 `/Users/duoshilin/duosl/forks/html-anything` 的 skill 模板体系：PPT 优先参考 deck 类的固定舞台、版式池和翻页交互；小红书优先参考 card / deck-xhs 类的 3:4 截图卡、封面卡、页码和多卡片画廊。但最终产物必须收敛到本项目的阅读档案气质，不照搬营销化文案或第三方模板资产。
 - 下一步最高优先级是全应用 UI 风格统一：先按 `design.md` 锁定 tokens 和基础组件，再收敛页面 shell、标题区、操作区、Tabs、卡片、弹窗、按钮和状态反馈。
 
 ---
@@ -231,8 +237,9 @@ API 验收以 `~/.agents/skills/weread-skills/` 为准。
 - 需求池、优先级、完成记录、下一步开发建议：写入 `docs/requirements-pool.md`。
 - 面向用户的安装、使用、功能说明：写入 `README.md`。
 - 微信读书 API 字段、参数、分页、统计口径：只引用 `~/.agents/skills/weread-skills/`，不要复制到仓库文档。
+- 智能体报告输出形态、版式池、截图比例、交互结构等稳定规则：优先写入 `mvp-design-doc.md`、`ui-style-guide.md` 或 `docs/requirements-pool.md`；`html-anything` 只作为外部参考来源，不复制进仓库。
 - 具体实现细节：以代码为准；文档只记录稳定边界和必要决策。
 
 ---
 
-最后更新：2026-05-21
+最后更新：2026-05-22

@@ -6,6 +6,7 @@ import {
   Download,
   Eye,
   EyeOff,
+  ExternalLink,
   Heart,
   KeyRound,
   MessageCircle,
@@ -22,6 +23,7 @@ import type { UpdateState } from "../hooks/useUpdater";
 
 const GITHUB_RELEASES_URL =
   "https://github.com/Duosl/weread-skill-desktop/releases/latest";
+const WEREAD_SKILL_SETUP_URL = "https://weread.qq.com/r/weread-skills#setup";
 
 type SettingsPageProps = {
   settings: AppSettings;
@@ -52,6 +54,9 @@ export function SettingsPage({
 }: SettingsPageProps) {
   const [tokenDraft, setTokenDraft] = useState(settings.apiKeyFull ?? "");
   const [showToken, setShowToken] = useState(false);
+  const [tokenGuideExpanded, setTokenGuideExpanded] = useState(
+    !settings.apiKeySet
+  );
   const [cacheTtlSeconds, setCacheTtlSeconds] = useState(
     settings.cacheTtlSeconds
   );
@@ -68,6 +73,12 @@ export function SettingsPage({
   useEffect(() => {
     setTokenDraft(settings.apiKeyFull ?? "");
   }, [settings.apiKeyFull]);
+
+  useEffect(() => {
+    if (!settings.apiKeySet) {
+      setTokenGuideExpanded(true);
+    }
+  }, [settings.apiKeySet]);
 
   useEffect(() => {
     invoke<string>("get_app_version")
@@ -94,6 +105,7 @@ export function SettingsPage({
     try {
       await onSaveApiKey(tokenDraft);
       setShowToken(false);
+      setTokenGuideExpanded(false);
       setMessage("Token 已保存");
     } finally {
       setSaving(false);
@@ -148,6 +160,10 @@ export function SettingsPage({
 
   async function openDownloadPage() {
     await openUrl(GITHUB_RELEASES_URL);
+  }
+
+  async function openWereadSkillSetup() {
+    await openUrl(WEREAD_SKILL_SETUP_URL);
   }
 
   return (
@@ -222,6 +238,65 @@ export function SettingsPage({
                   >
                     清除
                   </Button>
+                )}
+              </div>
+
+              <div className="api-token-guide">
+                <div className="api-token-guide-header">
+                  <button
+                    type="button"
+                    className="api-token-guide-toggle"
+                    aria-expanded={tokenGuideExpanded}
+                    onClick={() => setTokenGuideExpanded((prev) => !prev)}
+                  >
+                    <span>
+                      <span className="api-token-guide-title">
+                        如何获取 API Token
+                      </span>
+                      <span className="api-token-guide-desc">
+                        参考微信读书官方 Skill 配置页的授权流程复制 API Key。
+                      </span>
+                    </span>
+                  </button>
+                  <div className="api-token-guide-actions">
+                    {tokenGuideExpanded && (
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        icon={<ExternalLink size={14} />}
+                        onClick={openWereadSkillSetup}
+                      >
+                        去获取
+                      </Button>
+                    )}
+                    <button
+                      type="button"
+                      className="api-token-guide-collapse"
+                      aria-label={
+                        tokenGuideExpanded ? "收起获取说明" : "展开获取说明"
+                      }
+                      aria-expanded={tokenGuideExpanded}
+                      onClick={() => setTokenGuideExpanded((prev) => !prev)}
+                    >
+                      <ChevronDown
+                        className="api-token-guide-chevron"
+                        size={16}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </div>
+                </div>
+                {tokenGuideExpanded && (
+                  <>
+                    <ol className="api-token-steps">
+                      <li>点击右侧「去获取」按钮，打开微信读书官方 Skill 页面。</li>
+                      <li>按页面提示登录并完成授权，复制 API Key。</li>
+                      <li>回到这里粘贴 API Token，然后点击「保存」。</li>
+                    </ol>
+                    <p className="api-token-guide-note">
+                      Token 不会离开你的电脑，用于读取你的书架、笔记和阅读统计。
+                    </p>
+                  </>
                 )}
               </div>
             </div>

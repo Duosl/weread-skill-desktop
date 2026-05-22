@@ -1,6 +1,6 @@
 use crate::types::*;
 use agent_cli_bridge::{invoke_agent_with_handle, InvokeEvent, InvokeOpts};
-use chrono::{Datelike, Utc};
+use chrono::{Datelike, Local, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -79,6 +79,12 @@ pub struct AdvancedReportValidation {
     pub warnings: Vec<String>,
 }
 
+#[derive(Debug)]
+struct ReportMetaReadResult {
+    meta: Option<Value>,
+    warning: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdvancedReportExportRequest {
@@ -112,6 +118,12 @@ pub struct AdvancedReportTask {
     pub template_name: String,
     pub status: AdvancedReportTaskStatus,
     pub message: Option<String>,
+    pub output_shape: Option<String>,
+    pub output_shape_name: Option<String>,
+    pub report_period: Option<String>,
+    pub report_period_label: Option<String>,
+    pub agent: Option<String>,
+    pub model: Option<String>,
     pub job_dir: String,
     pub report_path: String,
     pub created_at: String,
@@ -126,6 +138,12 @@ struct AdvancedReportTaskSnapshot {
     template_name: String,
     status: AdvancedReportTaskStatus,
     message: Option<String>,
+    output_shape: Option<String>,
+    output_shape_name: Option<String>,
+    report_period: Option<String>,
+    report_period_label: Option<String>,
+    agent: Option<String>,
+    model: Option<String>,
     job_dir: String,
     report_path: String,
     created_at: String,
@@ -230,12 +248,22 @@ pub fn merge_advanced_report_tasks(
         tasks.insert(task.job_id.clone(), task);
     }
     for task in runtime_tasks {
-        tasks.insert(task.job_id.clone(), task);
+        tasks.insert(task.job_id.clone(), normalize_task_with_report_file(task));
     }
 
     let mut tasks = tasks.into_values().collect::<Vec<_>>();
     tasks.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
     Ok(tasks)
+}
+
+fn normalize_task_with_report_file(mut task: AdvancedReportTask) -> AdvancedReportTask {
+    let report_path = PathBuf::from(&task.report_path);
+    if task.status == AdvancedReportTaskStatus::Failed && report_path.exists() {
+        task.status = AdvancedReportTaskStatus::Completed;
+        task.message = Some(report_available_warning_message(task.message.as_deref()));
+        let _ = persist_task_snapshot(&task);
+    }
+    task
 }
 
 pub async fn create_advanced_report_job(
@@ -244,13 +272,14 @@ pub async fn create_advanced_report_job(
 ) -> Result<AdvancedReportJob, String> {
     let template = find_template(&request.template_id)?;
     let output_shape = resolve_output_shape(request.output_shape.as_deref(), &template)?;
-    let user_prompt = normalize_user_prompt(request.user_prompt.as_deref())?;
+    let user_prompt = normalize_user_prompt(request.user_prompt.as_deref());
     let report_period = normalize_report_period(request.report_period.as_deref())?;
     if template.requires_raw_notes_consent && !request.raw_notes_consent {
         return Err("该智能体模板需要读取原文摘录，请先确认隐私授权。".to_string());
     }
 
     let created_at = Utc::now().to_rfc3339();
+    let local_context = local_time_context_json();
     let job_id = format!("{}-{}", template.id, Utc::now().timestamp_millis().max(0));
     let job_dir = advanced_report_root().join("jobs").join(&job_id);
     let input_dir = job_dir.join("input");
@@ -281,6 +310,7 @@ pub async fn create_advanced_report_job(
     });
     let generation_settings = json!({
         "version": 1,
+        "localTimeContext": local_context.clone(),
         "reportPeriod": {
             "id": report_period,
             "label": report_period_label(report_period)
@@ -318,6 +348,7 @@ pub async fn create_advanced_report_job(
         &user_prompt,
         &capabilities,
         &cache_index,
+        &local_context,
     );
     let prompt = build_agent_prompt();
 
@@ -389,6 +420,12 @@ pub async fn start_advanced_report_task(
         template_name: job.template_name.clone(),
         status: AdvancedReportTaskStatus::Running,
         message: Some("正在生成报告".to_string()),
+        output_shape: generation_setting_string(&PathBuf::from(&job.job_dir), &["outputShape", "id"]),
+        output_shape_name: generation_setting_string(&PathBuf::from(&job.job_dir), &["outputShape", "name"]),
+        report_period: generation_setting_string(&PathBuf::from(&job.job_dir), &["reportPeriod", "id"]),
+        report_period_label: generation_setting_string(&PathBuf::from(&job.job_dir), &["reportPeriod", "label"]),
+        agent: Some(request.agent.clone()),
+        model: request.model.clone(),
         job_dir: job.job_dir.clone(),
         report_path: path_string(&job_output_dir(&job.job_id).join("report.html")),
         created_at: job.created_at.clone(),
@@ -454,6 +491,88 @@ async fn run_agent_for_job(
     job_dir: PathBuf,
     prompt: String,
 ) -> Result<(), String> {
+    let Some(mut output) = run_agent_once_for_job(
+        app.clone(),
+        agent.clone(),
+        model.clone(),
+        bin_override.clone(),
+        job_id.clone(),
+        job_dir.clone(),
+        prompt,
+        "本地 Agent 已启动...",
+    )
+    .await?
+    else {
+        return Ok(());
+    };
+
+    if !output.validation.ok {
+        let warning_count = output.validation.warnings.len();
+        emit_log_event(
+            &app,
+            &job_id,
+            "system",
+            &format!("报告已生成，但发现 {warning_count} 条质量提醒，正在自动修正..."),
+        );
+        emit_task_event(
+            &app,
+            &job_id,
+            AdvancedReportTaskStatus::Running,
+            Some(format!("发现 {warning_count} 条质量提醒，正在自动修正...")),
+        );
+        write_quality_fix_prompt(&job_dir, &output.validation)?;
+        let Some(fixed_output) = run_agent_once_for_job(
+            app.clone(),
+            agent,
+            model,
+            bin_override,
+            job_id.clone(),
+            job_dir.clone(),
+            build_quality_fix_runtime_prompt(&job_dir),
+            "本地 Agent 已启动质量修正...",
+        )
+        .await?
+        else {
+            return Ok(());
+        };
+        output = fixed_output;
+    }
+
+    let message = if output.validation.ok {
+        "报告已生成".to_string()
+    } else {
+        format!(
+            "报告已生成，有 {} 条质量提醒",
+            output.validation.warnings.len()
+        )
+    };
+    let state = app.state::<crate::state::RuntimeState>();
+    state
+        .update_advanced_report_task_status(
+            &job_id,
+            AdvancedReportTaskStatus::Completed,
+            Some(message.clone()),
+        )
+        .await;
+    emit_task_event(
+        &app,
+        &job_id,
+        AdvancedReportTaskStatus::Completed,
+        Some(message),
+    );
+    Ok(())
+}
+
+async fn run_agent_once_for_job(
+    app: AppHandle,
+    agent: String,
+    model: Option<String>,
+    bin_override: Option<String>,
+    job_id: String,
+    job_dir: PathBuf,
+    prompt: String,
+    start_message: &str,
+) -> Result<Option<AdvancedReportOutput>, String> {
     let state = app.state::<crate::state::RuntimeState>();
     let handle = invoke_agent_with_handle(InvokeOpts {
         agent,
@@ -475,17 +594,17 @@ async fn run_agent_for_job(
     while let Some(event) = rx.recv().await {
         match event {
             InvokeEvent::Start { .. } => {
-                emit_log_event(&app, &job_id, "start", "本地 Agent 已启动");
+                emit_log_event(&app, &job_id, "start", start_message);
                 emit_task_event(
                     &app,
                     &job_id,
                     AdvancedReportTaskStatus::Running,
-                    Some("本地 Agent 已启动".to_string()),
+                    Some(start_message.to_string()),
                 );
             }
             InvokeEvent::Delta { text } => emit_log_event(&app, &job_id, "delta", &text),
             InvokeEvent::Raw { text } => emit_log_event(&app, &job_id, "raw", &text),
-            InvokeEvent::Html { .. } => emit_log_event(&app, &job_id, "html", "已收到报告内容片段"),
+            InvokeEvent::Html { .. } => emit_log_event(&app, &job_id, "html", "正在生成 HTML 报告..."),
             InvokeEvent::Meta { key, value } => {
                 emit_log_event(&app, &job_id, "meta", &format!("{key}: {value}"));
             }
@@ -499,7 +618,7 @@ async fn run_agent_for_job(
                     &app,
                     &job_id,
                     "done",
-                    &format!("本地 Agent 已结束: {:?}", code),
+                    &format!("任务已结束: {:?}", code),
                 );
             }
             InvokeEvent::Canceled => {
@@ -518,7 +637,7 @@ async fn run_agent_for_job(
                     AdvancedReportTaskStatus::Canceled,
                     Some("已取消".to_string()),
                 );
-                return Ok(());
+                return Ok(None);
             }
             InvokeEvent::Error { message } => {
                 emit_log_event(&app, &job_id, "error", &message);
@@ -529,55 +648,100 @@ async fn run_agent_for_job(
     }
 
     state.unregister_agent_job(&job_id).await;
-    let output = read_advanced_report_output(&job_id)?;
+    let mut output = read_advanced_report_output(&job_id)?;
     if output.report_html.is_none() {
         let detail = if stderr.is_empty() {
-            "本地 Agent 已结束，但没有生成报告".to_string()
+            "任务失败，未生成报告".to_string()
         } else {
-            format!("本地 Agent 已结束，但没有生成报告。{}", stderr.join("\n"))
+            format!("任务失败，未生成报告。{}", stderr.join("\n"))
         };
         return Err(detail);
     }
 
     if exit_code.unwrap_or(0) != 0 {
-        return Err(format!("本地 Agent 异常退出: {:?}", exit_code));
+        let mut warning = format!(
+            "报告已生成，但任务结束时返回异常状态 {:?}。这不影响打开 HTML 报告。",
+            exit_code
+        );
+        if !stderr.is_empty() {
+            warning.push_str(&format!(" 结束信息：{}", stderr.join("\n")));
+        }
+        output.validation.warnings.push(warning);
+        output.validation.ok = false;
     }
 
-    let message = if output.validation.ok {
-        "报告已生成".to_string()
-    } else {
-        format!(
-            "报告已生成，有 {} 条质量提醒",
-            output.validation.warnings.len()
-        )
-    };
-    state
-        .update_advanced_report_task_status(
-            &job_id,
-            AdvancedReportTaskStatus::Completed,
-            Some(message.clone()),
-        )
-        .await;
-    emit_task_event(
-        &app,
-        &job_id,
-        AdvancedReportTaskStatus::Completed,
-        Some(message),
-    );
-    Ok(())
+    Ok(Some(output))
 }
 
 fn build_runtime_prompt(job: &AdvancedReportJob) -> String {
     [
         "请在当前工作目录执行高级微信读书报告任务。",
         "",
+        &format!("当前电脑时间: {}", local_time_display()),
         &format!("工作目录: {}", job.job_dir),
         &format!("任务提示词文件: {}", job.prompt_path),
         "",
         "请先读取 input/agent-prompt.md，然后读取 input/brief.md；brief.md 是唯一任务入口。",
         "必须生成 output/report.html、output/report.meta.json。",
-        "HTML 必须是完整单文件，不依赖远程脚本、远程字体或远程图片。",
+        "HTML 必须是完整单文件，不依赖远程脚本、远程字体、远程图片或任何 file:// 本地资源。",
+        "不要在 HTML 中写入本地绝对路径，不要用 iframe/fetch/XHR/window.open/location 读取或跳转本地文件。",
         "不要只在对话里输出报告内容；最终结果必须写入 output/ 文件。",
+    ]
+    .join("\n")
+}
+
+fn quality_fix_prompt_path(job_dir: &Path) -> PathBuf {
+    job_dir.join("input").join("quality-fix.md")
+}
+
+fn write_quality_fix_prompt(
+    job_dir: &Path,
+    validation: &AdvancedReportValidation,
+) -> Result<(), String> {
+    let warnings = validation
+        .warnings
+        .iter()
+        .enumerate()
+        .map(|(index, warning)| format!("{}. {}", index + 1, warning))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let prompt = format!(
+        r#"# 报告质量修正
+
+刚才生成的 `output/report.html` 已存在，但自动质量检查发现以下问题：
+
+{warnings}
+
+请基于当前工作目录直接修正 `output/report.html` 和必要的 `output/report.meta.json`。
+
+要求：
+- 不要重新发明报告主题，不要删除已有有效内容。
+- 只针对上述质量提醒补齐或调整。
+- 修正后仍保持单文件 HTML，不依赖远程脚本、远程字体、远程图片或任何 file:// 本地资源。
+- 不要在 HTML 中写入本地绝对路径，不要用 iframe/fetch/XHR/window.open/location 读取或跳转本地文件。
+- 底部必须保留 `数据来源：微信读书官方 Skill`、大模型风险提示和 GitHub 项目地址 `https://github.com/Duosl/weread-skill-desktop`。
+- 不要只在对话里说明修正方案，必须写回 `output/report.html`。
+"#
+    );
+    write_text(quality_fix_prompt_path(job_dir), &prompt)
+}
+
+fn build_quality_fix_runtime_prompt(job_dir: &Path) -> String {
+    [
+        "请在当前工作目录修正高级微信读书报告。",
+        "",
+        &format!("当前电脑时间: {}", local_time_display()),
+        &format!("工作目录: {}", path_string(job_dir)),
+        &format!(
+            "质量修正提示词文件: {}",
+            path_string(&quality_fix_prompt_path(job_dir))
+        ),
+        "",
+        "请先读取 input/quality-fix.md，然后读取当前 output/report.html。",
+        "你只需要根据质量提醒修正 output/report.html 和必要的 output/report.meta.json。",
+        "HTML 必须是完整单文件，不依赖远程脚本、远程字体、远程图片或任何 file:// 本地资源。",
+        "不要在 HTML 中写入本地绝对路径，不要用 iframe/fetch/XHR/window.open/location 读取或跳转本地文件。",
+        "不要只在对话里输出修正说明；最终结果必须写回 output/ 文件。",
     ]
     .join("\n")
 }
@@ -655,15 +819,13 @@ pub fn read_advanced_report_output(job_id: &str) -> Result<AdvancedReportOutput,
     let meta_path = output_dir.join("report.meta.json");
 
     let report_html = read_optional_text(&report_path)?;
-    let meta = if meta_path.exists() {
-        let content =
-            fs::read_to_string(&meta_path).map_err(|e| format!("读取智能体报告元数据失败: {e}"))?;
-        Some(serde_json::from_str(&content).map_err(|e| format!("解析智能体报告元数据失败: {e}"))?)
-    } else {
-        None
-    };
+    let ReportMetaReadResult { meta, warning } = read_report_meta(&meta_path)?;
 
-    let validation = validate_output(report_html.as_deref());
+    let mut validation = validate_output(report_html.as_deref());
+    if let Some(warning) = warning {
+        validation.warnings.push(warning);
+        validation.ok = false;
+    }
 
     Ok(AdvancedReportOutput {
         job_id,
@@ -673,6 +835,30 @@ pub fn read_advanced_report_output(job_id: &str) -> Result<AdvancedReportOutput,
         meta_path: path_string(&meta_path),
         validation,
     })
+}
+
+fn read_report_meta(meta_path: &Path) -> Result<ReportMetaReadResult, String> {
+    if !meta_path.exists() {
+        return Ok(ReportMetaReadResult {
+            meta: None,
+            warning: None,
+        });
+    }
+
+    let content =
+        fs::read_to_string(meta_path).map_err(|e| format!("读取智能体报告元数据失败: {e}"))?;
+    match serde_json::from_str(&content) {
+        Ok(meta) => Ok(ReportMetaReadResult {
+            meta: Some(meta),
+            warning: None,
+        }),
+        Err(error) => Ok(ReportMetaReadResult {
+            meta: None,
+            warning: Some(format!(
+                "附加信息读取失败：report.meta.json 格式不完整（{error}）。这不影响打开 HTML 报告；如果再次生成，可以让 AI 修正报告元数据 JSON 格式。"
+            )),
+        }),
+    }
 }
 
 pub fn export_advanced_report_output(
@@ -769,6 +955,12 @@ fn read_persisted_advanced_report_tasks() -> Result<Vec<AdvancedReportTask>, Str
             } else {
                 "应用退出或任务中断，未生成报告".to_string()
             }),
+            output_shape: generation_setting_string(&job_dir, &["outputShape", "id"]),
+            output_shape_name: generation_setting_string(&job_dir, &["outputShape", "name"]),
+            report_period: generation_setting_string(&job_dir, &["reportPeriod", "id"]),
+            report_period_label: generation_setting_string(&job_dir, &["reportPeriod", "label"]),
+            agent: None,
+            model: None,
             job_dir: job.job_dir.clone(),
             report_path: path_string(&report_path),
             created_at: job.created_at.clone(),
@@ -804,7 +996,11 @@ fn read_task_snapshot(
         snapshot.status.clone()
     };
     let message = if report_exists {
-        snapshot.message.or_else(|| Some("报告已生成".to_string()))
+        if snapshot.status == AdvancedReportTaskStatus::Failed {
+            Some(report_available_warning_message(snapshot.message.as_deref()))
+        } else {
+            snapshot.message.or_else(|| Some("".to_string()))
+        }
     } else if matches!(
         snapshot.status,
         AdvancedReportTaskStatus::Running | AdvancedReportTaskStatus::Preparing
@@ -820,11 +1016,50 @@ fn read_task_snapshot(
         template_name: snapshot.template_name,
         status,
         message,
+        output_shape: snapshot
+            .output_shape
+            .or_else(|| generation_setting_string(job_dir, &["outputShape", "id"])),
+        output_shape_name: snapshot
+            .output_shape_name
+            .or_else(|| generation_setting_string(job_dir, &["outputShape", "name"])),
+        report_period: snapshot
+            .report_period
+            .or_else(|| generation_setting_string(job_dir, &["reportPeriod", "id"])),
+        report_period_label: snapshot
+            .report_period_label
+            .or_else(|| generation_setting_string(job_dir, &["reportPeriod", "label"])),
+        agent: snapshot.agent,
+        model: snapshot.model,
         job_dir: snapshot.job_dir,
         report_path: path_string(report_path),
         created_at: snapshot.created_at,
         updated_at: snapshot.updated_at,
     }))
+}
+
+fn report_available_warning_message(message: Option<&str>) -> String {
+    match message.map(str::trim).filter(|value| !value.is_empty()) {
+        Some(message)
+            if message.contains("解析智能体报告元数据失败")
+                || message.contains("report.meta.json")
+                || message.contains("元数据") =>
+        {
+            format!(
+                "报告已生成，但附加信息读取失败。可以先打开 HTML 报告；再次生成时可让 AI 修正 report.meta.json 格式。原始错误：{message}"
+            )
+        }
+        Some(message) => format!("报告已生成，但仍有附加问题：{message}"),
+        None => "报告已生成，但附加信息读取失败。可以先打开 HTML 报告。".to_string(),
+    }
+}
+
+fn generation_setting_string(job_dir: &Path, path: &[&str]) -> Option<String> {
+    let content = fs::read_to_string(job_dir.join("input").join("generation-settings.json")).ok()?;
+    let mut value = serde_json::from_str::<Value>(&content).ok()?;
+    for key in path {
+        value = value.get(*key)?.clone();
+    }
+    value.as_str().map(str::to_string)
 }
 
 pub(crate) fn persist_task_snapshot(task: &AdvancedReportTask) -> Result<(), String> {
@@ -835,6 +1070,12 @@ pub(crate) fn persist_task_snapshot(task: &AdvancedReportTask) -> Result<(), Str
         template_name: task.template_name.clone(),
         status: task.status.clone(),
         message: task.message.clone(),
+        output_shape: task.output_shape.clone(),
+        output_shape_name: task.output_shape_name.clone(),
+        report_period: task.report_period.clone(),
+        report_period_label: task.report_period_label.clone(),
+        agent: task.agent.clone(),
+        model: task.model.clone(),
         job_dir: task.job_dir.clone(),
         report_path: task.report_path.clone(),
         created_at: task.created_at.clone(),
@@ -1555,8 +1796,8 @@ fn output_shapes() -> Vec<BuiltinOutputShape> {
     vec![
         BuiltinOutputShape {
             id: "report",
-            name: "默认报告",
-            description: "完整阅读档案，适合深度阅读和长期归档。",
+            name: "通用网页",
+            description: "",
             brief_md: r#"- 输出为完整长文报告，优先保证分析深度和证据链完整。
 - 页面可以是可滚动 HTML，章节之间要有清晰层级。
 - 适合在浏览器中阅读和保存，不追求逐屏演示节奏。"#,
@@ -1564,20 +1805,42 @@ fn output_shapes() -> Vec<BuiltinOutputShape> {
         BuiltinOutputShape {
             id: "slides",
             name: "PPT 风格",
-            description: "演示页式 HTML，适合逐屏讲述和截图汇报。",
-            brief_md: r#"- 输出仍然是 `output/report.html`，不是 `.pptx` 文件。
-- 采用接近演示文稿的分屏结构，每一屏围绕一个结论或一个证据组。
-- 建议使用 16:9 版面节奏、强标题、短段落和清晰的页内编号。
-- 控制每屏信息密度，避免一屏塞入过长正文；深度分析可以放在每屏下方的备注区或附录区。"#,
+            description: "可放映的演示页式 HTML，适合逐屏讲述和截图汇报。",
+            brief_md: r#"- 输出仍然是网页报告，不是 `.pptx` 文件。
+- 参考 `/Users/duoshilin/duosl/forks/html-anything` 的 deck skill 思路：先选定一个清晰方向，再用有限版式池生成，不要每页临时发明布局。阅读报告优先使用两类方向：`editorial-ledger`（纸面、墨色、章节封面、数字账本、引文证据，适合叙事和阅读画像）或 `swiss-data`（16 列网格、强对齐、单一强调色、数据柱/横条/对比，适合分析和雷达）。
+- 必须使用固定 16:9 演示舞台，而不是普通长网页：页面外层是 viewport，内部是固定比例 stage。CSS 必须使用浏览器兼容写法，不要在 `calc()` 中写乘除法，不要写 `calc((100vh-96px)*16/9)` 这类会被浏览器丢弃的表达式。推荐写法：`.deck-stage { aspect-ratio: 16 / 9; width: min(100vw, calc(177.78vh - 170.67px)); height: min(56.25vw, calc(100vh - 96px)); max-width: 100vw; max-height: calc(100vh - 96px); }`。`calc()` 里的 `+` / `-` 两侧必须有空格，例如 `calc(100vh - 96px)`。
+- 版式池必须明确写在 HTML 注释或 JS 配置中，并至少覆盖这些页面类型：封面、核心结论、关键数字、主题/分类图、证据卡、对比页、建议页、来源说明。每页只能使用一个版式类型，不能把多种布局硬塞进一屏。
+- `body` / 主容器应使用 `overflow: hidden` 或等价方式禁用整页滚动；底部导航、页码和来源栏不应遮挡舞台内容。
+- 每一屏必须围绕一个结论或一个证据组，内容必须装进 16:9 舞台安全区；如果内容放不下，必须拆成下一屏、减少卡片数量或缩短正文，不要让卡片超出舞台、不要把主要内容放到屏幕下方。
+- 单屏信息密度上限：标题 1 个、核心观点 1 到 2 条、图表或卡片组 1 组；列表一般不超过 5 项，网格卡片一般不超过 4 张，超过就拆页。长解释放到下一屏，不要在幻灯片里做大段滚动阅读。
+- 所有图表必须可由本地 CSS / 内联 SVG 绘制，不依赖外部库；图表高度、条形宽度、雷达点位必须来自报告数据或明确标注为相对表达，不要伪装成精密测评。
+- 幻灯片状态机必须完整，不能只做单向进入动画。必须采用“默认隐藏，当前页唯一可见”的模型：所有 `.slide` 默认必须 `position: absolute; inset: 0; opacity: 0; visibility: hidden; pointer-events: none; z-index: 0; transform: translateX(40px);`；只有 `.slide.is-active` 可见并可交互：`opacity: 1; visibility: visible; pointer-events: auto; z-index: 2; transform: translateX(0);`。这样不会禁止动画，只是要求动画基于状态机：推荐做当前页入场动画；如果要做离场动画，只能使用短暂的 `.is-exiting` 状态，且必须 `pointer-events: none; z-index: 1;`，并在 `animationend` 或 350ms 以内兜底定时器中移除，最后回到默认隐藏态。
+- 切页函数必须是唯一状态入口，上一页 / 下一页 / 键盘 / 滚轮 / 点击都只能调用同一个 `goTo(index, direction)` 或等价函数；禁止在不同事件里分别手写 active 逻辑。函数里必须先清理过期的 `is-active`、`is-prev`、`is-next`、`is-exiting` 和 `aria-hidden`，再只激活当前页；如果使用离场动画，只允许上一张当前页短暂保留 `is-exiting`，并且必须注册一次性清理。推荐直接使用这个骨架：
+  `function renderSlides(direction = "forward") { deck.dataset.direction = direction; slides.forEach((slide, index) => { const active = index === current; slide.classList.toggle("is-active", active); slide.classList.toggle("is-prev", !active && index < current); slide.classList.toggle("is-next", !active && index > current); slide.setAttribute("aria-hidden", active ? "false" : "true"); }); }`
+  `function goTo(index) { const next = Math.max(0, Math.min(index, slides.length - 1)); if (next === current) return; const direction = next > current ? "forward" : "backward"; current = next; renderSlides(direction); updateControls(); }`
+  不要只给下一页添加 active，也不要只改变 transform 而不清掉上一页/下一页的可见性。
+- 切页动画必须是双向的：向前和向后都要正确处理进入页和离开页。可以用 `[data-direction="forward"]` / `[data-direction="backward"]` 控制当前页从不同方向进入，或使用 `is-prev` / `is-next` 作为非当前页位置提示；非当前页默认必须 `opacity: 0`、`visibility: hidden`、`pointer-events: none`。如果使用 `.is-exiting` 做离场，它只能存在一个动画周期，不能接收点击，不能盖住当前页内容，动画结束后必须彻底隐藏。
+- 必须支持浏览器内演示：提供“全屏演示”按钮；支持鼠标点击“上一页 / 下一页”切换；支持方向键切换；Home / End 跳到首页 / 末页。
+- 方向键必须和页面切换动画一致：横向 slide 动画使用 ArrowLeft / ArrowRight；纵向 slide 动画使用 ArrowUp / ArrowDown。可以同时额外支持另一组方向键，但页面上的快捷键提示必须准确列出实际支持的按键。不要在只绑定左右键时提示“下键下一张”。
+- 页面必须包含可见页码、上一页 / 下一页按钮，并用 `addEventListener("click", ...)` 或等价的按钮点击绑定实现鼠标操作；不要只实现 `keydown`。
+- 必须支持鼠标滚轮 / 触控板滑动翻页：监听 `wheel` 事件，根据主要位移方向判断上一页 / 下一页；触控板连续事件必须做节流或锁定，例如 550-800ms 内只翻一页，忽略很小的 `deltaX` / `deltaY`，并在演示容器内 `preventDefault()` 防止页面滚动。滚轮向下或触控板向下滑动时进入下一页，滚轮向上或触控板向上滑动时回到上一页；横向动画可优先响应 `deltaX`，其中 `deltaX > 0` 进入下一页、`deltaX < 0` 回到上一页。页面快捷提示要写清楚“滚轮 / 触控板滑动可翻页”。
+- 底部控制条如果使用 `position: fixed` 或 `sticky`，必须给幻灯片主体预留安全区，例如主体 `padding-bottom: 96px`，或让舞台容器使用 `max-height: calc(100vh - 96px)` 并保留底部内边距；任何卡片、证据块、正文都不能被底部导航压住或贴边。
+- 鼠标交互应是显式按钮优先，也可以额外支持点击左 / 右侧热区翻页；第一页禁用“上一页”，最后一页禁用“下一页”，禁用态要可见。
+- 使用原生 HTML/CSS/JS 实现，不依赖外部 CDN；全屏使用浏览器 Fullscreen API，浏览器不支持时仍可正常逐屏切换。
+- 可选的页面内滚动只允许用于隐藏的讲者备注或附录，不用于主要幻灯片内容；默认演示体验必须是一页一屏、一键切换。"#,
         },
         BuiltinOutputShape {
             id: "xiaohongshu",
             name: "小红书图文风格",
-            description: "卡片化图文 HTML，适合截图成多图内容。",
-            brief_md: r#"- 输出仍然是 `output/report.html`，不是图片文件。
-- 采用适合截图的纵向卡片组，每张卡片聚焦一个标题、一个观点和少量证据。
-- 视觉应保持 Quiet Reading Ledger 的克制气质，不使用夸张营销话术、emoji 或过度装饰。
-- 每张卡片要有稳定比例、明确标题和可读正文，适合后续人工截图为图文轮播。"#,
+            description: "卡片化图文 HTML，适合网页浏览和截图成多图内容。",
+            brief_md: r#"- 输出仍然是网页报告，不是图片文件。
+- 参考 `/Users/duoshilin/duosl/forks/html-anything` 的 `card-xiaohongshu` / `deck-xhs-*` 思路，但必须收敛到阅读报告气质：有分享感，不做营销感。
+- 页面主体必须是多卡片图文画廊，而不是普通长报告，也不是所有卡片在页面中线单列排队。桌面宽度下优先使用 2 到 4 列 CSS Grid；也可以使用 CSS columns / masonry 风格瀑布流；顶部可以有整体摘要，随后进入卡片区。
+- 每张卡片必须是可截图单元，使用固定或近似固定比例：优先 `aspect-ratio: 3 / 4`，可用 `width: min(360px, 100%)` 或等价桌面尺寸；卡片内容不允许溢出，内容放不下就拆成新卡片。不要生成无固定比例的普通网页卡片。
+- 卡片数量由内容决定：短报告至少 5 张，常规报告建议 7 到 12 张，信息多时继续拆分；每张卡只承载一个核心观点、一个关键数据或一个证据组。第一张是封面，最后一张是总结 / 下一步建议 / 来源说明。
+- 卡片结构建议：封面卡、年度数字卡、主题偏好卡、Top 书卡、笔记证据卡、阅读节奏卡、风险/盲区卡、行动建议卡、来源卡。每张卡必须有页码或序号，方便截图后排序。
+- 视觉应保持 Quiet Reading Ledger：纸色、墨色、淡琥珀/低饱和辅助色、清楚层级；允许轻柔色块和圆角，但不要 emoji 装饰、夸张营销话术、过度渐变、漂浮光球或大面积粉紫。
+- 字号必须按截图阅读设计：标题足够大，正文短句化，列表一般不超过 4 项；长解释拆卡，不要在单张卡里塞长段落。"#,
         },
     ]
 }
@@ -1596,16 +1859,12 @@ fn resolve_output_shape(
         .ok_or_else(|| format!("未知报告形态: {shape_id}"))
 }
 
-fn normalize_user_prompt(user_prompt: Option<&str>) -> Result<String, String> {
-    let normalized = user_prompt
+fn normalize_user_prompt(user_prompt: Option<&str>) -> String {
+    user_prompt
         .unwrap_or_default()
         .trim()
         .replace("\r\n", "\n")
-        .replace('\r', "\n");
-    if normalized.chars().count() > 2000 {
-        return Err("自定义要求不能超过 2000 个字符".to_string());
-    }
-    Ok(normalized)
+        .replace('\r', "\n")
 }
 
 fn normalize_report_period(report_period: Option<&str>) -> Result<&'static str, String> {
@@ -1726,6 +1985,8 @@ fn build_agent_prompt() -> String {
 - 只读取当前工作区内的文件。
 - 不要访问网络。
 - 不要加载远程脚本、远程字体或远程图片。
+- 不要在 HTML 中引用 `file://`，不要写入 `/Users/...`、工作区目录、缓存目录等本地绝对路径。
+- 不要使用 iframe、object、embed、fetch、XMLHttpRequest、window.open 或 location 跳转去读取/加载本地 HTML、JSON、图片或其他文件；报告必须是自包含单文件。
 - 不要只在对话里输出报告内容；最终结果必须写入 output/ 文件。
 - 必须生成 `output/report.html`、`output/report.meta.json`。
 - 生成完成后不要打开浏览器、不要预览 HTML、不要调用 `open` / `xdg-open` / `start` / `open_report_file` 等系统打开命令；只写入文件。
@@ -1742,6 +2003,7 @@ fn build_agent_brief(
     user_prompt: &str,
     capabilities: &Value,
     cache_index: &Value,
+    local_context: &Value,
 ) -> String {
     let default_capabilities = template.default_capabilities.join(", ");
     let optional_capabilities = template.optional_capabilities.join(", ");
@@ -1766,6 +2028,18 @@ fn build_agent_brief(
         .and_then(|value| value.get("label"))
         .and_then(Value::as_str)
         .unwrap_or("今年");
+    let local_now_display = local_context
+        .get("display")
+        .and_then(Value::as_str)
+        .unwrap_or("未知");
+    let local_date = local_context
+        .get("date")
+        .and_then(Value::as_str)
+        .unwrap_or("未知");
+    let local_timezone = local_context
+        .get("timezone")
+        .and_then(Value::as_str)
+        .unwrap_or("本机时区");
     let template_json = serde_json::to_string_pretty(template_manifest).unwrap_or_default();
     let generation_settings_json =
         serde_json::to_string_pretty(generation_settings).unwrap_or_default();
@@ -1799,6 +2073,16 @@ fn build_agent_brief(
 {description}
 
 数据范围：{report_period}
+
+## 当前电脑时间
+
+当前电脑时间：{local_now_display}
+
+本机日期：{local_date}
+
+本机时区：{local_timezone}
+
+你必须按这个本机时间理解“今天”“本月”“上个月”“今年”“去年”等相对时间，不要按模型知识截止时间、训练时间或其他默认时区推断。报告中解释数据范围时，也以这里的本机日期为参照。
 
 你不是在填固定模板。请根据数据特征决定报告结构、叙事、视觉和模块。
 
@@ -1838,7 +2122,10 @@ fn build_agent_brief(
 
 - rawNotesConsent: {raw_notes_consent}
 - 不要编造不存在的书、笔记、阅读行为或个人经历。
-- `report.html` 底部必须同时出现两类来源：`数据来源：微信读书官方 Skill`，以及面向分享读者的开源项目入口。建议文案为“也想生成自己的阅读报告？”、“这份报告由开源桌面工具整理生成，你可以在 GitHub 获取项目。”，并展示仓库地址 `https://github.com/Duosl/weread-skill-desktop`。不要只写软件名或只裸露 URL。
+- 不要在 `report.html` 中出现用户本地绝对路径、工作区路径、缓存路径或 `file://` URL。
+- 不要在 `report.html` 中用 iframe、object、embed、fetch、XMLHttpRequest、window.open 或 location 跳转读取/加载本地 HTML、JSON、图片或其他文件；报告必须是自包含单文件，直接双击或浏览器打开都能运行。
+- 不要在 `report.html` 中承诺“没有任何虚构内容”“完全真实”“绝对准确”等绝对化结论。报告可以说明“基于已导出的微信读书数据生成”，但必须承认大模型可能会出错，分析结论建议结合原始阅读数据自行判断。
+- `report.html` 底部必须同时出现三类信息：`数据来源：微信读书官方 Skill`；大模型风险提示；面向分享读者的开源项目入口。建议文案为“大模型可能会出错，本报告基于已导出的微信读书数据生成，分析结论请结合原始数据判断。”、“也想生成自己的阅读报告？”、“这份报告由开源桌面工具整理生成，你可以在 GitHub 获取项目。”，并展示仓库地址 `https://github.com/Duosl/weread-skill-desktop`。不要只写软件名或只裸露 URL。
 
 ## 本次自定义要求
 
@@ -2015,16 +2302,204 @@ fn validate_output(report_html: Option<&str>) -> AdvancedReportValidation {
             if evidence_hits < 3 {
                 warnings.push("分析版证据链偏弱，主要结论可能缺少数据依据".to_string());
             }
+            let lower_html = html.to_lowercase();
+            let has_local_path = html.contains("file://")
+                || html.contains("/Users/")
+                || html.contains("/.weread-desktop/")
+                || html.contains("\\Users\\")
+                || html.contains("C:\\");
+            if has_local_path {
+                warnings.push("报告 HTML 暴露或引用了本地文件路径，可能触发浏览器 file 安全限制".to_string());
+            }
+            let has_embedded_local_frame = lower_html.contains("<iframe")
+                || lower_html.contains("<object")
+                || lower_html.contains("<embed");
+            if has_embedded_local_frame {
+                warnings.push("报告 HTML 包含嵌入式 frame/object/embed，本地 file 打开时容易触发安全限制".to_string());
+            }
+            let has_local_loading_script = html.contains("fetch(")
+                || html.contains("XMLHttpRequest")
+                || html.contains("window.open(")
+                || html.contains("location.href")
+                || html.contains("location.assign")
+                || html.contains("location.replace");
+            if has_local_loading_script && has_local_path {
+                warnings.push("报告 HTML 可能通过脚本读取或跳转本地文件，需改为自包含单文件".to_string());
+            }
             let xhs_markers = ["卡片", "截图", "图文", "轮播"];
             if html.contains("小红书") && !xhs_markers.iter().any(|marker| html.contains(*marker))
             {
                 warnings.push("小红书图文风格缺少卡片化或截图友好的结构提示".to_string());
             }
-            let slide_markers = ["PPT", "演示", "第 1 屏", "第一屏", "Slide", "slide"];
+            let has_xhs_output = html.contains("小红书")
+                || html.contains("xiaohongshu")
+                || html.contains("xhs")
+                || html.contains("图文卡")
+                || html.contains("轮播");
+            let has_xhs_grid = html.contains("grid-template-columns")
+                || html.contains("columns:")
+                || html.contains("column-count")
+                || html.contains("masonry");
+            if has_xhs_output && !has_xhs_grid {
+                warnings.push("小红书图文风格缺少多列卡片画廊，容易退化成单列长页面".to_string());
+            }
+            let has_xhs_card_ratio = html.contains("aspect-ratio: 3 / 4")
+                || html.contains("aspect-ratio:3/4")
+                || html.contains("1080")
+                || html.contains("1440");
+            if has_xhs_output && !has_xhs_card_ratio {
+                warnings.push("小红书图文风格缺少 3:4 截图卡片比例，单张卡片不够稳定".to_string());
+            }
+            let has_xhs_cover = html.contains("封面") || html.contains("cover") || html.contains("Cover");
+            let has_xhs_page_number = html.contains("页码")
+                || html.contains("page")
+                || html.contains("Page")
+                || html.contains("card-index");
+            if has_xhs_output && (!has_xhs_cover || !has_xhs_page_number) {
+                warnings.push("小红书图文风格缺少封面卡或页码，截图成组后不利于传播".to_string());
+            }
+            let slide_markers = [
+                "PPT",
+                "演示",
+                "第 1 屏",
+                "第一屏",
+                "Slide",
+                "slide",
+                "全屏",
+                "下一页",
+                "上一页",
+                "keydown",
+                "requestFullscreen",
+                "aspect-ratio",
+            ];
             if html.contains("PPT 风格")
                 && !slide_markers.iter().any(|marker| html.contains(*marker))
             {
                 warnings.push("PPT 风格缺少演示页式结构提示".to_string());
+            }
+            let has_slide_output = html.contains("PPT 风格")
+                || html.contains("全屏演示")
+                || html.contains("上一页")
+                || html.contains("下一页")
+                || html.contains("requestFullscreen");
+            if has_slide_output && html.contains("keydown") && !html.contains("click") {
+                warnings.push("PPT 风格只检测到键盘切换，缺少鼠标点击翻页绑定".to_string());
+            }
+            let has_wheel_turning = html.contains("wheel")
+                || html.contains("deltaY")
+                || html.contains("deltaX")
+                || html.contains("onwheel");
+            if has_slide_output && !has_wheel_turning {
+                warnings.push("PPT 风格缺少鼠标滚轮或触控板滑动翻页支持".to_string());
+            }
+            let has_wheel_throttle = html.contains("throttle")
+                || html.contains("wheelLock")
+                || html.contains("lastWheel")
+                || html.contains("setTimeout")
+                || html.contains("Date.now()");
+            if has_slide_output && has_wheel_turning && !has_wheel_throttle {
+                warnings.push("PPT 风格的滚轮/触控板翻页缺少节流，容易一次滑动连续翻多页".to_string());
+            }
+            if has_slide_output
+                && (html.contains("deltaY < 0) next")
+                    || html.contains("deltaY<0)next")
+                    || html.contains("deltaY < 0 ? next")
+                    || html.contains("deltaY<0?next"))
+            {
+                warnings.push("PPT 风格滚轮方向反直觉，应向下滑动进入下一页、向上滑动回到上一页".to_string());
+            }
+            if has_slide_output && !html.contains("aspect-ratio") {
+                warnings.push("PPT 风格缺少固定 16:9 舞台，容易在不同屏幕尺寸下溢出".to_string());
+            }
+            let has_slide_display_none =
+                html.contains("display: none") || html.contains("display:none");
+            let has_slide_visibility_hidden =
+                html.contains("visibility: hidden") || html.contains("visibility:hidden");
+            let has_slide_opacity_hidden =
+                html.contains("opacity: 0") || html.contains("opacity:0");
+            let has_slide_aria_hidden = html.contains("aria-hidden");
+            let has_slide_hidden_state =
+                has_slide_display_none || (has_slide_visibility_hidden && has_slide_opacity_hidden);
+            let has_slide_pointer_guard =
+                html.contains("pointer-events: none") || html.contains("pointer-events:none");
+            let has_slide_state_cleanup = (html.contains("slides.forEach")
+                || html.contains(".forEach((slide")
+                || html.contains("classList.remove"))
+                && has_slide_aria_hidden
+                && (html.contains("classList.toggle")
+                    || html.contains("classList.remove")
+                    || html.contains("className"));
+            let has_single_slide_entry = html.contains("goTo(")
+                || html.contains("renderSlides(")
+                || html.contains("showSlide(")
+                || html.contains("updateSlide(");
+            if has_slide_output && (!has_slide_hidden_state || !has_slide_pointer_guard) {
+                warnings.push("PPT 风格缺少非当前页隐藏态，上一页/下一页内容可能残留叠在当前页上".to_string());
+            }
+            if has_slide_output && !has_slide_state_cleanup {
+                warnings.push("PPT 风格切页逻辑缺少全量清理 slide 状态，容易只做单向动画导致页面叠层".to_string());
+            }
+            if has_slide_output && !has_single_slide_entry {
+                warnings.push("PPT 风格缺少统一切页入口，键盘/按钮/滚轮分散更新状态时容易出现上一页或下一页残影".to_string());
+            }
+            let has_slide_exiting_state = html.contains("is-exiting");
+            let has_slide_exiting_cleanup = html.contains("animationend")
+                || html.contains("transitionend")
+                || html.contains("setTimeout");
+            if has_slide_output && has_slide_exiting_state && !has_slide_exiting_cleanup {
+                warnings.push("PPT 风格使用了离场动画状态，但缺少动画结束后的清理逻辑，可能留下上一页残影".to_string());
+            }
+            let has_slide_layout_pool = html.contains("版式")
+                || html.contains("layout")
+                || html.contains("Layout")
+                || html.contains("data-layout")
+                || html.contains("slide-type");
+            if has_slide_output && !has_slide_layout_pool {
+                warnings.push("PPT 风格缺少明确版式池，模型容易逐页自由发挥导致风格漂移".to_string());
+            }
+            let has_invalid_calc_spacing = (html.contains("100vh-")
+                || html.contains("100vw-")
+                || html.contains("-96px")
+                || html.contains("- 96px"))
+                && !html.contains("100vh - 96px");
+            let has_calc_multiply = html.contains("*16/9")
+                || html.contains("* 16/9")
+                || html.contains("*16 / 9")
+                || html.contains("* 16 / 9")
+                || html.contains("/9)")
+                || html.contains("/ 9)");
+            if has_slide_output && (has_invalid_calc_spacing || has_calc_multiply) {
+                warnings.push("PPT 风格舞台尺寸 CSS 使用了浏览器不兼容的 calc 写法，应改为合法空格和无乘除法表达式".to_string());
+            }
+            let has_fixed_bottom_controls = html.contains("position:fixed")
+                || html.contains("position: fixed")
+                || html.contains("position:sticky")
+                || html.contains("position: sticky");
+            let has_slide_safe_area = html.contains("padding-bottom")
+                || html.contains("calc(100vh")
+                || html.contains("safe-area")
+                || html.contains("bottom-spacer");
+            if has_slide_output && has_fixed_bottom_controls && !has_slide_safe_area {
+                warnings.push("PPT 风格底部控制条缺少内容安全区，可能遮挡最后一行内容".to_string());
+            }
+            let mentions_down_key = html.contains("下键")
+                || html.contains("ArrowDown")
+                || html.contains("↓")
+                || html.contains("向下");
+            let handles_down_key = html.contains("ArrowDown")
+                || html.contains("key === 'Down'")
+                || html.contains("key===\"Down\"")
+                || html.contains("keyCode === 40")
+                || html.contains("keyCode==40");
+            if has_slide_output && mentions_down_key && !handles_down_key {
+                warnings.push("PPT 风格快捷键提示和实际按键绑定不一致".to_string());
+            }
+            if has_slide_output
+                && (html.contains("overflow-y: auto") || html.contains("overflow: auto"))
+                && !html.contains("speaker-notes")
+                && !html.contains("appendix")
+            {
+                warnings.push("PPT 风格主要内容依赖滚动阅读，应拆成更多固定比例页面".to_string());
             }
         }
         None => warnings.push("缺少报告".to_string()),
@@ -2072,6 +2547,24 @@ fn path_string(path: &Path) -> String {
 
 fn has_capability(capabilities: &[&str], target: &str) -> bool {
     capabilities.iter().any(|item| *item == target)
+}
+
+fn local_time_display() -> String {
+    Local::now().format("%Y-%m-%d %H:%M:%S %:z").to_string()
+}
+
+fn local_time_context_json() -> Value {
+    let now = Local::now();
+    json!({
+        "iso": now.to_rfc3339(),
+        "display": now.format("%Y-%m-%d %H:%M:%S %:z").to_string(),
+        "date": now.format("%Y-%m-%d").to_string(),
+        "year": now.year(),
+        "month": now.month(),
+        "day": now.day(),
+        "timezone": now.format("%:z").to_string(),
+        "relativeTimeReference": "Use this local computer time to interpret today, this month, last month, this year, and last year."
+    })
 }
 
 fn timestamp_for_ymd(year: i32, month: u32, day: u32) -> i64 {
@@ -2185,7 +2678,7 @@ const ANNUAL_KEYWORDS_STYLE: &str = r#"# 年度阅读关键词风格
 
 整体像一组可以截图分享的年度阅读标签页。允许使用关键词云、年度标签、短句标题、少量关键数字和代表性书目。保持纸面感和档案感，避免夸张营销、情绪煽动和空泛金句。
 
-版式建议：输出适合截图的纵向卡片组。每张卡片只有一个关键词、一个解释、2 到 3 个证据点。标题短，正文可读，不使用 emoji。
+版式建议：输出适合网页浏览和截图分享的卡片画廊。桌面宽度下使用多列网格或瀑布流展示关键词卡片，不要排成单列长页面。每张卡片只有一个关键词、一个解释、2 到 3 个证据点。标题短，正文可读，不使用 emoji。
 "#;
 
 const ANNUAL_KEYWORDS_PROMPT: &str = r#"# 年度阅读关键词
@@ -2195,9 +2688,9 @@ const ANNUAL_KEYWORDS_PROMPT: &str = r#"# 年度阅读关键词
 
 const TOP_BOOKS_STYLE: &str = r#"# 年度 Top 书单风格
 
-整体像私人年度书单榜。允许使用榜单、书封占位、推荐语、选择理由和主题标签。版面要适合手机截图，标题清楚、信息密度适中，避免把所有书机械排成表格。
+整体像私人年度书单榜。允许使用榜单、书封占位、推荐语、选择理由和主题标签。版面要适合网页浏览和逐张截图，标题清楚、信息密度适中，避免把所有书机械排成表格。
 
-版式建议：每本书是一张可截图书单卡，包含排名、书名、入选理由、证据标签和一句私人推荐语。不要把书单做成纯表格。
+版式建议：每本书是一张可截图书单卡，包含排名、书名、入选理由、证据标签和一句私人推荐语。桌面宽度下使用多列网格或瀑布流展示书单卡，不要把书单做成纯表格，也不要把卡片排成单列竖线。
 "#;
 
 const TOP_BOOKS_PROMPT: &str = r#"# 年度 Top 书单
