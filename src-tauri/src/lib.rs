@@ -5,6 +5,7 @@ mod cache;
 mod commands;
 mod config;
 mod export;
+mod ima;
 mod report;
 mod state;
 mod types;
@@ -23,6 +24,11 @@ pub fn run() {
             commands::get_settings,
             commands::save_api_key,
             commands::clear_api_key,
+            commands::save_ima_credentials,
+            commands::clear_ima_credentials,
+            commands::test_ima_connection,
+            commands::list_addable_ima_knowledge_bases,
+            commands::save_ima_target,
             commands::save_export_settings,
             commands::save_cache_settings,
             commands::get_api_cache_info,

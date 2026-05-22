@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Toolbar } from "./components/layout/Toolbar";
 import { CommunityDialog, SupportDialog } from "./components/RewardDialog";
+import { ConnectorsPage } from "./pages/ConnectorsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { NotesWorkbenchPage } from "./pages/NotesWorkbenchPage";
 import { OverviewPage } from "./pages/OverviewPage";
@@ -72,6 +73,17 @@ function App() {
               path="/reports"
               element={
                 <ReportPage apiKeySet={settings.settings.apiKeySet} />
+              }
+            />
+            <Route
+              path="/connectors"
+              element={
+                <ConnectorsPage
+                  settings={settings.settings}
+                  onSaveImaCredentials={settings.saveImaCredentials}
+                  onClearImaCredentials={settings.clearImaCredentials}
+                  onSaveImaTarget={settings.saveImaTarget}
+                />
               }
             />
             <Route

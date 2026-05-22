@@ -61,6 +61,69 @@ pub async fn clear_api_key(state: State<'_, RuntimeState>) -> Result<AppSettings
 }
 
 #[tauri::command]
+pub async fn save_ima_credentials(
+    client_id: String,
+    api_key: String,
+) -> Result<AppSettings, String> {
+    if client_id.trim().len() < 4 {
+        return Err("ima Client ID 格式不正确".to_string());
+    }
+    if api_key.trim().len() < 8 {
+        return Err("ima API Key 格式不正确".to_string());
+    }
+    let mut config = AppConfig::load();
+    config.ima_client_id = Some(client_id.trim().to_string());
+    config.ima_api_key = Some(api_key.trim().to_string());
+    config.save()?;
+    Ok(config.to_settings())
+}
+
+#[tauri::command]
+pub async fn clear_ima_credentials() -> Result<AppSettings, String> {
+    let mut config = AppConfig::load();
+    config.ima_client_id = None;
+    config.ima_api_key = None;
+    config.ima_knowledge_base_id = None;
+    config.ima_knowledge_base_name = None;
+    config.save()?;
+    Ok(config.to_settings())
+}
+
+#[tauri::command]
+pub async fn test_ima_connection() -> Result<ImaConnectionTestResult, String> {
+    let config = AppConfig::load();
+    crate::ima::ImaClient::from_config(&config)?
+        .test_connection()
+        .await
+}
+
+#[tauri::command]
+pub async fn list_addable_ima_knowledge_bases(
+    cursor: Option<String>,
+    limit: Option<u32>,
+) -> Result<ImaKnowledgeBasePage, String> {
+    let config = AppConfig::load();
+    crate::ima::ImaClient::from_config(&config)?
+        .list_addable_knowledge_bases(cursor, limit)
+        .await
+}
+
+#[tauri::command]
+pub async fn save_ima_target(
+    knowledge_base_id: String,
+    knowledge_base_name: String,
+) -> Result<AppSettings, String> {
+    if knowledge_base_id.trim().is_empty() {
+        return Err("请选择 ima 知识库".to_string());
+    }
+    let mut config = AppConfig::load();
+    config.ima_knowledge_base_id = Some(knowledge_base_id.trim().to_string());
+    config.ima_knowledge_base_name = Some(knowledge_base_name.trim().to_string());
+    config.save()?;
+    Ok(config.to_settings())
+}
+
+#[tauri::command]
 pub async fn save_export_settings(
     output_dir: String,
     default_format: String,

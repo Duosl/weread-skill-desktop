@@ -8,6 +8,10 @@ pub struct AppConfig {
     pub last_export_dir: Option<String>,
     pub default_format: Option<String>,
     pub cache_ttl_seconds: Option<i64>,
+    pub ima_client_id: Option<String>,
+    pub ima_api_key: Option<String>,
+    pub ima_knowledge_base_id: Option<String>,
+    pub ima_knowledge_base_name: Option<String>,
     #[serde(skip, default = "AppConfig::config_path")]
     pub config_path: PathBuf,
 }
@@ -21,6 +25,37 @@ pub struct AppSettings {
     pub last_export_dir: String,
     pub default_format: String,
     pub cache_ttl_seconds: i64,
+    pub ima_client_id_set: bool,
+    pub ima_client_id_masked: Option<String>,
+    pub ima_client_id_full: Option<String>,
+    pub ima_api_key_set: bool,
+    pub ima_api_key_masked: Option<String>,
+    pub ima_api_key_full: Option<String>,
+    pub ima_knowledge_base_id: Option<String>,
+    pub ima_knowledge_base_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImaKnowledgeBaseOption {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImaKnowledgeBasePage {
+    pub items: Vec<ImaKnowledgeBaseOption>,
+    pub next_cursor: Option<String>,
+    pub is_end: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImaConnectionTestResult {
+    pub ok: bool,
+    pub message: String,
+    pub knowledge_bases: Vec<ImaKnowledgeBaseOption>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -5,6 +5,31 @@ export interface AppSettings {
   lastExportDir: string;
   defaultFormat: string;
   cacheTtlSeconds: number;
+  imaClientIdSet: boolean;
+  imaClientIdMasked?: string | null;
+  imaClientIdFull?: string | null;
+  imaApiKeySet: boolean;
+  imaApiKeyMasked?: string | null;
+  imaApiKeyFull?: string | null;
+  imaKnowledgeBaseId?: string | null;
+  imaKnowledgeBaseName?: string | null;
+}
+
+export interface ImaKnowledgeBaseOption {
+  id: string;
+  name: string;
+}
+
+export interface ImaKnowledgeBasePage {
+  items: ImaKnowledgeBaseOption[];
+  nextCursor?: string | null;
+  isEnd: boolean;
+}
+
+export interface ImaConnectionTestResult {
+  ok: boolean;
+  message: string;
+  knowledgeBases: ImaKnowledgeBaseOption[];
 }
 
 export interface ShelfBook {

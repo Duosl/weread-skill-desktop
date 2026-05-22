@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, FileText, Heart, Library, MessageCircle, RefreshCw, Settings } from "lucide-react";
+import { BarChart3, BookOpen, FileText, Heart, Library, Link2, MessageCircle, RefreshCw, Settings } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 const navItems = [
@@ -6,6 +6,7 @@ const navItems = [
   { to: "/shelf", label: "我的书架", icon: Library },
   { to: "/notes", label: "划线与想法", icon: BookOpen },
   { to: "/reports", label: "读书报告", icon: FileText },
+  { to: "/connectors", label: "连接器", icon: Link2 },
   { to: "/settings", label: "设置", icon: Settings },
 ];
 

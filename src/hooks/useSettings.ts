@@ -10,6 +10,14 @@ const fallbackSettings: AppSettings = {
   lastExportDir: "~/Documents/WereadNotes",
   defaultFormat: "markdown",
   cacheTtlSeconds: 24 * 60 * 60,
+  imaClientIdSet: false,
+  imaClientIdMasked: null,
+  imaClientIdFull: null,
+  imaApiKeySet: false,
+  imaApiKeyMasked: null,
+  imaApiKeyFull: null,
+  imaKnowledgeBaseId: null,
+  imaKnowledgeBaseName: null,
 };
 
 export function useSettings() {
@@ -58,6 +66,31 @@ export function useSettings() {
     );
   };
 
+  const saveImaCredentials = async (clientId: string, apiKey: string) => {
+    setSettings(
+      await invoke<AppSettings>("save_ima_credentials", {
+        clientId,
+        apiKey,
+      }),
+    );
+  };
+
+  const clearImaCredentials = async () => {
+    setSettings(await invoke<AppSettings>("clear_ima_credentials"));
+  };
+
+  const saveImaTarget = async (
+    knowledgeBaseId: string,
+    knowledgeBaseName: string,
+  ) => {
+    setSettings(
+      await invoke<AppSettings>("save_ima_target", {
+        knowledgeBaseId,
+        knowledgeBaseName,
+      }),
+    );
+  };
+
   return {
     settings,
     loading,
@@ -67,5 +100,8 @@ export function useSettings() {
     clearApiKey,
     saveExportSettings,
     saveCacheSettings,
+    saveImaCredentials,
+    clearImaCredentials,
+    saveImaTarget,
   };
 }

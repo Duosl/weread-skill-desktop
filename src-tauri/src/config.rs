@@ -37,6 +37,10 @@ impl AppConfig {
             last_export_dir: Some(Self::default_export_dir().to_string_lossy().to_string()),
             default_format: Some("markdown".to_string()),
             cache_ttl_seconds: Some(DEFAULT_CACHE_TTL_SECONDS),
+            ima_client_id: None,
+            ima_api_key: None,
+            ima_knowledge_base_id: None,
+            ima_knowledge_base_name: None,
             config_path,
         }
     }
@@ -51,7 +55,19 @@ impl AppConfig {
     }
 
     pub fn masked_api_key(&self) -> Option<String> {
-        self.api_key.as_ref().map(|key| {
+        Self::masked_secret(self.api_key.as_deref())
+    }
+
+    pub fn masked_ima_client_id(&self) -> Option<String> {
+        Self::masked_secret(self.ima_client_id.as_deref())
+    }
+
+    pub fn masked_ima_api_key(&self) -> Option<String> {
+        Self::masked_secret(self.ima_api_key.as_deref())
+    }
+
+    fn masked_secret(value: Option<&str>) -> Option<String> {
+        value.map(|key| {
             if key.len() <= 8 {
                 "****".to_string()
             } else {
@@ -74,6 +90,14 @@ impl AppConfig {
                 .clone()
                 .unwrap_or_else(|| "markdown".to_string()),
             cache_ttl_seconds: self.cache_ttl_seconds(),
+            ima_client_id_set: self.ima_client_id.is_some(),
+            ima_client_id_masked: self.masked_ima_client_id(),
+            ima_client_id_full: self.ima_client_id.clone(),
+            ima_api_key_set: self.ima_api_key.is_some(),
+            ima_api_key_masked: self.masked_ima_api_key(),
+            ima_api_key_full: self.ima_api_key.clone(),
+            ima_knowledge_base_id: self.ima_knowledge_base_id.clone(),
+            ima_knowledge_base_name: self.ima_knowledge_base_name.clone(),
         }
     }
 
