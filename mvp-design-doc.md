@@ -614,6 +614,7 @@ AppData/
 - `description`：模板说明。
 - `category`：模板分类，例如 `advanced`、`share-ready`。
 - `styleSummary`：卡片上的风格摘要。
+- `defaultReportPeriod`：默认数据范围，支持 `last_month`、`current_month`、`last_year`、`current_year`、`all`。年度模板默认 `last_year`；长期画像和结构诊断模板默认 `all`。
 - `defaultOutputShape`：默认输出形态。
 - `outputShapes`：可选输出形态列表，当前全局支持 `report`、`slides`、`xiaohongshu`。
 - `requiresRawNotesConsent`：是否必须获得原始划线 / 想法授权。该字段是当前过渡实现；后续应收敛为 `rawNotesPolicy` 三档策略：`required` 表示无授权不能生成，`optional` 表示可降级生成但授权后报告更具体，`none` 表示不读取原文。

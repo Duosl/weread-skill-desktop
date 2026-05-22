@@ -1,4 +1,12 @@
 import { formatDuration } from "../format";
+import {
+  REPORT_DATA_SOURCE_TEXT,
+  REPORT_REPOSITORY_LABEL,
+  REPORT_REPOSITORY_URL,
+  REPORT_SOURCE_ACTION,
+  REPORT_SOURCE_TEXT,
+  REPORT_SOURCE_TITLE,
+} from "./source";
 import { reportTemplates } from "./templates";
 import type { ReadingReportData, ReportRankItem, ReportTemplateId } from "./types";
 
@@ -82,8 +90,15 @@ function timelineStrip(data: ReadingReportData): string {
 
 function sourceFooter(_data: ReadingReportData): string {
   return `<footer>
-    <strong>WeRead Skill Desktop</strong>
-    <span>数据来源：微信读书 Skill</span>
+    <div class="source-copy">
+      <span>${escapeHtml(REPORT_DATA_SOURCE_TEXT)}</span>
+      <strong>${escapeHtml(REPORT_SOURCE_TITLE)}</strong>
+      <small>${escapeHtml(REPORT_SOURCE_TEXT)}</small>
+    </div>
+    <a class="source-link" href="${escapeHtml(REPORT_REPOSITORY_URL)}" target="_blank" rel="noreferrer">
+      <b>${escapeHtml(REPORT_SOURCE_ACTION)}</b>
+      <small>${escapeHtml(REPORT_REPOSITORY_LABEL)}</small>
+    </a>
   </footer>`;
 }
 
@@ -127,7 +142,7 @@ function analysisBody(data: ReadingReportData, title: string): string {
       ${metric("读过", `${data.profile.readBooks} 本`)}
       ${metric("阅读日", `${data.profile.readDays} 天`)}
     </section>`,
-    `<section class="split">
+    `<section class="flow">
       ${section("分类偏好", categoryBars(data, 8))}
       ${section("规则化结论", insightList(data))}
     </section>`,
@@ -136,7 +151,7 @@ function analysisBody(data: ReadingReportData, title: string): string {
       ${metric("平均", formatDuration(Math.round(data.timelineSummary.averageReadingTime)))}
       ${metric("趋势", data.timelineSummary.trend === "rising" ? "后段增强" : data.timelineSummary.trend === "falling" ? "前段集中" : "相对均衡")}
     </div>`),
-    `<section class="three">
+    `<section class="flow rank-stack">
       ${section("笔记密度排行", rankList(data.rankings.noteLeaders, 6))}
       ${section("投入时长排行", rankList(data.rankings.longReadLeaders, 6))}
       ${section("想法活跃排行", rankList(data.rankings.reviewLeaders, 6))}
@@ -161,15 +176,15 @@ function journeyBody(data: ReadingReportData, title: string): string {
       </aside>
     </header>`,
     timelineStrip(data),
-    `<section class="split">
+    `<section class="flow">
       ${section("路径上的书", topBooks(data, 10))}
       ${section("方向感", `<div class="tag-cloud">${data.categories.slice(0, 10).map((item) => `<span>${escapeHtml(item.title)} · ${item.share}%</span>`).join("")}</div>`)}
     </section>`,
-    `<section class="split reflection">
+    `<section class="flow reflection">
       ${section("旅程注脚", insightList(data))}
       ${section("笔记信号", noteSignals(data))}
     </section>`,
-    `<section class="three">
+    `<section class="flow rank-stack">
       ${section("划线最多", rankList(data.rankings.bookmarkLeaders, 6))}
       ${section("想法最多", rankList(data.rankings.reviewLeaders, 6))}
       ${section("进度靠前", rankList(data.rankings.progressLeaders, 6))}
@@ -199,13 +214,13 @@ function annualBody(data: ReadingReportData, title: string): string {
       ${metric("完成率", `${data.profile.completionRate}%`)}
       ${metric("笔记/书", data.profile.notesPerBook)}
     </section>`,
-    `<section class="split annual-focus">
+    `<section class="flow annual-focus">
       ${section("年度关键词", `<div class="tag-cloud">${data.categories.slice(0, 10).map((item) => `<span>${escapeHtml(item.title)} · ${item.share}%</span>`).join("")}</div>`)}
       ${section("最有痕迹的书", topBooks(data, 8))}
     </section>`,
     section("年度注脚", insightList(data), "annual-strip"),
-    section("笔记信号", noteSignals(data), "annual-strip"),
-    `<section class="split annual-focus">
+    section("笔记信号", noteSignals(data), "annual-strip annual-note-signal"),
+    `<section class="flow annual-focus rank-stack">
       ${section("最长陪伴", rankList(data.rankings.longReadLeaders, 6))}
       ${section("最多痕迹", rankList(data.rankings.noteLeaders, 6))}
     </section>`,
@@ -235,6 +250,8 @@ function htmlCss(templateId: ReportTemplateId): string {
     .timeline-strip::before { position:absolute; top:31px; right:28px; left:28px; height:2px; background:linear-gradient(90deg,#2f80ed,#1eb869,#d6a94a); content:""; }
     .timeline-strip div { position:relative; padding-top:28px; }
     .timeline-strip div::before { position:absolute; top:8px; left:0; width:12px; height:12px; border:3px solid #fffdf8; border-radius:999px; background:#1eb869; content:""; }
+    .journey-html-report .cover { grid-template-columns:minmax(0,1fr) 180px; }
+    .journey-html-report .seal.round { justify-self:end; }
     .bar-row b, .rank-row b { background:linear-gradient(90deg,#2f80ed,#1eb869,#d6a94a); }`
       : templateId === "annual"
         ? `
@@ -244,14 +261,19 @@ function htmlCss(templateId: ReportTemplateId): string {
       linear-gradient(145deg,#101922 0%,#18323a 52%,#1a252f 100%); border-color:rgba(246,231,182,.2); color:#fffdf8; }
     main::before { position:absolute; inset:22px; border:1px solid rgba(246,231,182,.16); content:""; pointer-events:none; }
     h1 { color:#fffdf8; font-size:64px; }
-    .cover p, footer, footer span, .rank-row span, .rank-row small, .bar-row span, .bar-row small, .book-row span { color:rgba(255,253,248,.68); }
+    .cover p, footer, footer span, footer small, footer a, .rank-row span, .rank-row small, .bar-row span, .bar-row small, .book-row span { color:rgba(255,253,248,.68); }
     .metric, .insights > div, .rank-row, .book-row, .section { border-color:rgba(246,231,182,.12); border-radius:4px; background:rgba(255,253,248,.1); }
     .metric span, .insights span, .rank-row em { color:#f6e7b6; }
     .metric strong, .section h2, .book-row strong { color:#fffdf8; }
     .number-wall { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; margin:30px 0; }
     .number-wall .metric strong { color:#f6e7b6; font-family:Georgia,serif; font-size:38px; }
-    .annual-seal { border-color:rgba(246,231,182,.32); background:rgba(246,231,182,.08); }
+    .annual-html-report .cover { grid-template-columns:minmax(0,1fr) 168px; }
+    .annual-seal { justify-self:end; width:168px; border-color:rgba(246,231,182,.32); background:rgba(246,231,182,.08); }
     .annual-seal strong { color:#f6e7b6; font-family:Georgia,serif; font-size:62px; }
+    .annual-note-signal { border-top:1px solid rgba(246,231,182,.18); border-bottom:1px solid rgba(246,231,182,.18); }
+    .annual-note-signal .note-signals { grid-template-columns:1fr; gap:0; }
+    .annual-note-signal .metric { border:0; border-bottom:1px solid rgba(246,231,182,.12); border-radius:0; background:transparent; padding:16px 0; }
+    .annual-note-signal .metric:last-child { border-bottom:0; }
     .tag-cloud span { border-color:rgba(246,231,182,.18); background:rgba(246,231,182,.08); color:#fffdf8; }
     .bar-row i, .rank-row i { background:rgba(255,253,248,.16); }
     .bar-row b, .rank-row b { background:#f6e7b6; }`
@@ -271,23 +293,22 @@ function htmlCss(templateId: ReportTemplateId): string {
     * { box-sizing:border-box; }
     body { margin:0; padding:40px; }
     main { position:relative; max-width:1120px; margin:0 auto; border:1px solid; border-radius:24px; padding:42px; box-shadow:0 24px 70px rgba(30,24,15,.12); }
-    .cover { display:grid; grid-template-columns:minmax(0,1fr) 230px; gap:24px; align-items:start; }
+    .cover { display:grid; gap:20px; align-items:start; }
     .cover > div > span, footer, .seal span, .seal small { color:#756d62; font-size:13px; }
     h1 { margin:12px 0; font-size:56px; line-height:1.05; font-weight:500; overflow-wrap:anywhere; }
     h2 { margin:0 0 16px; font-size:23px; }
     .cover p { max-width:760px; color:#5f6b70; font-size:20px; line-height:1.8; }
     .manifest, .seal { border:1px solid rgba(25,38,51,.12); padding:16px; }
-    .manifest { display:grid; gap:10px; }
+    .manifest { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
     .manifest div { display:grid; grid-template-columns:64px minmax(0,1fr); gap:10px; align-items:baseline; border-bottom:1px solid rgba(25,38,51,.08); padding-bottom:9px; }
     .manifest div:last-child { border-bottom:0; padding-bottom:0; }
     .manifest span, .seal span { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
     .manifest strong, .seal strong { display:block; overflow-wrap:anywhere; }
-    .seal.round { display:grid; place-items:center; min-height:144px; border-radius:999px; }
+    .seal.round { display:grid; place-items:center; width:min(100%,180px); min-height:144px; border-radius:999px; }
     .seal.round strong { font-family:Georgia,serif; font-size:46px; font-weight:400; line-height:.95; }
     .metrics, .summary, .insights, .timeline-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin:28px 0; }
-    .split, .three { display:grid; gap:18px; margin-top:26px; }
-    .split { grid-template-columns:minmax(0,1fr) minmax(280px,.86fr); }
-    .three { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .flow { display:grid; gap:18px; margin-top:26px; }
+    .flow > .section { min-width:0; }
     .section, .metric, .insights > div, .rank-row, .book-row { border:1px solid rgba(25,38,51,.08); padding:16px; }
     .section .section { border:0; background:transparent; padding:0; }
     .wide { margin-top:30px; }
@@ -297,7 +318,7 @@ function htmlCss(templateId: ReportTemplateId): string {
     .bar-row { display:grid; grid-template-columns:120px 1fr 150px; gap:12px; align-items:center; }
     .bar-row i, .rank-row i { display:block; height:9px; border-radius:99px; background:rgba(132,111,82,.12); overflow:hidden; }
     .bar-row b, .rank-row b { display:block; height:100%; border-radius:99px; }
-    .insights { grid-template-columns:repeat(2,minmax(0,1fr)); margin:0; }
+    .insights { grid-template-columns:minmax(0,1fr); margin:0; }
     .insights strong { display:block; margin-top:8px; line-height:1.8; }
     .insights small, .rank-row span, .rank-row small, .bar-row span, .bar-row small, .book-row span { color:#756d62; }
     .rank-row { display:grid; grid-template-columns:40px 1fr 110px; gap:12px; align-items:center; }
@@ -308,17 +329,28 @@ function htmlCss(templateId: ReportTemplateId): string {
     .tag-cloud span { border:1px solid rgba(47,128,237,.12); border-radius:999px; background:rgba(244,248,255,.78); padding:8px 10px; color:#526272; font-size:13px; font-weight:700; }
     .note-signals { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
     .section-note { margin:14px 0 0; color:#756d62; font-size:14px; line-height:1.8; }
-    footer { display:flex; justify-content:space-between; gap:18px; margin-top:40px; border-top:1px solid rgba(132,111,82,.14); padding-top:18px; }
-    footer strong { white-space:nowrap; }
+    footer { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-top:40px; border-top:1px solid rgba(132,111,82,.14); padding-top:18px; }
+    footer .source-copy { display:grid; gap:5px; min-width:0; }
+    footer .source-copy strong { color:inherit; font-size:17px; line-height:1.45; }
+    footer small { font-size:12px; }
+    footer .source-link { display:grid; gap:3px; flex:0 1 240px; border:1px solid rgba(47,128,237,.18); border-radius:14px; background:rgba(255,253,248,.54); color:inherit; line-height:1.4; max-width:100%; overflow-wrap:anywhere; padding:10px 12px; text-decoration:none; }
+    footer .source-link b { color:#2f80ed; font-size:13px; }
+    footer .source-link small { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+    footer .source-link:hover { border-color:rgba(47,128,237,.34); text-decoration:none; }
     ${theme}
     @media (max-width: 900px) {
       body { padding:16px; }
       main { padding:22px; border-radius:18px; }
-      .cover, .split, .three { grid-template-columns:1fr; }
+      .cover { grid-template-columns:1fr; }
       h1 { font-size:38px; }
       .metrics, .summary, .insights, .timeline-strip, .number-wall { grid-template-columns:1fr 1fr; }
+      .journey-html-report .cover { grid-template-columns:1fr; }
+      .journey-html-report .seal.round { justify-self:start; }
+      .annual-html-report .cover { grid-template-columns:1fr; }
+      .annual-seal { justify-self:start; }
       .bar-row, .rank-row { grid-template-columns:1fr; }
-      footer { display:grid; }
+      footer { display:grid; justify-content:stretch; }
+      footer .source-link { justify-self:start; }
     }
     @media (max-width: 560px) {
       .metrics, .summary, .insights, .timeline-strip, .number-wall { grid-template-columns:1fr; }

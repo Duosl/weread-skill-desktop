@@ -18,8 +18,10 @@ function extractReadStat(stats: ReadingStatsResult, key: string): number {
 }
 
 function periodLabel(period: ReportPeriod): string {
-  if (period === "month") return "本月";
-  if (period === "year") return "今年";
+  if (period === "last_month") return "上个月";
+  if (period === "current_month") return "本月";
+  if (period === "last_year") return "去年";
+  if (period === "current_year") return "今年";
   return "全部";
 }
 

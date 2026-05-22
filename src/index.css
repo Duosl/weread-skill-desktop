@@ -2570,6 +2570,10 @@ h2 {
   margin: 0;
 }
 
+.page-title-accessory .report-template-tabs {
+  transform: none;
+}
+
 .report-section-heading h2 {
   color: #2b2824;
   font-family: "Noto Serif SC", serif;
@@ -3167,7 +3171,7 @@ h2 {
   padding: 14px;
 }
 
-.report-modal-actions span {
+.report-modal-actions > div > span {
   color: #7b7267;
   font-size: 12px;
   font-weight: 800;
@@ -3992,8 +3996,18 @@ h2 {
 .report-section-grid,
 .annual-focus {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   gap: 18px;
+}
+
+.report-flow-sections {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.report-flow-sections > div {
+  min-width: 0;
 }
 
 .report-section-title {
@@ -4242,15 +4256,23 @@ h2 {
 .annual-report .report-rank-row strong,
 .annual-report .report-rank-row em,
 .annual-report .report-timeline-summary strong,
-.annual-report .report-source-panel strong {
+.annual-report .report-source-panel strong,
+.annual-report .report-source-panel a,
+.annual-report .report-source-panel a b {
   color: #fffdf8;
 }
 
 .annual-report .report-rank-row span,
 .annual-report .report-rank-row small,
 .annual-report .report-timeline-summary small,
+.annual-report .report-source-panel a small,
 .annual-report .report-source-panel small {
   color: rgba(255, 253, 248, 0.66);
+}
+
+.annual-report .report-source-panel a {
+  border-color: rgba(246, 231, 182, 0.18);
+  background: rgba(246, 231, 182, 0.08);
 }
 
 .annual-report .journey-categories span {
@@ -4264,13 +4286,13 @@ h2 {
 
 .report-three-columns {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 
 .report-insight-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -4414,6 +4436,12 @@ h2 {
   padding: 12px 14px;
 }
 
+.report-source-panel {
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 260px);
+  gap: 16px;
+  align-items: center;
+}
+
 .report-timeline-summary span,
 .report-source-panel span {
   color: #607086;
@@ -4424,8 +4452,40 @@ h2 {
 .report-timeline-summary strong,
 .report-source-panel strong {
   color: #25313a;
-  font-size: 14px;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.report-source-panel a {
+  color: #25313a;
+  font-size: 12px;
   line-height: 1.5;
+}
+
+.report-source-panel a {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(47, 128, 237, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 253, 248, 0.54);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.report-source-panel a:hover {
+  border-color: rgba(47, 128, 237, 0.34);
+}
+
+.report-source-panel a b {
+  color: var(--brand-strong);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.report-source-panel a small {
+  font-family: var(--font-mono);
 }
 
 .report-timeline-summary small,
@@ -4439,9 +4499,15 @@ h2 {
   margin-top: 24px;
 }
 
+.report-source-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
 .journey-reflection {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.82fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   margin-top: 24px;
 }
@@ -4481,17 +4547,18 @@ h2 {
 
 .report-cover {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
 
 .report-cover.compact {
-  grid-template-columns: minmax(0, 1fr) 142px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .report-manifest {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
   border: 1px solid rgba(25, 38, 51, 0.12);
   background: rgba(255, 255, 255, 0.72);
@@ -4601,14 +4668,21 @@ h2 {
   font-size: 50px;
 }
 
+.journey-report .report-cover,
+.journey-report .report-cover.compact {
+  grid-template-columns: minmax(0, 1fr) 180px;
+}
+
 .journey-stamp {
   display: grid;
   place-items: center;
+  width: min(100%, 180px);
   min-height: 132px;
   border: 1px solid rgba(132, 111, 82, 0.26);
   border-radius: 999px;
   background: rgba(255, 253, 248, 0.5);
   color: #513f24;
+  justify-self: end;
 }
 
 .journey-stamp span,
@@ -4727,10 +4801,12 @@ h2 {
 .annual-seal {
   display: grid;
   place-items: center;
+  width: 168px;
   min-height: 168px;
   border: 1px solid rgba(246, 231, 182, 0.32);
   border-radius: 999px;
   background: rgba(246, 231, 182, 0.08);
+  justify-self: end;
 }
 
 .annual-seal strong {
@@ -4777,6 +4853,36 @@ h2 {
 .annual-report .report-insight-list div {
   border: 1px solid rgba(246, 231, 182, 0.12);
   border-radius: 4px;
+}
+
+.annual-note-signal .report-highlight-list {
+  gap: 0;
+  border-top: 1px solid rgba(246, 231, 182, 0.18);
+  border-bottom: 1px solid rgba(246, 231, 182, 0.18);
+}
+
+.annual-note-signal .report-highlight-list div {
+  border: 0;
+  border-bottom: 1px solid rgba(246, 231, 182, 0.12);
+  border-radius: 0;
+  background: transparent;
+  padding: 16px 0;
+}
+
+.annual-note-signal .report-highlight-list div:last-child {
+  border-bottom: 0;
+}
+
+.annual-note-signal .report-highlight-list span {
+  color: #f6e7b6;
+}
+
+.annual-note-signal .report-highlight-list strong {
+  color: #fffdf8;
+}
+
+.annual-note-signal .report-highlight-list small {
+  color: rgba(255, 253, 248, 0.66);
 }
 
 @media (max-width: 1180px) {
@@ -4899,8 +5005,18 @@ h2 {
   .report-workbench,
   .report-cover,
   .report-cover.compact,
+  .journey-report .report-cover,
+  .journey-report .report-cover.compact,
   .annual-hero {
     grid-template-columns: 1fr;
+  }
+
+  .journey-stamp {
+    justify-self: start;
+  }
+
+  .annual-seal {
+    justify-self: start;
   }
 
   .report-control-card {
@@ -4908,9 +5024,13 @@ h2 {
   }
 
   .report-metrics-grid,
-  .report-insight-list,
   .report-timeline-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-source-panel {
+    grid-template-columns: 1fr;
+    justify-items: start;
   }
 
   .journey-report .journey-line,
@@ -4994,5 +5114,9 @@ h2 {
   .report-bar-row small,
   .report-rank-row small {
     white-space: normal;
+  }
+
+  .report-source-panel a {
+    width: 100%;
   }
 }

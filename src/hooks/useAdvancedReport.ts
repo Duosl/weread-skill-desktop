@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getErrorMessage } from "../lib/format";
+import type { ReportPeriod } from "../lib/report/types";
 
 export type AdvancedReportTemplate = {
   id: string;
@@ -9,6 +10,7 @@ export type AdvancedReportTemplate = {
   description: string;
   category: string;
   styleSummary: string;
+  defaultReportPeriod: ReportPeriod;
   defaultOutputShape: string;
   outputShapes: AdvancedReportOutputShape[];
   requiresRawNotesConsent: boolean;

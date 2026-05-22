@@ -1,6 +1,14 @@
 import { BookOpen, Clock, Compass, Library, ListOrdered, PenLine, PieChart, Route, Sparkles, Target, TrendingUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { formatDuration } from "../format";
+import {
+  REPORT_DATA_SOURCE_TEXT,
+  REPORT_REPOSITORY_LABEL,
+  REPORT_REPOSITORY_URL,
+  REPORT_SOURCE_ACTION,
+  REPORT_SOURCE_TEXT,
+  REPORT_SOURCE_TITLE,
+} from "./source";
 import type { ReadingReportData, ReportRankItem, ReportTemplateId } from "./types";
 
 type ReportTemplateProps = {
@@ -169,8 +177,15 @@ function TimelinePanel({ data }: ReportTemplateProps) {
 function SourcePanel({ }: ReportTemplateProps) {
   return (
     <div className="report-source-panel">
-      <strong>WeRead Skill Desktop</strong>
-      <span>数据来源：微信读书 Skill</span>
+      <div className="report-source-copy">
+        <span>{REPORT_DATA_SOURCE_TEXT}</span>
+        <strong>{REPORT_SOURCE_TITLE}</strong>
+        <small>{REPORT_SOURCE_TEXT}</small>
+      </div>
+      <a className="report-source-link" href={REPORT_REPOSITORY_URL} target="_blank" rel="noreferrer">
+        <b>{REPORT_SOURCE_ACTION}</b>
+        <small>{REPORT_REPOSITORY_LABEL}</small>
+      </a>
     </div>
   );
 }
@@ -240,7 +255,7 @@ function AnalysisReportTemplate({ data }: ReportTemplateProps) {
         <ReportMetric icon={<BookOpen size={18} />} label="读过" value={`${data.profile.readBooks} 本`} />
       </section>
 
-      <section className="report-section-grid">
+      <section className="report-flow-sections">
         {data.categories.length > 0 ? <div>
           <div className="report-section-title">
             <PieChart size={18} />
@@ -275,7 +290,7 @@ function AnalysisReportTemplate({ data }: ReportTemplateProps) {
         <InsightList data={data} />
       </section>
 
-      <section className="report-deep-section report-three-columns">
+      <section className="report-deep-section report-flow-sections report-rank-stack">
         {data.rankings.noteLeaders.length > 0 ? <div>
           <div className="report-section-title">
             <ListOrdered size={18} />
@@ -337,7 +352,7 @@ function JourneyReportTemplate({ data }: ReportTemplateProps) {
         ))}
       </section> : null}
 
-      <section className="report-section-grid">
+      <section className="report-flow-sections">
         {data.books.length > 0 ? <div>
           <div className="report-section-title">
             <Route size={18} />
@@ -358,9 +373,7 @@ function JourneyReportTemplate({ data }: ReportTemplateProps) {
         </div> : null}
       </section>
 
-      <TimelinePanel data={data} />
-
-      <section className="journey-reflection">
+      <section className="journey-reflection report-flow-sections">
         {data.insights.length > 0 ? <div>
           <div className="report-section-title">
             <Sparkles size={18} />
@@ -377,7 +390,7 @@ function JourneyReportTemplate({ data }: ReportTemplateProps) {
         </div>
       </section>
 
-      <section className="report-deep-section report-three-columns">
+      <section className="report-deep-section report-flow-sections report-rank-stack">
         {data.rankings.bookmarkLeaders.length > 0 ? <div>
           <div className="report-section-title">
             <PenLine size={18} />
@@ -400,6 +413,8 @@ function JourneyReportTemplate({ data }: ReportTemplateProps) {
           <RankList items={data.rankings.progressLeaders} />
         </div> : null}
       </section>
+
+      <SourcePanel data={data} />
     </article>
   );
 }
@@ -446,7 +461,7 @@ function AnnualReportTemplate({ data }: ReportTemplateProps) {
         </div>
       </section>
 
-      <section className="annual-focus">
+      <section className="annual-focus report-flow-sections">
         {data.categories.length > 0 ? <div>
           <h3>年度关键词</h3>
           <div className="journey-categories">
@@ -468,10 +483,12 @@ function AnnualReportTemplate({ data }: ReportTemplateProps) {
 
       <section className="annual-quote-strip">
         <h3>笔记信号</h3>
-        <NoteSignalPanel data={data} />
+        <div className="annual-note-signal">
+          <NoteSignalPanel data={data} />
+        </div>
       </section>
 
-      <section className="annual-focus">
+      <section className="annual-focus report-flow-sections report-rank-stack">
         {data.rankings.longReadLeaders.length > 0 ? <div>
           <h3>最长陪伴</h3>
           <RankList items={data.rankings.longReadLeaders} limit={6} />
@@ -481,6 +498,8 @@ function AnnualReportTemplate({ data }: ReportTemplateProps) {
           <RankList items={data.rankings.noteLeaders} limit={6} />
         </div> : null}
       </section>
+
+      <SourcePanel data={data} />
     </article>
   );
 }

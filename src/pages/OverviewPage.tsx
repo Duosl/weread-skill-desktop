@@ -18,6 +18,7 @@ import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorBanner } from "../components/ui/ErrorBanner";
 import { Spinner } from "../components/ui/Spinner";
+import { notifyWereadDataRefreshed } from "../lib/dataRefreshEvents";
 import { formatDuration } from "../lib/format";
 import type { ReadingMode } from "../hooks/useReadingStats";
 import type { ReadingStatsResult } from "../types";
@@ -106,6 +107,15 @@ export function OverviewPage({ apiKeySet, shelf, reading, notebooks }: OverviewP
     },
     [],
   );
+
+  async function refreshOverviewData() {
+    await Promise.all([
+      shelf.syncShelf(true),
+      reading.loadStats("overall", 0, true),
+      notebooks.loadNotebooks(true),
+    ]);
+    notifyWereadDataRefreshed();
+  }
 
   useEffect(() => {
     if (!apiKeySet) return;
@@ -214,11 +224,7 @@ export function OverviewPage({ apiKeySet, shelf, reading, notebooks }: OverviewP
           variant="primary"
           icon={<RefreshCw size={16} />}
           disabled={reading.loading || shelf.loading}
-          onClick={() => {
-            void shelf.syncShelf(true);
-            void reading.loadStats("overall", 0, true);
-            void notebooks.loadNotebooks(true);
-          }}
+          onClick={() => void refreshOverviewData()}
         >
           刷新
         </Button>

@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Eye, RefreshCw, X } from "lucide-react";
+import { Eye, Trash2, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageShell } from "../components/layout/PageShell";
 import { ConfirmDialog } from "../components/report/ConfirmDialog";
 import { GenerationSettings } from "../components/report/GenerationSettings";
 import { ModelOutput } from "../components/report/ModelOutput";
 import type { ModelOutputBlock } from "../components/report/ModelOutput";
+import { TaskStateCard } from "../components/report/TaskStateCard";
 import { TemplateCard } from "../components/report/TemplateCard";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -30,8 +31,10 @@ type ReportPageProps = {
 };
 
 const periodOptions: Array<{ value: ReportPeriod; label: string }> = [
-  { value: "month", label: "本月" },
-  { value: "year", label: "今年" },
+  { value: "last_month", label: "上月" },
+  { value: "current_month", label: "本月" },
+  { value: "last_year", label: "上年" },
+  { value: "current_year", label: "本年" },
   { value: "all", label: "全部" },
 ];
 
@@ -223,16 +226,18 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
   const report = useReadingReport();
   const advancedReport = useAdvancedReport();
   const agentBridge = useAgentBridge();
-  const [period, setPeriod] = useState<ReportPeriod>("year");
-  const [templateTab, setTemplateTab] = useState<TemplateTab>("advanced");
+  const [templateTab, setTemplateTab] = useState<TemplateTab>("basic");
   const [selectedTemplateId, setSelectedTemplateId] = useState<ReportTemplateId | null>(null);
   const [rawNotesConsent, setRawNotesConsent] = useState(false);
   const [openingReport, setOpeningReport] = useState(false);
   const [selectedAdvancedTemplateId, setSelectedAdvancedTemplateId] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [selectedTask, setSelectedTask] = useState<AdvancedReportTask | null>(null);
+  const [expandedHistoryTask, setExpandedHistoryTask] = useState<AdvancedReportTask | null>(null);
   const [taskPendingDelete, setTaskPendingDelete] = useState<AdvancedReportTask | null>(null);
   const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
+  const [basicPeriodByTemplate, setBasicPeriodByTemplate] = useState<Partial<Record<ReportTemplateId, ReportPeriod>>>({});
+  const [advancedPeriodByTemplate, setAdvancedPeriodByTemplate] = useState<Record<string, ReportPeriod>>({});
   const [advancedOutputShapeByTemplate, setAdvancedOutputShapeByTemplate] = useState<Record<string, string>>({});
   const [advancedUserPromptByTemplate, setAdvancedUserPromptByTemplate] = useState<Record<string, string>>({});
   const [seenAdvancedTaskIds, setSeenAdvancedTaskIds] = useState<string[]>(() => loadSeenAdvancedTaskIds());
@@ -252,6 +257,9 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
   }
   const selectedAdvancedTemplate =
     advancedReport.templates.find((item) => item.id === selectedAdvancedTemplateId) ?? null;
+  const selectedAdvancedPeriod = selectedAdvancedTemplate
+    ? (advancedPeriodByTemplate[selectedAdvancedTemplate.id] ?? selectedAdvancedTemplate.defaultReportPeriod)
+    : "all";
   const selectedAdvancedOutputShape = selectedAdvancedTemplate
     ? (advancedOutputShapeByTemplate[selectedAdvancedTemplate.id] ?? selectedAdvancedTemplate.defaultOutputShape)
     : "";
@@ -261,7 +269,8 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
   const selectedAdvancedOutputShapeName =
     selectedAdvancedTemplate?.outputShapes.find((shape) => shape.id === selectedAdvancedOutputShape)?.name ??
     selectedAdvancedOutputShape;
-  const selectedPeriodLabel = periodOptions.find((item) => item.value === period)?.label ?? "今年";
+  const selectedBasicPeriod = selectedTemplateId ? (basicPeriodByTemplate[selectedTemplateId] ?? "all") : "all";
+  const selectedAdvancedPeriodLabel = periodOptions.find((item) => item.value === selectedAdvancedPeriod)?.label ?? "全部";
   const selectedAdvancedTemplateTasks = selectedAdvancedTemplateId
     ? advancedReport.tasks
         .filter((task) => task.templateId === selectedAdvancedTemplateId)
@@ -271,9 +280,15 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
     selectedAdvancedTemplateId && selectedTask?.templateId === selectedAdvancedTemplateId
       ? selectedTask
       : null;
+  const expandedTemplateHistoryTask =
+    selectedAdvancedTemplateId && expandedHistoryTask?.templateId === selectedAdvancedTemplateId
+      ? expandedHistoryTask
+      : null;
   const selectedTemplateCurrentTask = selectedAdvancedTemplateId ? taskByTemplate.get(selectedAdvancedTemplateId) : null;
   const selectedTemplateCurrentTaskActive =
     selectedTemplateCurrentTask?.status === "running" || selectedTemplateCurrentTask?.status === "preparing";
+  const selectedDetailTaskActive =
+    selectedTemplateDetailTask?.status === "running" || selectedTemplateDetailTask?.status === "preparing";
   const selectedDetailTaskLogs = selectedTemplateDetailTask
     ? (advancedReport.logsByJob[selectedTemplateDetailTask.jobId] ?? [])
     : [];
@@ -283,6 +298,21 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
     ? lastVisibleLine(selectedDetailTaskLatestBlock.text)
     : "";
   const selectedDetailTaskBriefLine = leadingEllipsisLine(selectedDetailTaskLatestLine || "正在等待新的输出。");
+  const selectedDetailTaskOutput =
+    selectedTemplateDetailTask && advancedReport.output?.jobId === selectedTemplateDetailTask.jobId
+      ? advancedReport.output
+      : null;
+  const selectedDetailTaskReportAvailable =
+    Boolean(selectedDetailTaskOutput?.reportHtml) || selectedTemplateDetailTask?.status === "completed";
+  const expandedHistoryTaskLogs = expandedTemplateHistoryTask
+    ? (advancedReport.logsByJob[expandedTemplateHistoryTask.jobId] ?? [])
+    : [];
+  const expandedHistoryOutputBlocks = buildModelOutputBlocks(expandedHistoryTaskLogs);
+  const expandedHistoryLatestBlock = latestModelOutputBlock(expandedHistoryOutputBlocks);
+  const expandedHistoryLatestLine = expandedHistoryLatestBlock
+    ? lastVisibleLine(expandedHistoryLatestBlock.text)
+    : "";
+  const expandedHistoryBriefLine = leadingEllipsisLine(expandedHistoryLatestLine || "正在等待新的输出。");
   const showAdvancedSettings = Boolean(selectedAdvancedTemplate && advancedSettingsOpen);
   const supportedAgentOptions = agentBridge.agents.filter((agent) => !agent.unsupported);
   const availableAgents = agentBridge.agents.filter((agent) => agent.available && !agent.unsupported);
@@ -293,10 +323,15 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
 
   useEffect(() => {
     if (apiKeySet) {
-      void report.loadReport(period);
+      void report.loadReport(selectedBasicPeriod);
       void agentBridge.detectAgents();
     }
-  }, [apiKeySet, period]);
+  }, [apiKeySet, selectedBasicPeriod]);
+
+  useEffect(() => {
+    if (!apiKeySet || report.refreshVersion === 0) return;
+    void report.loadReport(selectedBasicPeriod, true);
+  }, [apiKeySet, report.refreshVersion, selectedBasicPeriod]);
 
   useEffect(() => {
     if (!defaultAgent) return;
@@ -307,21 +342,22 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
   useEffect(() => {
     setActionError(null);
     setActionNotice(null);
-  }, [period, selectedTemplateId, report.data]);
+  }, [selectedBasicPeriod, selectedTemplateId, report.data]);
 
   useEffect(() => {
-    if (!selectedTemplateId && !selectedAdvancedTemplateId && !selectedTask && !taskPendingDelete) return;
+    if (!selectedTemplateId && !selectedAdvancedTemplateId && !selectedTask && !expandedHistoryTask && !taskPendingDelete) return;
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setSelectedTemplateId(null);
         setSelectedAdvancedTemplateId(null);
         setSelectedTask(null);
+        setExpandedHistoryTask(null);
         setTaskPendingDelete(null);
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedTemplateId, selectedAdvancedTemplateId, selectedTask, taskPendingDelete]);
+  }, [selectedTemplateId, selectedAdvancedTemplateId, selectedTask, expandedHistoryTask, taskPendingDelete]);
 
   useEffect(() => {
     if (!selectedTask) return;
@@ -332,9 +368,22 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
   }, [advancedReport.tasks, selectedTask]);
 
   useEffect(() => {
+    if (!expandedHistoryTask) return;
+    const latest = advancedReport.tasks.find((task) => task.jobId === expandedHistoryTask.jobId);
+    if (latest && latest.updatedAt !== expandedHistoryTask.updatedAt) {
+      setExpandedHistoryTask(latest);
+    }
+  }, [advancedReport.tasks, expandedHistoryTask]);
+
+  useEffect(() => {
     if (!selectedTemplateDetailTask) return;
     void advancedReport.readLogs(selectedTemplateDetailTask.jobId);
   }, [selectedTemplateDetailTask?.jobId]);
+
+  useEffect(() => {
+    if (!expandedTemplateHistoryTask) return;
+    void advancedReport.readLogs(expandedTemplateHistoryTask.jobId);
+  }, [expandedTemplateHistoryTask?.jobId]);
 
   useEffect(() => {
     if (!selectedTemplateDetailTask || selectedTemplateDetailTask.status !== "completed") return;
@@ -403,7 +452,7 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
         forceRefresh: false,
         outputShape,
         userPrompt: userPrompt || null,
-        reportPeriod: period,
+        reportPeriod: selectedAdvancedPeriod,
         agent: selectedAgent.id,
       });
       setSelectedTask(task);
@@ -414,13 +463,17 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
     }
   }
 
-  async function openAdvancedTask(task: AdvancedReportTask) {
-    setSelectedTask(task);
+  async function toggleHistoryTask(task: AdvancedReportTask) {
+    if (expandedHistoryTask?.jobId === task.jobId) {
+      setExpandedHistoryTask(null);
+      return;
+    }
+    setExpandedHistoryTask(task);
     setActionError(null);
     try {
-      const output = await advancedReport.readOutput(task.jobId);
-      if (!output.reportHtml && task.status === "completed") {
-        setActionError("任务已完成，但没有找到报告");
+      await advancedReport.readLogs(task.jobId);
+      if (task.status === "completed") {
+        await advancedReport.readOutput(task.jobId);
       }
     } catch (error) {
       if (task.status === "completed") {
@@ -457,6 +510,9 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
       if (selectedTask?.jobId === task.jobId) {
         setSelectedTask(null);
       }
+      if (expandedHistoryTask?.jobId === task.jobId) {
+        setExpandedHistoryTask(null);
+      }
       setTaskPendingDelete(null);
       setActionNotice(deleted ? "已删除这条历史记录" : "这条历史记录已经不存在");
     } catch (error) {
@@ -466,6 +522,12 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
 
   async function openAdvancedTemplateDetail(templateId: string) {
     const template = advancedReport.templates.find((item) => item.id === templateId);
+    if (template && !advancedPeriodByTemplate[templateId]) {
+      setAdvancedPeriodByTemplate((current) => ({
+        ...current,
+        [templateId]: template.defaultReportPeriod,
+      }));
+    }
     if (template && !advancedOutputShapeByTemplate[templateId]) {
       setAdvancedOutputShapeByTemplate((current) => ({
         ...current,
@@ -477,6 +539,7 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
     const currentTaskSeen = currentTask ? seenAdvancedTaskIds.includes(currentTask.jobId) : false;
     const shouldOpenTask = Boolean(currentTask && (currentTaskActive || !currentTaskSeen));
     setSelectedTask(shouldOpenTask ? currentTask ?? null : null);
+    setExpandedHistoryTask(null);
     if (currentTask && currentTask.status !== "running" && currentTask.status !== "preparing") {
       setSeenAdvancedTaskIds((current) => {
         if (current.includes(currentTask.jobId)) return current;
@@ -539,7 +602,27 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
   return (
     <PageShell
       title={selectedAdvancedTemplate ? selectedAdvancedTemplate.name : "阅读报告"}
-      subtitle={selectedAdvancedTemplate ? selectedAdvancedTemplate.description : undefined}
+      titleAccessory={
+        selectedAdvancedTemplate ? undefined : (
+          <SegmentedControl
+            className="report-template-tabs"
+            ariaLabel="模板类型"
+            value={templateTab}
+            onChange={setTemplateTab}
+            options={[
+              { value: "basic", label: "基础模板" },
+              { value: "advanced", label: "智能体模板" },
+            ]}
+          />
+        )
+      }
+      subtitle={
+        selectedAdvancedTemplate
+          ? selectedAdvancedTemplate.description
+          : templateTab === "basic"
+            ? "不调用大模型，直接基于本地整理后的阅读数据生成报告，千人一面。"
+            : "使用大模型生成报告，选择一个模版，点击开始生成，千人千面。"
+      }
       backAction={
         selectedAdvancedTemplate
           ? {
@@ -547,19 +630,10 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
               onClick: () => {
                 setSelectedAdvancedTemplateId(null);
                 setSelectedTask(null);
+                setExpandedHistoryTask(null);
               },
             }
           : undefined
-      }
-      action={
-        <Button
-          variant="secondary"
-          icon={<RefreshCw size={16} />}
-          disabled={report.loading}
-          onClick={() => void report.loadReport(period, true)}
-        >
-          刷新数据
-        </Button>
       }
     >
       <ErrorBanner message={report.error ?? advancedReport.error ?? agentBridge.error ?? actionError} />
@@ -619,12 +693,82 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
           </section>
 
           <div className="advanced-template-workspace">
+            {selectedTemplateDetailTask ? (
+              <section className="advanced-template-panel advanced-template-result">
+                <div className="template-detail-section-title">
+                  <span>
+                    {selectedDetailTaskActive
+                      ? "生成过程"
+                      : selectedTemplateDetailTask.status === "completed"
+                        ? "最后一次任务"
+                        : "上次任务"}
+                  </span>
+                  <p>{selectedDetailTaskActive ? "这次任务正在后台生成。" : "从模板卡片进入时展示的最近一次任务。"}</p>
+                </div>
+                <TaskStateCard
+                  label={advancedTaskStatus(selectedTemplateDetailTask).label}
+                  tone={advancedTaskStatus(selectedTemplateDetailTask).tone as "success" | "running" | "danger" | "muted"}
+                  title={
+                    selectedDetailTaskActive
+                      ? "正在生成报告"
+                      : selectedTemplateDetailTask.status === "completed"
+                        ? "报告已生成"
+                        : "报告未完成"
+                  }
+                  description={
+                    selectedDetailTaskActive
+                      ? "可以离开当前页面，生成完成后会留在历史记录里。"
+                      : selectedTemplateDetailTask.status === "completed"
+                        ? "可以直接用浏览器打开查看完整报告。"
+                        : selectedTemplateDetailTask.message ?? "这次生成没有产出可查看的报告。"
+                  }
+                  actions={
+                    selectedDetailTaskActive ? (
+                      <Button variant="danger" onClick={() => void cancelTask(selectedTemplateDetailTask)}>
+                        取消生成
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          variant="secondary"
+                          icon={<Eye size={16} />}
+                          disabled={!selectedDetailTaskReportAvailable}
+                          onClick={() => void openAdvancedReport(selectedTemplateDetailTask)}
+                        >
+                          浏览器打开
+                        </Button>
+                        <Button
+                          variant="danger"
+                          icon={<Trash2 size={16} />}
+                          onClick={() => requestDeleteAdvancedJob(selectedTemplateDetailTask)}
+                        >
+                          删除任务
+                        </Button>
+                      </>
+                    )
+                  }
+                />
+
+                <ModelOutput
+                  blocks={selectedDetailTaskOutputBlocks}
+                  mode="detail"
+                  onModeChange={() => undefined}
+                  statusLabel={advancedTaskStatus(selectedTemplateDetailTask).label}
+                  latestLine={selectedDetailTaskLatestLine}
+                  briefLine={selectedDetailTaskBriefLine}
+                  latestKind={selectedDetailTaskLatestBlock?.kind}
+                  autoScrollToEnd
+                  hideModeSwitch
+                />
+              </section>
+            ) : null}
+
             <section className={`advanced-template-panel advanced-generation-config ${showAdvancedSettings ? "is-open" : ""}`}>
               <div className="advanced-generation-strip">
                 <div>
                   <span>生成配置</span>
                   <strong>
-                    {selectedPeriodLabel} · {selectedAdvancedOutputShapeName || "默认报告"} ·{" "}
+                    {selectedAdvancedPeriodLabel} · {selectedAdvancedOutputShapeName || "默认报告"} ·{" "}
                     {selectedAgent?.label ?? "未检测到 Agent"}
                   </strong>
                   <p>
@@ -641,7 +785,7 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
               {showAdvancedSettings ? (
                 <GenerationSettings
                   template={selectedAdvancedTemplate}
-                  period={period}
+                  period={selectedAdvancedPeriod}
                   periodOptions={periodOptions}
                   rawNotesConsent={rawNotesConsent}
                   supportedAgents={supportedAgentOptions}
@@ -650,7 +794,12 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                   outputShape={selectedAdvancedOutputShape}
                   userPrompt={selectedAdvancedUserPrompt}
                   maxUserPromptLength={USER_PROMPT_MAX_LENGTH}
-                  onPeriodChange={setPeriod}
+                  onPeriodChange={(nextPeriod) =>
+                    setAdvancedPeriodByTemplate((current) => ({
+                      ...current,
+                      [selectedAdvancedTemplate.id]: nextPeriod,
+                    }))
+                  }
                   onRawNotesConsentChange={setRawNotesConsent}
                   onAgentChange={setSelectedAgentId}
                   onOutputShapeChange={(shapeId) =>
@@ -683,18 +832,12 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                   const completed = task.status === "completed";
                   const active = task.status === "running" || task.status === "preparing";
                   const status = advancedTaskStatus(task);
-                  const expanded = selectedTemplateDetailTask?.jobId === task.jobId;
+                  const expanded = expandedTemplateHistoryTask?.jobId === task.jobId;
                   return (
                     <article
                       key={task.jobId}
                       className={`report-history-row ${expanded ? "is-expanded" : ""}`}
-                      onClick={() => {
-                        if (expanded) {
-                          setSelectedTask(null);
-                          return;
-                        }
-                        void openAdvancedTask(task);
-                      }}
+                      onClick={() => void toggleHistoryTask(task)}
                     >
                       <div>
                         <span className={`report-history-status ${status.tone}`}>{status.label}</span>
@@ -722,13 +865,13 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                       {expanded ? (
                         <div className="report-history-expanded">
                           <ModelOutput
-                            blocks={selectedDetailTaskOutputBlocks}
+                            blocks={expandedHistoryOutputBlocks}
                             mode="detail"
                             onModeChange={() => undefined}
                             statusLabel={status.label}
-                            latestLine={selectedDetailTaskLatestLine}
-                            briefLine={selectedDetailTaskBriefLine}
-                            latestKind={selectedDetailTaskLatestBlock?.kind}
+                            latestLine={expandedHistoryLatestLine}
+                            briefLine={expandedHistoryBriefLine}
+                            latestKind={expandedHistoryLatestBlock?.kind}
                             autoScrollToEnd
                             hideModeSwitch
                           />
@@ -751,26 +894,6 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
         ) : null}
 
         <section className="report-template-section">
-          <div className="report-section-heading">
-            <div>
-              <SegmentedControl
-                className="report-template-tabs"
-                ariaLabel="模板类型"
-                value={templateTab}
-                onChange={setTemplateTab}
-                options={[
-                  { value: "basic", label: "基础模板" },
-                  { value: "advanced", label: "智能体模板" },
-                ]}
-              />
-              <p>
-                {templateTab === "basic"
-                  ? "不调用大模型，直接基于本地整理后的阅读数据生成报告，千人一面。"
-                  : "使用大模型生成报告，选择一个模版，点击开始生成，千人千面。"}
-              </p>
-            </div>
-          </div>
-
           {templateTab === "basic" ? (
             <div className="report-template-grid">
               {reportTemplates.map((template) => (
@@ -785,7 +908,9 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                   meta={
                     <>
                       <small>无需大模型</small>
-                      <small>{selectedPeriodLabel}</small>
+                      <small>
+                        {periodOptions.find((option) => option.value === (basicPeriodByTemplate[template.id] ?? "all"))?.label ?? "全部"}
+                      </small>
                     </>
                   }
                 />
@@ -873,11 +998,17 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
 
                   <aside className="report-modal-actions">
                     <div>
-                      <span>时间范围</span>
+                      <span>数据时间范围</span>
                       <select
                         className="report-period-select"
-                        value={period}
-                        onChange={(event) => setPeriod(event.target.value as ReportPeriod)}
+                        value={selectedBasicPeriod}
+                        onChange={(event) => {
+                          if (!selectedTemplateId) return;
+                          setBasicPeriodByTemplate((current) => ({
+                            ...current,
+                            [selectedTemplateId]: event.target.value as ReportPeriod,
+                          }));
+                        }}
                       >
                         {periodOptions.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -887,15 +1018,12 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                       </select>
                     </div>
                     <Button
-                      variant="secondary"
+                      variant="primary"
                       icon={<Eye size={16} />}
                       disabled={!report.data || openingReport}
                       onClick={() => void previewReport()}
                     >
                       浏览器打开
-                    </Button>
-                    <Button variant="ghost" icon={<RefreshCw size={16} />} disabled={report.loading} onClick={() => void report.loadReport(period, true)}>
-                      刷新数据
                     </Button>
                     {openingReport ? <Spinner label="正在打开报告" /> : null}
                   </aside>

@@ -1,6 +1,6 @@
 import type { BookInfo } from "../../types";
 
-export type ReportPeriod = "month" | "year" | "all";
+export type ReportPeriod = "last_month" | "current_month" | "last_year" | "current_year" | "all";
 
 export type ReportTemplateId = "analysis" | "journey" | "annual";
 

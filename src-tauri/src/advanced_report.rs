@@ -1,6 +1,6 @@
 use crate::types::*;
 use agent_cli_bridge::{invoke_agent_with_handle, InvokeEvent, InvokeOpts};
-use chrono::Utc;
+use chrono::{Datelike, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -19,6 +19,7 @@ pub struct AdvancedReportTemplate {
     pub description: String,
     pub category: String,
     pub style_summary: String,
+    pub default_report_period: String,
     pub default_output_shape: String,
     pub output_shapes: Vec<AdvancedReportOutputShape>,
     pub requires_raw_notes_consent: bool,
@@ -171,6 +172,7 @@ struct BuiltinAdvancedTemplate {
     style_summary: &'static str,
     style_md: &'static str,
     prompt_md: &'static str,
+    default_report_period: &'static str,
     default_output_shape: &'static str,
     requires_raw_notes_consent: bool,
     default_capabilities: &'static [&'static str],
@@ -194,6 +196,7 @@ pub fn list_advanced_report_templates() -> Vec<AdvancedReportTemplate> {
             description: template.description.to_string(),
             category: template.category.to_string(),
             style_summary: template.style_summary.to_string(),
+            default_report_period: template.default_report_period.to_string(),
             default_output_shape: template.default_output_shape.to_string(),
             output_shapes: output_shapes()
                 .into_iter()
@@ -860,7 +863,7 @@ async fn prefetch_default_data(
     let mut scoped_notebooks_context = None;
     let mut scoped_stats_context = None;
     let mut overall_stats_context = None;
-    let period_start = report_period_start(report_period);
+    let (period_start, period_end) = report_period_bounds(report_period);
 
     if has_capability(template.default_capabilities, "shelf.sync") {
         let result = client.shelf_sync(force_refresh).await?;
@@ -870,7 +873,8 @@ async fn prefetch_default_data(
 
     if has_capability(template.default_capabilities, "notes.notebooks") {
         let notebooks = load_all_notebooks(client, force_refresh).await?;
-        let scoped_notebooks = filter_notebooks_for_period(notebooks, period_start);
+        let scoped_notebooks =
+            scope_notebooks_for_period(client, notebooks, force_refresh, period_start, period_end).await?;
         write_data_file(
             data_dir,
             "notebooks.selected.json",
@@ -906,13 +910,17 @@ async fn prefetch_default_data(
     {
         let notebooks = match notebooks_for_notes {
             Some(notebooks) => notebooks,
-            None => filter_notebooks_for_period(
+            None => scope_notebooks_for_period(
+                client,
                 load_all_notebooks(client, force_refresh).await?,
+                force_refresh,
                 period_start,
-            ),
+                period_end,
+            )
+            .await?,
         };
         let notes =
-            load_raw_notes_for_report(client, &notebooks, force_refresh, period_start).await?;
+            load_raw_notes_for_report(client, &notebooks, force_refresh, period_start, period_end).await?;
         write_data_file(data_dir, "notes.raw.json", &notes, &mut data_index)?;
     }
 
@@ -950,6 +958,17 @@ fn build_profile_summary(
         .map(|stats| stats.total_read_time)
         .unwrap_or(scoped_reading_seconds);
     let note_totals = notebooks.map(notebook_note_totals);
+    let selected_note_count = if report_period == "all" {
+        read_stat_number(scoped_stats, "笔记")
+            .or_else(|| note_totals.as_ref().map(|totals| totals.total))
+            .unwrap_or(0)
+    } else {
+        note_totals
+            .as_ref()
+            .map(|totals| totals.total)
+            .or_else(|| read_stat_number(scoped_stats, "笔记"))
+            .unwrap_or(0)
+    };
 
     json!({
         "version": 1,
@@ -993,21 +1012,14 @@ fn build_profile_summary(
             "readBooks": read_stat_number(scoped_stats, "读过"),
             "finishedBooks": read_stat_number(scoped_stats, "读完"),
             "readDays": scoped_stats.map(|stats| stats.read_days).unwrap_or(0),
-            "noteCount": read_stat_number(scoped_stats, "笔记")
-                .or_else(|| note_totals.as_ref().map(|totals| totals.total))
-                .unwrap_or(0),
+            "noteCount": selected_note_count,
             "readingTime": reading_time_display(scoped_reading_seconds)
         },
         "selectedPeriodDisplay": {
             "readBooks": optional_count_label(read_stat_number(scoped_stats, "读过"), "本"),
             "finishedBooks": optional_count_label(read_stat_number(scoped_stats, "读完"), "本"),
             "readDays": count_label_i32(scoped_stats.map(|stats| stats.read_days).unwrap_or(0), "天"),
-            "noteCount": count_label_i32(
-                read_stat_number(scoped_stats, "笔记")
-                    .or_else(|| note_totals.as_ref().map(|totals| totals.total))
-                    .unwrap_or(0),
-                "条"
-            ),
+            "noteCount": count_label_i32(selected_note_count, "条"),
             "readingTime": reading_time_display(scoped_reading_seconds)
         },
         "shelf": shelf.map(|item| json!({
@@ -1184,6 +1196,7 @@ async fn load_raw_notes_for_report(
     notebooks: &NotebooksResult,
     force_refresh: bool,
     period_start: Option<i64>,
+    period_end: Option<i64>,
 ) -> Result<Value, String> {
     let mut books = Vec::new();
 
@@ -1196,7 +1209,7 @@ async fn load_raw_notes_for_report(
             let mut result = client
                 .bookmark_list_with_cache(&notebook.book_id, force_refresh)
                 .await?;
-            result.bookmarks = filter_by_period(result.bookmarks, period_start, |bookmark| {
+            result.bookmarks = filter_by_period(result.bookmarks, period_start, period_end, |bookmark| {
                 bookmark.create_time
             });
             result
@@ -1207,6 +1220,7 @@ async fn load_raw_notes_for_report(
             filter_by_period(
                 load_all_reviews(client, &notebook.book_id, force_refresh).await?,
                 period_start,
+                period_end,
                 |review| review.create_time,
             )
         } else {
@@ -1236,35 +1250,84 @@ async fn load_raw_notes_for_report(
     }))
 }
 
-fn filter_notebooks_for_period(
+async fn scope_notebooks_for_period(
+    client: &crate::api::WeReadClient,
     mut notebooks: NotebooksResult,
+    force_refresh: bool,
     period_start: Option<i64>,
-) -> NotebooksResult {
-    if let Some(start) = period_start {
-        notebooks.books.retain(|book| book.sort >= start);
-        notebooks.total_book_count = notebooks.books.len() as i32;
-        notebooks.total_note_count = notebooks
-            .books
-            .iter()
-            .map(|book| book.review_count + book.note_count + book.bookmark_count)
-            .sum();
-        notebooks.has_more = 0;
+    period_end: Option<i64>,
+) -> Result<NotebooksResult, String> {
+    if period_start.is_none() && period_end.is_none() {
+        return Ok(notebooks);
     }
-    notebooks
+
+    let mut scoped_books = Vec::new();
+    for mut book in notebooks
+        .books
+        .into_iter()
+        .filter(|book| period_start.map(|start| book.sort >= start).unwrap_or(true))
+    {
+        let bookmark_count = if book.note_count > 0 {
+            let result = client
+                .bookmark_list_with_cache(&book.book_id, force_refresh)
+                .await?;
+            filter_by_period(result.bookmarks, period_start, period_end, |bookmark| {
+                bookmark.create_time
+            })
+            .len() as i32
+        } else {
+            0
+        };
+        let review_count = if book.review_count > 0 {
+            filter_by_period(
+                load_all_reviews(client, &book.book_id, force_refresh).await?,
+                period_start,
+                period_end,
+                |review| review.create_time,
+            )
+            .len() as i32
+        } else {
+            0
+        };
+
+        book.note_count = bookmark_count;
+        book.review_count = review_count;
+        book.bookmark_count = 0;
+
+        if book.note_count > 0 || book.review_count > 0 {
+            scoped_books.push(book);
+        }
+    }
+
+    notebooks.books = scoped_books;
+    notebooks.total_book_count = notebooks.books.len() as i32;
+    notebooks.total_note_count = notebooks
+        .books
+        .iter()
+        .map(|book| book.review_count + book.note_count + book.bookmark_count)
+        .sum();
+    notebooks.has_more = 0;
+    Ok(notebooks)
 }
 
 fn filter_by_period<T>(
     items: Vec<T>,
     period_start: Option<i64>,
+    period_end: Option<i64>,
     timestamp: impl Fn(&T) -> i64,
 ) -> Vec<T> {
-    match period_start {
-        Some(start) => items
-            .into_iter()
-            .filter(|item| timestamp(item) >= start)
-            .collect(),
-        None => items,
+    if period_start.is_none() && period_end.is_none() {
+        return items;
     }
+    items
+        .into_iter()
+        .filter(|item| timestamp_in_period(timestamp(item), period_start, period_end))
+        .collect()
+}
+
+fn timestamp_in_period(timestamp: i64, period_start: Option<i64>, period_end: Option<i64>) -> bool {
+    period_start.map(|start| timestamp >= start).unwrap_or(true)
+        && period_end.map(|end| timestamp < end).unwrap_or(true)
 }
 
 async fn load_all_reviews(
@@ -1325,6 +1388,7 @@ fn builtin_templates() -> Vec<BuiltinAdvancedTemplate> {
             style_summary: "私人档案、心理侧写、克制但有洞察。",
             style_md: PERSONALITY_STYLE,
             prompt_md: PERSONALITY_PROMPT,
+            default_report_period: "all",
             default_output_shape: "report",
             requires_raw_notes_consent: true,
             default_capabilities: &[
@@ -1348,6 +1412,7 @@ fn builtin_templates() -> Vec<BuiltinAdvancedTemplate> {
             style_summary: "知识地图、主题索引、结构化诊断。",
             style_md: KNOWLEDGE_STYLE,
             prompt_md: KNOWLEDGE_PROMPT,
+            default_report_period: "all",
             default_output_shape: "report",
             requires_raw_notes_consent: true,
             default_capabilities: &[
@@ -1371,6 +1436,7 @@ fn builtin_templates() -> Vec<BuiltinAdvancedTemplate> {
             style_summary: "路线图、阶段计划、轻量行动建议。",
             style_md: GROWTH_STYLE,
             prompt_md: GROWTH_PROMPT,
+            default_report_period: "all",
             default_output_shape: "report",
             requires_raw_notes_consent: false,
             default_capabilities: &[
@@ -1394,6 +1460,7 @@ fn builtin_templates() -> Vec<BuiltinAdvancedTemplate> {
             style_summary: "年度标签、关键词档案、适合截图传播。",
             style_md: ANNUAL_KEYWORDS_STYLE,
             prompt_md: ANNUAL_KEYWORDS_PROMPT,
+            default_report_period: "last_year",
             default_output_shape: "xiaohongshu",
             requires_raw_notes_consent: false,
             default_capabilities: &[
@@ -1417,6 +1484,7 @@ fn builtin_templates() -> Vec<BuiltinAdvancedTemplate> {
             style_summary: "书单榜、选择理由、私人推荐语。",
             style_md: TOP_BOOKS_STYLE,
             prompt_md: TOP_BOOKS_PROMPT,
+            default_report_period: "last_year",
             default_output_shape: "xiaohongshu",
             requires_raw_notes_consent: false,
             default_capabilities: &[
@@ -1440,6 +1508,7 @@ fn builtin_templates() -> Vec<BuiltinAdvancedTemplate> {
             style_summary: "雷达图、坐标轴、可解释的偏好分数。",
             style_md: READING_RADAR_STYLE,
             prompt_md: READING_RADAR_PROMPT,
+            default_report_period: "all",
             default_output_shape: "slides",
             requires_raw_notes_consent: false,
             default_capabilities: &[
@@ -1463,6 +1532,7 @@ fn builtin_templates() -> Vec<BuiltinAdvancedTemplate> {
             style_summary: "精选书架、短句摘录、个人主题陈列。",
             style_md: SPIRIT_BOOKSHELF_STYLE,
             prompt_md: SPIRIT_BOOKSHELF_PROMPT,
+            default_report_period: "all",
             default_output_shape: "xiaohongshu",
             requires_raw_notes_consent: true,
             default_capabilities: &[
@@ -1542,10 +1612,12 @@ fn normalize_report_period(report_period: Option<&str>) -> Result<&'static str, 
     match report_period
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .unwrap_or("year")
+        .unwrap_or("current_year")
     {
-        "month" => Ok("month"),
-        "year" => Ok("year"),
+        "month" | "current_month" => Ok("current_month"),
+        "year" | "current_year" => Ok("current_year"),
+        "last_month" => Ok("last_month"),
+        "last_year" => Ok("last_year"),
         "all" => Ok("all"),
         other => Err(format!("未知报告数据范围: {other}")),
     }
@@ -1553,7 +1625,10 @@ fn normalize_report_period(report_period: Option<&str>) -> Result<&'static str, 
 
 fn report_period_label(report_period: &str) -> &'static str {
     match report_period {
-        "month" => "本月",
+        "last_month" => "上个月",
+        "current_month" => "本月",
+        "last_year" => "去年",
+        "current_year" => "今年",
         "all" => "全部",
         _ => "今年",
     }
@@ -1763,7 +1838,7 @@ fn build_agent_brief(
 
 - rawNotesConsent: {raw_notes_consent}
 - 不要编造不存在的书、笔记、阅读行为或个人经历。
-- `report.html` 必须出现清晰的软件标识：`WeRead Skill Desktop`。
+- `report.html` 底部必须同时出现两类来源：`数据来源：微信读书官方 Skill`，以及面向分享读者的开源项目入口。建议文案为“也想生成自己的阅读报告？”、“这份报告由开源桌面工具整理生成，你可以在 GitHub 获取项目。”，并展示仓库地址 `https://github.com/Duosl/weread-skill-desktop`。不要只写软件名或只裸露 URL。
 
 ## 本次自定义要求
 
@@ -1917,8 +1992,11 @@ fn validate_output(report_html: Option<&str>) -> AdvancedReportValidation {
             if html.contains("这个用户") || html.contains("该用户") {
                 warnings.push("分析版仍包含第三人称用户称呼".to_string());
             }
-            if !html.contains("WeRead Skill Desktop") {
-                warnings.push("分析版缺少 WeRead Skill Desktop 软件标识".to_string());
+            if !html.contains("https://github.com/Duosl/weread-skill-desktop") {
+                warnings.push("分析版缺少开源项目 GitHub 地址".to_string());
+            }
+            if !html.contains("微信读书官方 Skill") {
+                warnings.push("分析版缺少微信读书官方 Skill 数据来源说明".to_string());
             }
             let evidence_markers = [
                 "证据",
@@ -1996,42 +2074,56 @@ fn has_capability(capabilities: &[&str], target: &str) -> bool {
     capabilities.iter().any(|item| *item == target)
 }
 
-fn year_base_time() -> i64 {
-    Utc::now()
-        .date_naive()
-        .with_month(1)
-        .and_then(|date| date.with_day(1))
+fn timestamp_for_ymd(year: i32, month: u32, day: u32) -> i64 {
+    chrono::NaiveDate::from_ymd_opt(year, month, day)
         .and_then(|date| date.and_hms_opt(0, 0, 0))
         .map(|date| date.and_utc().timestamp())
         .unwrap_or(0)
 }
 
-fn month_base_time() -> i64 {
-    Utc::now()
-        .date_naive()
-        .with_day(1)
-        .and_then(|date| date.and_hms_opt(0, 0, 0))
-        .map(|date| date.and_utc().timestamp())
-        .unwrap_or(0)
+fn current_year_start() -> i64 {
+    timestamp_for_ymd(Utc::now().year(), 1, 1)
 }
 
-fn report_period_start(report_period: &str) -> Option<i64> {
+fn last_year_start() -> i64 {
+    timestamp_for_ymd(Utc::now().year() - 1, 1, 1)
+}
+
+fn current_month_start() -> i64 {
+    let now = Utc::now();
+    timestamp_for_ymd(now.year(), now.month(), 1)
+}
+
+fn last_month_start() -> i64 {
+    let now = Utc::now();
+    let (year, month) = if now.month() == 1 {
+        (now.year() - 1, 12)
+    } else {
+        (now.year(), now.month() - 1)
+    };
+    timestamp_for_ymd(year, month, 1)
+}
+
+fn report_period_bounds(report_period: &str) -> (Option<i64>, Option<i64>) {
     match report_period {
-        "month" => Some(month_base_time()),
-        "year" => Some(year_base_time()),
-        _ => None,
+        "last_month" => (Some(last_month_start()), Some(current_month_start())),
+        "current_month" => (Some(current_month_start()), None),
+        "last_year" => (Some(last_year_start()), Some(current_year_start())),
+        "current_year" => (Some(current_year_start()), None),
+        _ => (None, None),
     }
 }
 
 fn reading_stats_request_for_period(report_period: &str) -> (&'static str, i64, &'static str) {
     match report_period {
-        "month" => ("monthly", month_base_time(), "reading-stats.month.json"),
+        "last_month" => ("monthly", last_month_start(), "reading-stats.last-month.json"),
+        "current_month" => ("monthly", current_month_start(), "reading-stats.current-month.json"),
+        "last_year" => ("annually", last_year_start(), "reading-stats.last-year.json"),
+        "current_year" => ("annually", current_year_start(), "reading-stats.current-year.json"),
         "all" => ("overall", 0, "reading-stats.selected.json"),
-        _ => ("annually", year_base_time(), "reading-stats.year.json"),
+        _ => ("annually", current_year_start(), "reading-stats.current-year.json"),
     }
 }
-
-use chrono::Datelike;
 
 const PERSONALITY_STYLE: &str = r#"# 阅读人格分析风格
 
