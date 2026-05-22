@@ -5,11 +5,12 @@ import {
   Eye,
   EyeOff,
   KeyRound,
-  Link2,
   RefreshCw,
   Trash2,
+  UploadCloud,
   X,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -35,23 +36,15 @@ export function ConnectorsPage({
   onClearImaCredentials,
   onSaveImaTarget,
 }: ConnectorsPageProps) {
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const configured = settings.imaClientIdSet && settings.imaApiKeySet;
+  const syncReady = configured && Boolean(settings.imaKnowledgeBaseId);
   const targetName = settings.imaKnowledgeBaseName;
 
   return (
     <PageShell title="连接器" className="connectors-shell">
       <div className="connectors-page">
-        <div className="connectors-intro">
-          <div>
-            <p className="eyebrow">外部知识库</p>
-            <h2>把阅读档案连接到你的资料库</h2>
-            <p>
-              当前支持 ima。配置连接后，可以选择一个知识库，后续把微信读书划线和个人想法导入进去。
-            </p>
-          </div>
-        </div>
-
         <div className="connector-grid">
           <Card className="connector-card">
             <div className="connector-card-header">
@@ -69,14 +62,14 @@ export function ConnectorsPage({
                 {configured ? "已配置" : "未配置"}
               </span>
               {targetName ? (
-                <span className="connector-target">默认知识库：{targetName}</span>
+                <span className="connector-target">已选知识库：{targetName}</span>
               ) : (
-                <span className="connector-target muted">尚未选择默认知识库</span>
+                <span className="connector-target muted">尚未选择知识库</span>
               )}
             </div>
 
             <div className="connector-note">
-              ima 暂不支持在本应用中新建知识库。列表为空时，请先在 ima 中手动创建一个知识库。
+              ima 暂不支持在本应用中新建知识库。无可选知识库时，请先在 ima 中手动创建一个，推荐为微信读书创建一个独立的笔记知识库。
             </div>
 
             <div className="connector-actions">
@@ -86,6 +79,14 @@ export function ConnectorsPage({
                 onClick={() => setDialogOpen(true)}
               >
                 配置
+              </Button>
+              <Button
+                variant="secondary"
+                icon={<UploadCloud size={16} />}
+                disabled={!syncReady}
+                onClick={() => navigate("/notes?tab=export")}
+              >
+                去同步
               </Button>
             </div>
           </Card>
@@ -135,6 +136,11 @@ function ImaConfigDialog({
   const configured = settings.imaClientIdSet && settings.imaApiKeySet;
   const canSave = clientIdDraft.trim().length >= 4 && apiKeyDraft.trim().length >= 8;
   const visibleMessage = localMessage ?? ima.message;
+
+  useEffect(() => {
+    if (!configured) return;
+    void ima.loadKnowledgeBases().catch(() => undefined);
+  }, [configured, ima.loadKnowledgeBases]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -291,24 +297,23 @@ function ImaConfigDialog({
           </section>
 
           <section className="connector-panel">
-            <div className="connector-panel-heading">
+            <div className="connector-panel-heading connector-panel-heading-with-action">
               <Database size={18} />
-              <div>
-                <h3>知识库</h3>
-                <p>连接成功后选择默认导入目标。</p>
+              <div className="connector-panel-heading-content">
+                <div className="connector-panel-title-row">
+                  <h3>知识库</h3>
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    icon={<RefreshCw size={14} />}
+                    disabled={!configured || ima.loading}
+                    onClick={() => void ima.loadKnowledgeBases(true)}
+                  >
+                    刷新知识库
+                  </Button>
+                </div>
+                <p>只显示你自己创建的个人知识库，共享知识库不会出现在这里。</p>
               </div>
-            </div>
-
-            <div className="connector-panel-actions">
-              <Button
-                variant="secondary"
-                size="small"
-                icon={<RefreshCw size={14} />}
-                disabled={!configured || ima.loading}
-                onClick={() => void ima.loadKnowledgeBases()}
-              >
-                刷新知识库
-              </Button>
             </div>
 
             {!configured ? (
@@ -317,8 +322,8 @@ function ImaConfigDialog({
               <Spinner label="正在读取知识库" />
             ) : ima.knowledgeBases.length === 0 ? (
               <EmptyState
-                title="没有可添加的知识库"
-                description="ima 暂不支持在本应用中新建知识库，请先在 ima 中手动创建一个知识库。"
+                title="没有你自己创建的知识库"
+                description="共享知识库不会显示。ima 暂不支持在本应用中新建知识库，请先在 ima 中手动创建一个。"
               />
             ) : (
               <div className="knowledge-base-list">
@@ -341,7 +346,7 @@ function ImaConfigDialog({
                       {targetSaving === item.id ? (
                         <span className="connector-mini-status">保存中</span>
                       ) : selected ? (
-                        <span className="connector-mini-status ok">默认</span>
+                        <span className="connector-mini-status ok">已选择</span>
                       ) : (
                         <span className="connector-mini-status">选择</span>
                       )}
@@ -350,12 +355,8 @@ function ImaConfigDialog({
                 })}
               </div>
             )}
-
-            <div className="connector-cache-note">
-              <Link2 size={14} />
-              <span>后续导入会优先使用本地已缓存的微信读书接口数据，缺少数据时再读取接口补齐。</span>
-            </div>
           </section>
+
         </div>
       </div>
     </div>

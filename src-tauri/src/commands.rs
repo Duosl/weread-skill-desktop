@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 static REPORT_PREVIEW_SERVER: OnceLock<ReportPreviewServer> = OnceLock::new();
 static REPORT_PREVIEW_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -101,10 +101,11 @@ pub async fn test_ima_connection() -> Result<ImaConnectionTestResult, String> {
 pub async fn list_addable_ima_knowledge_bases(
     cursor: Option<String>,
     limit: Option<u32>,
+    force_refresh: Option<bool>,
 ) -> Result<ImaKnowledgeBasePage, String> {
     let config = AppConfig::load();
     crate::ima::ImaClient::from_config(&config)?
-        .list_addable_knowledge_bases(cursor, limit)
+        .list_own_knowledge_bases(cursor, limit, force_refresh.unwrap_or(false))
         .await
 }
 
@@ -121,6 +122,202 @@ pub async fn save_ima_target(
     config.ima_knowledge_base_name = Some(knowledge_base_name.trim().to_string());
     config.save()?;
     Ok(config.to_settings())
+}
+
+#[tauri::command]
+pub async fn sync_books_to_ima(
+    app: AppHandle,
+    state: State<'_, RuntimeState>,
+    options: ImaSyncOptions,
+) -> Result<ImaSyncResult, String> {
+    let config = AppConfig::load();
+    let knowledge_base_id = config
+        .ima_knowledge_base_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "请先选择要同步到的 ima 知识库".to_string())?
+        .to_string();
+    let ima_client = crate::ima::ImaClient::from_config(&config)?;
+    let weread_client = state.client().await?;
+
+    let book_ids = if options.book_ids.is_empty() {
+        load_all_notebook_book_ids(&weread_client).await?
+    } else {
+        options.book_ids.clone()
+    };
+    if book_ids.is_empty() {
+        return Err("没有找到可同步的微信读书笔记".to_string());
+    }
+
+    let export_options = ExportOptions {
+        book_ids: book_ids.clone(),
+        format: "markdown".to_string(),
+        output_dir: String::new(),
+        include_bookmarks: options.include_bookmarks,
+        include_reviews: options.include_reviews,
+        group_by_chapter: options.group_by_chapter,
+    };
+
+    let total = book_ids.len();
+    let mut results = Vec::new();
+    for (index, book_id) in book_ids.iter().enumerate() {
+        let result =
+            match crate::export::load_export_book(&weread_client, book_id, &export_options).await {
+                Ok(book) => {
+                    let display_title = display_book_title(&book.title);
+                    if book.bookmarks.is_empty() && book.reviews.is_empty() {
+                        ImaSyncBookResult {
+                            book_id: book.book_id,
+                            title: display_title,
+                            status: "skipped".to_string(),
+                            message: "这本书没有可同步的划线或想法".to_string(),
+                            note_id: None,
+                            media_id: None,
+                        }
+                    } else {
+                        match sync_one_book_to_ima(
+                            &ima_client,
+                            &knowledge_base_id,
+                            &display_title,
+                            build_ima_markdown(
+                                &display_title,
+                                &crate::export::build_markdown(&book, &export_options),
+                            ),
+                        )
+                        .await
+                        {
+                            Ok((note_id, media_id, reused_note)) => ImaSyncBookResult {
+                                book_id: book.book_id,
+                                title: display_title,
+                                status: "success".to_string(),
+                                message: if reused_note {
+                                    "已将已有 ima 笔记重新加入知识库".to_string()
+                                } else {
+                                    "已同步到 ima 知识库".to_string()
+                                },
+                                note_id: Some(note_id),
+                                media_id: Some(media_id),
+                            },
+                            Err(error) => ImaSyncBookResult {
+                                book_id: book.book_id,
+                                title: display_title,
+                                status: "failed".to_string(),
+                                message: error,
+                                note_id: None,
+                                media_id: None,
+                            },
+                        }
+                    }
+                }
+                Err(error) => ImaSyncBookResult {
+                    book_id: book_id.clone(),
+                    title: fallback_book_title(&weread_client, book_id).await,
+                    status: "failed".to_string(),
+                    message: error,
+                    note_id: None,
+                    media_id: None,
+                },
+            };
+        let progress_title = result.title.clone();
+        results.push(result);
+        let _ = app.emit(
+            "ima-sync-progress",
+            ImaSyncProgressPayload {
+                current: index + 1,
+                total,
+                title: progress_title,
+            },
+        );
+    }
+
+    Ok(ImaSyncResult {
+        success_count: results
+            .iter()
+            .filter(|item| item.status == "success")
+            .count(),
+        skipped_count: results
+            .iter()
+            .filter(|item| item.status == "skipped")
+            .count(),
+        failed_count: results
+            .iter()
+            .filter(|item| item.status == "failed")
+            .count(),
+        results,
+    })
+}
+
+async fn load_all_notebook_book_ids(
+    client: &crate::api::WeReadClient,
+) -> Result<Vec<String>, String> {
+    let mut book_ids = Vec::new();
+    let mut last_sort = 0;
+    loop {
+        let page = client.notebooks_with_cache(100, last_sort, false).await?;
+        if page.books.is_empty() {
+            break;
+        }
+        last_sort = page.books.last().map(|book| book.sort).unwrap_or(0);
+        book_ids.extend(
+            page.books
+                .into_iter()
+                .filter(|book| {
+                    book.bookmark_count > 0 || book.review_count > 0 || book.note_count > 0
+                })
+                .map(|book| book.book_id),
+        );
+        if page.has_more != 1 {
+            break;
+        }
+    }
+    Ok(book_ids)
+}
+
+async fn sync_one_book_to_ima(
+    ima_client: &crate::ima::ImaClient,
+    knowledge_base_id: &str,
+    title: &str,
+    markdown: String,
+) -> Result<(String, String, bool), String> {
+    let note_id = match ima_client.find_note_by_title(title).await? {
+        Some(existing_note_id) => {
+            let media_id = ima_client
+                .add_note_to_knowledge_base(knowledge_base_id, title, &existing_note_id)
+                .await?;
+            return Ok((existing_note_id, media_id, true));
+        }
+        None => ima_client.import_markdown_note(&markdown).await?,
+    };
+    let media_id = ima_client
+        .add_note_to_knowledge_base(knowledge_base_id, title, &note_id)
+        .await?;
+    Ok((note_id, media_id, false))
+}
+
+async fn fallback_book_title(client: &crate::api::WeReadClient, book_id: &str) -> String {
+    client
+        .book_info(book_id)
+        .await
+        .map(|book| display_book_title(&book.title))
+        .unwrap_or_else(|_| "未知书籍".to_string())
+}
+
+fn display_book_title(title: &str) -> String {
+    let title = title.trim();
+    if title.is_empty() {
+        "未知书籍".to_string()
+    } else {
+        title.to_string()
+    }
+}
+
+fn build_ima_markdown(title: &str, markdown: &str) -> String {
+    let trimmed = markdown.trim_start();
+    if trimmed.starts_with(&format!("# {title}")) {
+        return markdown.to_string();
+    }
+    format!("# {title}\n\n{trimmed}")
 }
 
 #[tauri::command]
@@ -311,8 +508,8 @@ fn report_preview_url(path: PathBuf) -> Result<String, String> {
 }
 
 fn start_report_preview_server() -> Result<ReportPreviewServer, String> {
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .map_err(|e| format!("启动报告预览服务失败: {e}"))?;
+    let listener =
+        TcpListener::bind("127.0.0.1:0").map_err(|e| format!("启动报告预览服务失败: {e}"))?;
     let addr = listener
         .local_addr()
         .map_err(|e| format!("读取报告预览服务地址失败: {e}"))?;
@@ -331,10 +528,7 @@ fn start_report_preview_server() -> Result<ReportPreviewServer, String> {
     Ok(server)
 }
 
-fn handle_report_preview_request(
-    mut stream: TcpStream,
-    routes: &Mutex<HashMap<String, PathBuf>>,
-) {
+fn handle_report_preview_request(mut stream: TcpStream, routes: &Mutex<HashMap<String, PathBuf>>) {
     let mut buffer = [0_u8; 2048];
     let Ok(size) = stream.read(&mut buffer) else {
         return;
@@ -345,7 +539,12 @@ fn handle_report_preview_request(
         .next()
         .and_then(parse_report_preview_request_path)
     else {
-        let _ = write_http_response(&mut stream, 400, "text/plain; charset=utf-8", b"Bad Request");
+        let _ = write_http_response(
+            &mut stream,
+            400,
+            "text/plain; charset=utf-8",
+            b"Bad Request",
+        );
         return;
     };
     let Some(token) = path.strip_prefix("/report/") else {

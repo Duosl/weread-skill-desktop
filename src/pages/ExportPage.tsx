@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import { FileDown, FileText, FolderOpen, Search } from "lucide-react";
+import { FileDown, FileText, FolderOpen, Search, UploadCloud } from "lucide-react";
 import { PageShell } from "../components/layout/PageShell";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -9,6 +9,7 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorBanner } from "../components/ui/ErrorBanner";
 import { Spinner } from "../components/ui/Spinner";
 import { useExport } from "../hooks/useExport";
+import { useImaConnector } from "../hooks/useImaConnector";
 import { useNotebooks } from "../hooks/useNotebooks";
 import { buildMarkdownPreview } from "../lib/preview/exportPreview";
 import { noteTotal } from "../lib/format";
@@ -30,6 +31,7 @@ export function ExportPage({
 }: ExportPageProps) {
   const notebooks = useNotebooks();
   const exporter = useExport();
+  const ima = useImaConnector();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [outputDir, setOutputDir] = useState(settings.lastExportDir);
   const [includeBookmarks, setIncludeBookmarks] = useState(true);
@@ -148,16 +150,41 @@ export function ExportPage({
     }
   }, [exporter.runExport, includeBookmarks, includeReviews, outputDir, selectedIds]);
 
+  const runImaSync = useCallback(async () => {
+    setNotice(null);
+    await ima.syncBooks({
+      bookIds: selectedIds,
+      includeBookmarks,
+      includeReviews,
+      groupByChapter: true,
+    }).catch(() => undefined);
+  }, [ima.syncBooks, includeBookmarks, includeReviews, selectedIds]);
+
+  const imaReady = settings.imaClientIdSet && settings.imaApiKeySet && Boolean(settings.imaKnowledgeBaseId);
+  const imaSyncButtonLabel = ima.syncing
+    ? `同步中 ${ima.syncProgress?.current ?? 0}/${ima.syncProgress?.total || selectedIds.length}`
+    : "同步到 ima";
+
   const exportHeaderAction = useMemo(() => (
-    <Button
-      variant="primary"
-      icon={<FileDown size={16} />}
-      disabled={selectedIds.length === 0 || !outputDir || exporter.loading}
-      onClick={() => void runExport()}
-    >
-      导出
-    </Button>
-  ), [exporter.loading, outputDir, runExport, selectedIds.length]);
+    <div className="export-header-actions">
+      <Button
+        variant="secondary"
+        icon={<UploadCloud size={16} />}
+        disabled={selectedIds.length === 0 || !imaReady || ima.syncing}
+        onClick={() => void runImaSync()}
+      >
+        {imaSyncButtonLabel}
+      </Button>
+      <Button
+        variant="primary"
+        icon={<FileDown size={16} />}
+        disabled={selectedIds.length === 0 || !outputDir || exporter.loading}
+        onClick={() => void runExport()}
+      >
+        导出
+      </Button>
+    </div>
+  ), [exporter.loading, ima.syncing, imaReady, imaSyncButtonLabel, outputDir, runExport, runImaSync, selectedIds.length]);
 
   useEffect(() => {
     if (!embedded || !onHeaderActionChange) return;
@@ -167,9 +194,10 @@ export function ExportPage({
 
   const content = (
     <>
-      <ErrorBanner message={notebooks.error ?? exporter.error} />
+      <ErrorBanner message={notebooks.error ?? exporter.error ?? ima.error} />
       {notice ? <div className="success-text">{notice}</div> : null}
       {exporter.result ? <div className="success-text">{exporter.result.message}</div> : null}
+      {ima.message ? <div className="success-text">{ima.message}</div> : null}
       <div className="export-layout">
         <Card className="export-picker">
           <div className="section-title">
@@ -252,6 +280,16 @@ export function ExportPage({
               />
               <span>包含想法</span>
             </label>
+            <div className="ima-export-row">
+              <div>
+                <strong>同步到 ima</strong>
+                <span>
+                  {settings.imaKnowledgeBaseName
+                    ? `目标知识库：${settings.imaKnowledgeBaseName}`
+                    : "先在连接器中配置 ima 知识库"}
+                </span>
+              </div>
+            </div>
             <div className="folder-row">
               <input value={outputDir} onChange={(event) => setOutputDir(event.target.value)} />
               <Button variant="secondary" icon={<FolderOpen size={16} />} onClick={() => void chooseFolder()}>
@@ -321,6 +359,31 @@ export function ExportPage({
                     {filePath}
                   </button>
                 ))}
+              </div>
+            </Card>
+          ) : null}
+
+          {ima.syncResult ? (
+            <Card>
+              <div className="section-title">
+                <UploadCloud size={20} />
+                <div>
+                  <h2>ima 同步结果</h2>
+                  <p>完成 {ima.syncResult.successCount} 本，跳过 {ima.syncResult.skippedCount} 本，失败 {ima.syncResult.failedCount} 本。</p>
+                </div>
+              </div>
+              <div className="ima-sync-result">
+                <div className="ima-sync-list">
+                  {ima.syncResult.results.slice(0, 8).map((item) => (
+                    <div className={`ima-sync-item ${item.status}`} key={item.bookId}>
+                      <strong>{item.title}</strong>
+                      <span>{item.message}</span>
+                    </div>
+                  ))}
+                  {ima.syncResult.results.length > 8 ? (
+                    <div className="ima-sync-more">还有 {ima.syncResult.results.length - 8} 本未展开显示</div>
+                  ) : null}
+                </div>
               </div>
             </Card>
           ) : null}

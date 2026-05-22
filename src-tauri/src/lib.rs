@@ -29,6 +29,7 @@ pub fn run() {
             commands::test_ima_connection,
             commands::list_addable_ima_knowledge_bases,
             commands::save_ima_target,
+            commands::sync_books_to_ima,
             commands::save_export_settings,
             commands::save_cache_settings,
             commands::get_api_cache_info,

@@ -32,6 +32,35 @@ export interface ImaConnectionTestResult {
   knowledgeBases: ImaKnowledgeBaseOption[];
 }
 
+export interface ImaSyncOptions {
+  bookIds: string[];
+  includeBookmarks: boolean;
+  includeReviews: boolean;
+  groupByChapter: boolean;
+}
+
+export interface ImaSyncBookResult {
+  bookId: string;
+  title: string;
+  status: "success" | "skipped" | "failed" | string;
+  message: string;
+  noteId?: string | null;
+  mediaId?: string | null;
+}
+
+export interface ImaSyncResult {
+  successCount: number;
+  skippedCount: number;
+  failedCount: number;
+  results: ImaSyncBookResult[];
+}
+
+export interface ImaSyncProgress {
+  current: number;
+  total: number;
+  title: string;
+}
+
 export interface ShelfBook {
   bookId: string;
   title: string;

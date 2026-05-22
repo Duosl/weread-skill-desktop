@@ -60,6 +60,43 @@ pub struct ImaConnectionTestResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ImaSyncOptions {
+    pub book_ids: Vec<String>,
+    pub include_bookmarks: bool,
+    pub include_reviews: bool,
+    pub group_by_chapter: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImaSyncBookResult {
+    pub book_id: String,
+    pub title: String,
+    pub status: String,
+    pub message: String,
+    pub note_id: Option<String>,
+    pub media_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImaSyncResult {
+    pub success_count: usize,
+    pub skipped_count: usize,
+    pub failed_count: usize,
+    pub results: Vec<ImaSyncBookResult>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImaSyncProgressPayload {
+    pub current: usize,
+    pub total: usize,
+    pub title: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ApiCacheEntry {
     pub api_name: String,
     pub skill_version: String,

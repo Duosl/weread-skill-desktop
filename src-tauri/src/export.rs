@@ -42,16 +42,16 @@ pub async fn export_to_markdown(
     Ok(file_paths)
 }
 
-struct ExportBook {
-    book_id: String,
-    isbn: String,
-    title: String,
-    author: String,
-    cover: String,
-    bookmarks: Vec<Bookmark>,
-    reviews: Vec<Review>,
-    chapters: Vec<ChapterInfo>,
-    progress: Option<BookProgress>,
+pub(crate) struct ExportBook {
+    pub(crate) book_id: String,
+    pub(crate) isbn: String,
+    pub(crate) title: String,
+    pub(crate) author: String,
+    pub(crate) cover: String,
+    pub(crate) bookmarks: Vec<Bookmark>,
+    pub(crate) reviews: Vec<Review>,
+    pub(crate) chapters: Vec<ChapterInfo>,
+    pub(crate) progress: Option<BookProgress>,
 }
 
 async fn resolve_book_ids(
@@ -78,7 +78,7 @@ async fn resolve_book_ids(
     Ok(all)
 }
 
-async fn load_export_book(
+pub(crate) async fn load_export_book(
     client: &crate::api::WeReadClient,
     book_id: &str,
     options: &ExportOptions,
@@ -141,7 +141,7 @@ async fn load_all_reviews(
     Ok(all)
 }
 
-fn build_markdown(data: &ExportBook, options: &ExportOptions) -> String {
+pub(crate) fn build_markdown(data: &ExportBook, options: &ExportOptions) -> String {
     let mut markdown = String::new();
 
     markdown.push_str("---\n");
