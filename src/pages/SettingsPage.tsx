@@ -167,7 +167,7 @@ export function SettingsPage({
   }
 
   return (
-    <PageShell title="设置">
+    <PageShell title="设置" className="settings-shell">
       <div className="settings-page">
         <ErrorBanner message={error} />
         {message && <div className="settings-toast">{message}</div>}

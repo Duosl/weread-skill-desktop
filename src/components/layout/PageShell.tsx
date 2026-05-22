@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 type PageShellProps = {
   title: ReactNode;
+  className?: string;
   backAction?: {
     label: string;
     onClick: () => void;
@@ -19,6 +20,7 @@ type PageShellProps = {
 
 export function PageShell({
   title,
+  className,
   backAction,
   titleAccessory,
   subtitle,
@@ -32,7 +34,7 @@ export function PageShell({
   const headerActions = actions ?? action;
 
   return (
-    <main className="page">
+    <main className={className ? `page ${className}` : "page"}>
       <header className="page-header">
         <div className="page-heading">
           <div className="page-title-line">

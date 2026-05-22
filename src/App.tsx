@@ -14,6 +14,7 @@ import { useReadingStats } from "./hooks/useReadingStats";
 import { useSettings } from "./hooks/useSettings";
 import { useUpdater } from "./hooks/useUpdater";
 import "./index.css";
+import "./styles/pages/settings.css";
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
