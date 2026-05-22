@@ -1,13 +1,7 @@
 import { useEffect, useRef } from "react";
 import { SegmentedControl } from "../ui/SegmentedControl";
-
-export type ModelOutputBlock = {
-  kind: "thinking" | "output" | "system" | "error";
-  title: string;
-  text: string;
-};
-
-export type ModelOutputMode = "brief" | "detail";
+import type { ModelOutputBlock, ModelOutputMode } from "../../types/modelOutput";
+export type { ModelOutputBlock, ModelOutputMode } from "../../types/modelOutput";
 
 type ModelOutputProps = {
   blocks: ModelOutputBlock[];

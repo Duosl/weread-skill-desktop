@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
-import { Eye, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageShell } from "../components/layout/PageShell";
+import { AdvancedTaskHistory } from "../components/report/AdvancedTaskHistory";
+import { AdvancedTaskResultCard } from "../components/report/AdvancedTaskResultCard";
 import { BasicReportDialog } from "../components/report/BasicReportDialog";
 import { ConfirmDialog } from "../components/report/ConfirmDialog";
 import { GenerationSettings } from "../components/report/GenerationSettings";
-import { ModelOutput } from "../components/report/ModelOutput";
-import type { ModelOutputBlock, ModelOutputMode } from "../components/report/ModelOutput";
-import { TaskStateCard } from "../components/report/TaskStateCard";
 import { TemplateCard } from "../components/report/TemplateCard";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -19,11 +17,20 @@ import { useAgentBridge } from "../hooks/useAgentBridge";
 import { useAdvancedReport } from "../hooks/useAdvancedReport";
 import { useReadingReport } from "../hooks/useReadingReport";
 import { getErrorMessage } from "../lib/format";
+import {
+  advancedTaskStatus,
+  buildModelOutputBlocks,
+  lastVisibleLine,
+  latestModelOutputBlock,
+  leadingEllipsisLine,
+  trailingEllipsisLine,
+} from "../lib/report/advancedTaskView";
 import { renderReportHtml, reportHtmlTitle } from "../lib/report/renderHtml";
 import { reportTemplates } from "../lib/report/templates";
 import type { ReportPeriod, ReportTemplateId } from "../lib/report/types";
 import { tauriCommands } from "../lib/tauriCommands";
-import type { AdvancedReportLogEvent, AdvancedReportTask, AdvancedReportTemplate } from "../hooks/useAdvancedReport";
+import type { AdvancedReportTask, AdvancedReportTemplate } from "../hooks/useAdvancedReport";
+import type { ModelOutputMode } from "../types/modelOutput";
 
 type ReportPageProps = {
   apiKeySet: boolean;
@@ -40,169 +47,6 @@ const periodOptions: Array<{ value: ReportPeriod; label: string }> = [
 type TemplateTab = "basic" | "advanced";
 const REPORT_TEMPLATE_TAB_STORAGE_KEY = "weread-desktop:report-template-tab";
 const SEEN_ADVANCED_TASKS_STORAGE_KEY = "weread-desktop:seen-advanced-report-tasks";
-
-function taskHasReportWarning(task: AdvancedReportTask) {
-  return task.status === "completed" && Boolean(task.message?.trim()) && task.message?.trim() !== "报告已生成";
-}
-
-function advancedTaskStatus(task: AdvancedReportTask) {
-  if (taskHasReportWarning(task)) {
-    return { label: "有警告", tone: "warning" };
-  }
-  if (task.status === "completed") {
-    return { label: "已完成", tone: "success" };
-  }
-  if (task.status === "running" || task.status === "preparing") {
-    return { label: "生成中", tone: "running" };
-  }
-  if (task.status === "canceled") {
-    return { label: "已取消", tone: "muted" };
-  }
-  if (task.message?.includes("中断")) {
-    return { label: "已中断", tone: "danger" };
-  }
-  return { label: "未完成", tone: "danger" };
-}
-
-function buildModelOutputBlocks(logs: AdvancedReportLogEvent[], task?: AdvancedReportTask | null): ModelOutputBlock[] {
-  const blocks: ModelOutputBlock[] = [];
-
-  function append(kind: ModelOutputBlock["kind"], title: string, text: string) {
-    const normalized = normalizeLogText(text, kind);
-    if (!normalized.trim()) return;
-    const previous = blocks[blocks.length - 1];
-    if (previous?.kind === kind) {
-      previous.text = joinLogText(previous.text, normalized, kind);
-      return;
-    }
-    blocks.push({ kind, title, text: normalized });
-  }
-
-  for (const log of logs) {
-    if (log.kind === "meta") {
-      const parsed = parseMetaLog(log.text);
-      if (!parsed || shouldHideMetaLog(parsed.key, parsed.value)) continue;
-      if (parsed.key === "thinking") {
-        append("thinking", "思考", parsed.value);
-      }
-      continue;
-    }
-    if (log.kind === "delta" || log.kind === "raw") {
-      append("output", "输出", log.text);
-      continue;
-    }
-    if (log.kind === "html") {
-      append("system", "报告文件", "已收到报告内容片段。");
-      continue;
-    }
-    if (log.kind === "stderr" || log.kind === "error") {
-      append("error", "错误", log.text);
-      continue;
-    }
-    if (log.kind === "start") {
-      append("system", "状态", log.text);
-      continue;
-    }
-    if (log.kind === "done") {
-      if (task?.status === "failed") {
-        append("error", "失败", task.message?.trim() || "任务失败，未生成报告。");
-      } else if (task?.status === "canceled") {
-        append("system", "状态", "任务已取消。");
-      } else if (task?.status === "completed") {
-        append("system", "状态", "任务已完成。");
-      } else {
-        append("system", "状态", log.text);
-      }
-      continue;
-    }
-    if (log.kind === "canceled") {
-      append("system", "状态", "任务已取消。");
-    }
-  }
-
-  return blocks;
-}
-
-function parseMetaLog(text: string): { key: string; value: string } | null {
-  const index = text.indexOf(":");
-  if (index < 0) return null;
-  const key = text.slice(0, index).trim();
-  const value = decodePossiblyQuotedLogText(text.slice(index + 1).trim());
-  return key ? { key, value } : null;
-}
-
-function shouldHideMetaLog(key: string, value: string) {
-  if (!value) return true;
-  return ["model", "session", "cwd", "usage", "usage_partial"].includes(key);
-}
-
-function normalizeLogText(text: string, kind: ModelOutputBlock["kind"]) {
-  const decoded = decodeLogText(text).replace(/\r/g, "");
-  return kind === "thinking" || kind === "output" ? decoded : decoded.trim();
-}
-
-function decodePossiblyQuotedLogText(text: string) {
-  if (text.startsWith("\"") && text.endsWith("\"")) {
-    try {
-      const parsed = JSON.parse(text);
-      if (typeof parsed === "string") return parsed;
-    } catch {
-      // Fall back to lightweight decoding below.
-    }
-  }
-  return decodeLogText(text.replace(/^"|"$/g, ""));
-}
-
-function decodeLogText(text: string) {
-  return text
-    .replace(/\\n/g, "\n")
-    .replace(/\\t/g, "\t")
-    .replace(/\\"/g, "\"");
-}
-
-function joinLogText(previous: string, next: string, kind: ModelOutputBlock["kind"]) {
-  if (!previous) return next;
-  if (kind === "thinking" || kind === "output") {
-    return `${previous}${next}`;
-  }
-  if (/^[，。！？、；：,.!?;:)\]}]/.test(next) || previous.endsWith("\n")) {
-    return `${previous}${next}`;
-  }
-  if (/[\s([{]$/.test(previous)) {
-    return `${previous}${next}`;
-  }
-  return `${previous}\n${next}`;
-}
-
-function latestModelOutputBlock(blocks: ModelOutputBlock[]) {
-  for (let index = blocks.length - 1; index >= 0; index -= 1) {
-    const block = blocks[index];
-    if (block.kind === "output" || block.kind === "thinking" || block.kind === "error") {
-      return block;
-    }
-  }
-  return blocks.length ? blocks[blocks.length - 1] : null;
-}
-
-function lastVisibleLine(text: string) {
-  const lines = text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-  return lines.length ? lines[lines.length - 1] : "";
-}
-
-function leadingEllipsisLine(text: string, maxLength = 96) {
-  const chars = Array.from(text.trim());
-  if (chars.length <= maxLength) return text.trim();
-  return `…${chars.slice(-maxLength).join("")}`;
-}
-
-function trailingEllipsisLine(text: string, maxLength = 96) {
-  const chars = Array.from(text.trim());
-  if (chars.length <= maxLength) return text.trim();
-  return `${chars.slice(0, maxLength).join("")}…`;
-}
 
 function templateDataAccessDescription(requiresRawNotesConsent: boolean) {
   return requiresRawNotesConsent
@@ -373,15 +217,6 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
       : null;
   const selectedDetailTaskReportAvailable =
     Boolean(selectedDetailTaskOutput?.reportHtml) || selectedTemplateDetailTask?.status === "completed";
-  const expandedHistoryTaskLogs = expandedTemplateHistoryTask
-    ? (advancedReport.logsByJob[expandedTemplateHistoryTask.jobId] ?? [])
-    : [];
-  const expandedHistoryOutputBlocks = buildModelOutputBlocks(expandedHistoryTaskLogs, expandedTemplateHistoryTask);
-  const expandedHistoryLatestBlock = latestModelOutputBlock(expandedHistoryOutputBlocks);
-  const expandedHistoryLatestLine = expandedHistoryLatestBlock
-    ? lastVisibleLine(expandedHistoryLatestBlock.text)
-    : "";
-  const expandedHistoryBriefLine = leadingEllipsisLine(expandedHistoryLatestLine || "正在等待新的输出。");
   const showAdvancedSettings = Boolean(selectedAdvancedTemplate && advancedSettingsOpen);
   const supportedAgentOptions = agentBridge.agents.filter((agent) => !agent.unsupported);
   const availableAgents = agentBridge.agents.filter((agent) => agent.available && !agent.unsupported);
@@ -764,77 +599,21 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                   <span>{selectedDetailTaskActive ? "生成过程" : "上次生成"}</span>
                   <p>{selectedDetailTaskActive ? "Agent 正在努力生成报告中..." : ""}</p>
                 </div>
-                <TaskStateCard
-                  label={advancedTaskStatus(selectedTemplateDetailTask).label}
-                  tone={
-                    advancedTaskStatus(selectedTemplateDetailTask).tone as
-                      | "success"
-                      | "running"
-                      | "warning"
-                      | "danger"
-                      | "muted"
-                  }
-                  title={
-                    selectedDetailTaskActive
-                      ? "正在生成报告"
-                      : selectedTemplateDetailTask.status === "completed"
-                        ? taskHasReportWarning(selectedTemplateDetailTask)
-                          ? "报告已生成，有附加信息需要处理"
-                          : ""
-                        : "报告未完成"
-                  }
-                  description={
-                    selectedDetailTaskActive
-                      ? "可以离开当前页面，生成完成后会留在历史记录里。"
-                      : selectedTemplateDetailTask.status === "completed"
-                        ? selectedTemplateDetailTask.message?.trim() || "可以直接用浏览器打开查看完整报告。"
-                        : selectedTemplateDetailTask.message ?? "这次生成没有产出可查看的报告。"
-                  }
+                <AdvancedTaskResultCard
+                  task={selectedTemplateDetailTask}
+                  outputBlocks={selectedDetailTaskOutputBlocks}
+                  outputMode={detailModelOutputMode}
+                  reportAvailable={selectedDetailTaskReportAvailable}
+                  latestLine={selectedDetailTaskLatestLine}
+                  briefLine={selectedDetailTaskBriefLine}
+                  latestKind={selectedDetailTaskLatestBlock?.kind}
                   meta={taskTrace(selectedTemplateDetailTask)}
-                  actions={
-                    selectedDetailTaskActive ? (
-                      <Button variant="danger" onClick={() => void cancelTask(selectedTemplateDetailTask)}>
-                        取消生成
-                      </Button>
-                    ) : (
-                      <>
-                        <Button
-                          variant="secondary"
-                          icon={<Eye size={16} />}
-                          disabled={!selectedDetailTaskReportAvailable}
-                          onClick={() => void openAdvancedReport(selectedTemplateDetailTask)}
-                        >
-                          浏览器打开
-                        </Button>
-                        <Button
-                          variant="danger"
-                          icon={<Trash2 size={16} />}
-                          onClick={() => requestDeleteAdvancedJob(selectedTemplateDetailTask)}
-                        >
-                          删除任务
-                        </Button>
-                        <Button
-                          className="task-regenerate-action"
-                          variant="secondary"
-                          onClick={() => void startAdvancedTemplate(selectedAdvancedTemplate.id)}
-                        >
-                          再次生成
-                        </Button>
-                      </>
-                    )
-                  }
-                >
-                  <ModelOutput
-                    blocks={selectedDetailTaskOutputBlocks}
-                    mode={detailModelOutputMode}
-                    onModeChange={setDetailModelOutputMode}
-                    statusLabel={advancedTaskStatus(selectedTemplateDetailTask).label}
-                    latestLine={selectedDetailTaskLatestLine}
-                    briefLine={selectedDetailTaskBriefLine}
-                    latestKind={selectedDetailTaskLatestBlock?.kind}
-                    autoScrollToEnd
-                  />
-                </TaskStateCard>
+                  onOutputModeChange={setDetailModelOutputMode}
+                  onCancel={(task) => void cancelTask(task)}
+                  onOpen={(task) => void openAdvancedReport(task)}
+                  onDelete={requestDeleteAdvancedJob}
+                  onRegenerate={() => void startAdvancedTemplate(selectedAdvancedTemplate.id)}
+                />
               </section>
             ) : null}
 
@@ -900,72 +679,17 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
 
           </div>
 
-          <section className="advanced-template-panel advanced-template-history">
-            <div className="template-detail-section-title">
-              <h2>历史记录</h2>
-            </div>
-            {selectedAdvancedTemplateTasks.length === 0 ? (
-              <EmptyState title="还没有历史记录" description="生成一次后，这里会显示该模板的历史报告。" />
-            ) : (
-              <div className="report-history-panel">
-                {selectedAdvancedTemplateTasks.map((task) => {
-                  const completed = task.status === "completed";
-                  const active = task.status === "running" || task.status === "preparing";
-                  const status = advancedTaskStatus(task);
-                  const expanded = expandedTemplateHistoryTask?.jobId === task.jobId;
-                  const traceLabels = taskTraceLabels(task);
-                  const message = task.status === "completed" ? "" : task.message?.trim();
-                  return (
-                    <article
-                      key={task.jobId}
-                      className={`report-history-row ${expanded ? "is-expanded" : ""}`}
-                      onClick={() => void toggleHistoryTask(task)}
-                    >
-                      <div className="report-history-content">
-                        <div className="report-history-head">
-                          <span className={`report-history-status ${status.tone}`}>{status.label}</span>
-                          <time dateTime={task.createdAt}>{new Date(task.createdAt).toLocaleString()}</time>
-                          {traceLabels.length > 0 ? taskTrace(task, "is-inline") : null}
-                        </div>
-                        {message ? <p>{message}</p> : null}
-                      </div>
-                      <div className="report-history-actions" onClick={(event) => event.stopPropagation()}>
-                        <button
-                          type="button"
-                          className="inline-secondary-action"
-                          disabled={!completed}
-                          onClick={() => void openAdvancedReport(task)}
-                        >
-                          浏览器打开
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-danger-action"
-                          disabled={active}
-                          onClick={() => requestDeleteAdvancedJob(task)}
-                        >
-                          删除
-                        </button>
-                      </div>
-                      {expanded ? (
-                        <div className="report-history-expanded" onClick={(event) => event.stopPropagation()}>
-                          <ModelOutput
-                            blocks={expandedHistoryOutputBlocks}
-                            mode={historyModelOutputMode}
-                            onModeChange={setHistoryModelOutputMode}
-                            statusLabel={status.label}
-                            latestLine={expandedHistoryLatestLine}
-                            briefLine={expandedHistoryBriefLine}
-                            latestKind={expandedHistoryLatestBlock?.kind}
-                          />
-                        </div>
-                      ) : null}
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+          <AdvancedTaskHistory
+            tasks={selectedAdvancedTemplateTasks}
+            expandedTask={expandedTemplateHistoryTask}
+            logsByJob={advancedReport.logsByJob}
+            mode={historyModelOutputMode}
+            onModeChange={setHistoryModelOutputMode}
+            renderTrace={taskTrace}
+            onToggleTask={(task) => void toggleHistoryTask(task)}
+            onOpen={(task) => void openAdvancedReport(task)}
+            onDelete={requestDeleteAdvancedJob}
+          />
         </div>
       ) : (
         <>
