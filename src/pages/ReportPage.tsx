@@ -1,19 +1,18 @@
 import { useEffect, useState } from "react";
-import { Eye, Trash2, X } from "lucide-react";
+import { Eye, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageShell } from "../components/layout/PageShell";
+import { BasicReportDialog } from "../components/report/BasicReportDialog";
 import { ConfirmDialog } from "../components/report/ConfirmDialog";
 import { GenerationSettings } from "../components/report/GenerationSettings";
 import { ModelOutput } from "../components/report/ModelOutput";
 import type { ModelOutputBlock, ModelOutputMode } from "../components/report/ModelOutput";
 import { TaskStateCard } from "../components/report/TaskStateCard";
 import { TemplateCard } from "../components/report/TemplateCard";
-import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorBanner } from "../components/ui/ErrorBanner";
-import { IconButton } from "../components/ui/IconButton";
 import { SegmentedControl } from "../components/ui/SegmentedControl";
 import { Spinner } from "../components/ui/Spinner";
 import { useAgentBridge } from "../hooks/useAgentBridge";
@@ -21,7 +20,7 @@ import { useAdvancedReport } from "../hooks/useAdvancedReport";
 import { useReadingReport } from "../hooks/useReadingReport";
 import { getErrorMessage } from "../lib/format";
 import { renderReportHtml, reportHtmlTitle } from "../lib/report/renderHtml";
-import { ReportTemplate, reportTemplates } from "../lib/report/templates";
+import { reportTemplates } from "../lib/report/templates";
 import type { ReportPeriod, ReportTemplateId } from "../lib/report/types";
 import { tauriCommands } from "../lib/tauriCommands";
 import type { AdvancedReportLogEvent, AdvancedReportTask, AdvancedReportTemplate } from "../hooks/useAdvancedReport";
@@ -1047,81 +1046,23 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
           </div>
 
           {selectedTemplate && selectedTemplateId ? (
-            <div
-              className="report-modal-backdrop"
-              role="presentation"
-              onMouseDown={(event) => {
-                if (event.target === event.currentTarget) {
-                  setSelectedTemplateId(null);
-                }
+            <BasicReportDialog
+              template={selectedTemplate}
+              templateId={selectedTemplateId}
+              data={report.data}
+              loading={report.loading}
+              openingReport={openingReport}
+              selectedPeriod={selectedBasicPeriod}
+              periodOptions={periodOptions}
+              onPeriodChange={(period) => {
+                setBasicPeriodByTemplate((current) => ({
+                  ...current,
+                  [selectedTemplateId]: period,
+                }));
               }}
-            >
-              <section
-                className="report-modal task-detail-modal"
-                role="dialog"
-                aria-modal="true"
-                aria-label={`${selectedTemplate.name}预览`}
-              >
-                <header className="report-modal-header">
-                  <div>
-                    <Badge>{selectedTemplate.tagline}</Badge>
-                    <h2>{selectedTemplate.name}</h2>
-                    <p>{selectedTemplate.description}</p>
-                  </div>
-                  <IconButton
-                    aria-label="关闭"
-                    icon={<X size={18} />}
-                    onClick={() => setSelectedTemplateId(null)}
-                  />
-                </header>
-
-                <div className="report-modal-body">
-                  <div className="report-modal-preview">
-                    {report.loading && !report.data ? (
-                      <Card>
-                        <Spinner label="正在生成报告数据" />
-                      </Card>
-                    ) : report.data ? (
-                      <ReportTemplate id={selectedTemplateId} data={report.data} />
-                    ) : (
-                      <EmptyState title="等待生成报告" description="选择时间范围后会自动整理阅读统计。" />
-                    )}
-                  </div>
-
-                  <aside className="report-modal-actions">
-                    <div>
-                      <span>数据时间范围</span>
-                      <select
-                        className="report-period-select"
-                        value={selectedBasicPeriod}
-                        onChange={(event) => {
-                          if (!selectedTemplateId) return;
-                          setBasicPeriodByTemplate((current) => ({
-                            ...current,
-                            [selectedTemplateId]: event.target.value as ReportPeriod,
-                          }));
-                        }}
-                      >
-                        {periodOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <Button
-                      variant="primary"
-                      icon={<Eye size={16} />}
-                      disabled={!report.data || openingReport}
-                      onClick={() => void previewReport()}
-                    >
-                      浏览器打开
-                    </Button>
-                    {openingReport ? <Spinner label="正在打开报告" /> : null}
-                  </aside>
-                </div>
-              </section>
-            </div>
+              onPreview={() => void previewReport()}
+              onClose={() => setSelectedTemplateId(null)}
+            />
           ) : null}
         </>
       )}
