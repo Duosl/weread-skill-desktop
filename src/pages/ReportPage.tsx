@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { Eye, Trash2, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageShell } from "../components/layout/PageShell";
@@ -24,6 +23,7 @@ import { getErrorMessage } from "../lib/format";
 import { renderReportHtml, reportHtmlTitle } from "../lib/report/renderHtml";
 import { ReportTemplate, reportTemplates } from "../lib/report/templates";
 import type { ReportPeriod, ReportTemplateId } from "../lib/report/types";
+import { tauriCommands } from "../lib/tauriCommands";
 import type { AdvancedReportLogEvent, AdvancedReportTask, AdvancedReportTemplate } from "../hooks/useAdvancedReport";
 
 type ReportPageProps = {
@@ -37,10 +37,6 @@ const periodOptions: Array<{ value: ReportPeriod; label: string }> = [
   { value: "current_year", label: "本年" },
   { value: "all", label: "全部" },
 ];
-
-type ReportHtmlPreviewResult = {
-  filePath: string;
-};
 
 type TemplateTab = "basic" | "advanced";
 const REPORT_TEMPLATE_TAB_STORAGE_KEY = "weread-desktop:report-template-tab";
@@ -506,11 +502,8 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
     setOpeningReport(true);
     setActionError(null);
     try {
-      const result = await invoke<ReportHtmlPreviewResult>("preview_report_html", {
-        title: payload.title,
-        html: payload.html,
-      });
-      await invoke("open_report_file", { path: result.filePath });
+      const result = await tauriCommands.previewReportHtml(payload.title, payload.html);
+      await tauriCommands.openReportFile(result.filePath);
     } catch (error) {
       setActionError(getErrorMessage(error));
     } finally {
@@ -668,7 +661,7 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
       return;
     }
     try {
-      await invoke("open_report_file", { path });
+      await tauriCommands.openReportFile(path);
       if (selectedTemplateDetailTask?.jobId === task.jobId) {
         markAdvancedTaskSeen(task.jobId);
         setSelectedTask(null);

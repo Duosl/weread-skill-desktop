@@ -1,101 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getErrorMessage } from "../lib/format";
-import type { ReportPeriod } from "../lib/report/types";
-
-export type AdvancedReportTemplate = {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  styleSummary: string;
-  defaultReportPeriod: ReportPeriod;
-  defaultOutputShape: string;
-  outputShapes: AdvancedReportOutputShape[];
-  requiresRawNotesConsent: boolean;
-  defaultCapabilities: string[];
-  optionalCapabilities: string[];
-};
-
-export type AdvancedReportOutputShape = {
-  id: string;
-  name: string;
-  description: string;
-};
-
-export type AdvancedReportJobRequest = {
-  templateId: string;
-  rawNotesConsent: boolean;
-  forceRefresh?: boolean | null;
-  outputShape?: string | null;
-  userPrompt?: string | null;
-  reportPeriod?: string | null;
-};
-
-export type AdvancedReportTaskStatus = "preparing" | "running" | "completed" | "failed" | "canceled";
-
-export type AdvancedReportTask = {
-  jobId: string;
-  templateId: string;
-  templateName: string;
-  status: AdvancedReportTaskStatus;
-  message?: string | null;
-  outputShape?: string | null;
-  outputShapeName?: string | null;
-  reportPeriod?: string | null;
-  reportPeriodLabel?: string | null;
-  agent?: string | null;
-  model?: string | null;
-  jobDir: string;
-  reportPath: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type StartAdvancedReportRequest = {
-  templateId: string;
-  rawNotesConsent: boolean;
-  forceRefresh?: boolean | null;
-  outputShape?: string | null;
-  userPrompt?: string | null;
-  reportPeriod?: string | null;
-  agent: string;
-  model?: string | null;
-  binOverride?: string | null;
-};
-
-export type AdvancedReportJob = {
-  jobId: string;
-  templateId: string;
-  templateName: string;
-  jobDir: string;
-  inputDir: string;
-  dataDir: string;
-  outputDir: string;
-  promptPath: string;
-  status: string;
-  createdAt: string;
-};
-
-export type AdvancedReportOutput = {
-  jobId: string;
-  reportHtml?: string | null;
-  meta?: unknown;
-  reportPath: string;
-  metaPath: string;
-  validation: {
-    ok: boolean;
-    warnings: string[];
-  };
-};
-
-export type AdvancedReportLogEvent = {
-  jobId: string;
-  kind: string;
-  text: string;
-  createdAt: string;
-};
+import { tauriCommands } from "../lib/tauriCommands";
+import type {
+  AdvancedReportJob,
+  AdvancedReportJobRequest,
+  AdvancedReportLogEvent,
+  AdvancedReportOutput,
+  AdvancedReportTask,
+  AdvancedReportTaskStatus,
+  AdvancedReportTemplate,
+  StartAdvancedReportRequest,
+} from "../types/advancedReport";
+export type {
+  AdvancedReportJob,
+  AdvancedReportJobRequest,
+  AdvancedReportLogEvent,
+  AdvancedReportOutput,
+  AdvancedReportOutputShape,
+  AdvancedReportTask,
+  AdvancedReportTaskStatus,
+  AdvancedReportTemplate,
+  StartAdvancedReportRequest,
+} from "../types/advancedReport";
 
 export function useAdvancedReport() {
   const [templates, setTemplates] = useState<AdvancedReportTemplate[]>([]);
@@ -109,7 +36,7 @@ export function useAdvancedReport() {
   const loadTemplates = useCallback(async () => {
     setError(null);
     try {
-      const result = await invoke<AdvancedReportTemplate[]>("list_advanced_report_templates");
+      const result = await tauriCommands.listAdvancedReportTemplates();
       setTemplates(result);
       return result;
     } catch (err) {
@@ -127,7 +54,7 @@ export function useAdvancedReport() {
     setLoading(true);
     setError(null);
     try {
-      const result = await invoke<AdvancedReportJob>("create_advanced_report_job", { request });
+      const result = await tauriCommands.createAdvancedReportJob(request);
       setJob(result);
       setOutput(null);
       return result;
@@ -143,7 +70,7 @@ export function useAdvancedReport() {
   const readOutput = useCallback(async (jobId: string) => {
     setError(null);
     try {
-      const result = await invoke<AdvancedReportOutput>("read_advanced_report_output", { jobId });
+      const result = await tauriCommands.readAdvancedReportOutput(jobId);
       setOutput(result);
       return result;
     } catch (err) {
@@ -156,7 +83,7 @@ export function useAdvancedReport() {
   const loadTasks = useCallback(async () => {
     setError(null);
     try {
-      const result = await invoke<AdvancedReportTask[]>("list_advanced_report_tasks");
+      const result = await tauriCommands.listAdvancedReportTasks();
       setTasks(result);
       return result;
     } catch (err) {
@@ -199,7 +126,7 @@ export function useAdvancedReport() {
     setLoading(true);
     setError(null);
     try {
-      const result = await invoke<AdvancedReportTask>("start_advanced_report_task", { request });
+      const result = await tauriCommands.startAdvancedReportTask(request);
       setTasks((current) => [result, ...current.filter((task) => task.jobId !== result.jobId)]);
       return result;
     } catch (err) {
@@ -214,7 +141,7 @@ export function useAdvancedReport() {
   const cancelTask = useCallback(async (jobId: string) => {
     setError(null);
     try {
-      const result = await invoke<boolean>("cancel_advanced_report_task", { jobId });
+      const result = await tauriCommands.cancelAdvancedReportTask(jobId);
       await loadTasks();
       return result;
     } catch (err) {
@@ -227,7 +154,7 @@ export function useAdvancedReport() {
   const deleteJob = useCallback(async (jobId: string) => {
     setError(null);
     try {
-      const result = await invoke<boolean>("delete_advanced_report_job", { jobId });
+      const result = await tauriCommands.deleteAdvancedReportJob(jobId);
       setLogsByJob((current) => {
         const next = { ...current };
         delete next[jobId];
@@ -245,7 +172,7 @@ export function useAdvancedReport() {
   const readLogs = useCallback(async (jobId: string) => {
     setError(null);
     try {
-      const result = await invoke<AdvancedReportLogEvent[]>("read_advanced_report_logs", { jobId });
+      const result = await tauriCommands.readAdvancedReportLogs(jobId);
       setLogsByJob((current) => ({ ...current, [jobId]: result }));
       return result;
     } catch (err) {
