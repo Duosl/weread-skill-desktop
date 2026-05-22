@@ -1,6 +1,6 @@
 [package]
 name = "weread-skill-desktop"
-version = "0.2.5"
+version = "0.2.6"
 description = "WeRead Skill Desktop"
 authors = ["WeRead Skill Desktop"]
 edition = "2021"
