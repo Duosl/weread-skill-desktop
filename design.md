@@ -706,6 +706,13 @@ ModalBackdrop
 - 日志输出流统一为 ModelOutput component。
 - 删除确认统一 ConfirmDialog。
 
+代码边界：
+
+- `ReportPage` 只负责页面级状态编排、模板选择、任务动作和路由式返回，不直接承载大段任务卡片、历史记录或日志解析 JSX。
+- 智能体任务展示拆为 `AdvancedTaskResultCard`、`AdvancedTaskHistory`、`ModelOutput`；状态标签、日志块归并、最新输出行等纯展示规则放在 `src/lib/report/advancedTaskView.ts`。
+- 报告页专属样式放在 `src/styles/pages/report.css`；`src/index.css` 只保留全局 token、基础组件和未拆分页面的过渡样式。
+- 后端 `advanced_report` 保持分层：`templates.rs` 管模板定义，`validation.rs` 管输出质量校验，`prompts.rs` 管 agent prompt / brief 构建；主模块只编排 job、数据准备、任务执行、输出读取和文件操作。
+
 ### 7.6 设置
 
 目标：安静的系统设置页。

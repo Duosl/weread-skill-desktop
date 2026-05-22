@@ -670,6 +670,7 @@ AppData/
 CLI 调用边界：
 
 - Rust 新增 `advanced_report` 模块，负责模板扫描、job 目录创建、输入写入、调用本地 CLI、读取输出和错误映射。
+- 当前 `advanced_report` 模块按职责拆分：`templates.rs` 只维护内置模板和输出形态；`prompts.rs` 只生成 `input/agent-prompt.md`、`input/brief.md` 等 Agent 任务说明；`validation.rs` 只校验 `output/report.html` 的质量与本地文件安全边界；主模块负责 job 生命周期、数据预取、任务状态、日志、输出读取和文件复制。
 - 前端不拼命令、不读任意路径，只通过 Tauri 命令拿模板清单、创建任务、查看任务状态、打开输出文件；本地 Agent 只在模板生成配置中选择，不放在模板目录页。
 - CLI 必须输出稳定 `insights.json`；HTML 渲染可以由 CLI 直接产出，也可以由应用用 `renderer.html` + `insights.json` 生成。
 - CLI 失败时保留 `job.json`、输入文件和错误摘要，便于用户重试或排查。
@@ -693,6 +694,7 @@ CLI 调用边界：
 4. 点击智能体模板卡片后进入页面级模板工作台，不使用复杂详情弹窗；工作台展示返回目录、模板说明、生成设置、当前结果、生成过程和历史记录。
 5. 点击“查看 / 打开报告”后用浏览器打开完整报告；当前工作台不展示 HTML 导出入口。
 6. 生成设置保留必要的隐私确认，并支持选择输出形态和填写本次自定义要求；本地 Agent 由应用自动选择可用 CLI，模型使用用户 CLI 默认配置，普通用户默认不需要理解 job、目录或 CLI 参数。
+7. `ReportPage` 只负责页面编排和动作调用；基础模板预览、智能体当前任务、历史记录、日志输出、删除确认等可复用 UI 必须放在 `components/report/`，日志解析和任务展示规则放在 `lib/report/`。
 
 分享能力：
 
