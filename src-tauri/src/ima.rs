@@ -92,7 +92,11 @@ impl ImaClient {
             .await?;
 
         let items_value = data
-            .get("infos")
+            .get("addable_knowledge_base_list")
+            .or_else(|| data.get("addableKnowledgeBaseList"))
+            .or_else(|| data.get("info_list"))
+            .or_else(|| data.get("infoList"))
+            .or_else(|| data.get("infos"))
             .or_else(|| data.get("knowledge_bases"))
             .or_else(|| data.get("list"))
             .or_else(|| data.get("items"));
