@@ -62,7 +62,11 @@ export function ExportPage({
     );
   }, [notebooks.books, bookQuery]);
 
-  const previewBook = selectedBooks.length === 1 ? selectedBooks[0] : null;
+  const previewBook = useMemo(() => {
+    const firstSelectedId = selectedIds[0];
+    if (!firstSelectedId) return null;
+    return notebooks.books.find((book) => book.bookId === firstSelectedId) ?? null;
+  }, [notebooks.books, selectedIds]);
 
   const loadPreview = useCallback(async () => {
     if (!previewBook) {
@@ -263,7 +267,7 @@ export function ExportPage({
             <div className="preview-header">
               <h2>预览</h2>
               {selectedBooks.length > 1 ? (
-                <small className="preview-hint">选中 {selectedBooks.length} 本书，选择单本可预览内容</small>
+                <small className="preview-hint">选中 {selectedBooks.length} 本书，预览选中的第一本</small>
               ) : null}
             </div>
             {previewLoading ? (
