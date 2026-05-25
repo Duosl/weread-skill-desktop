@@ -5,13 +5,14 @@
 AI 必须同时参考：
 
 1. `AGENTS.md`：工程约束、执行顺序、验收入口。
-2. `mvp-design-doc.md`：MVP 范围、页面、命令、数据流、导出格式。
-3. `ui-style-guide.md`：UI 与交互规范。
-4. `design.md`：UI 审计结论、设计 tokens、组件规则、页面统一方案和后续改造执行蓝图。
-5. `~/.agents/skills/weread-skills/`：微信读书 Skill 原始 API 文档。
-6. `docs/requirements-pool.md`：需求池、优先级、状态、下一步建议。
-7. `/Users/duoshilin/duosl/forks/html-anything`：智能体报告输出形态与风格拓展参考，尤其是 deck / 小红书 / 卡片 / 海报类 HTML skill。
-8. 飞书多维表格「微信读书 SKill 桌面端需求收集表」：外部需求收集入口，按第 9 节流程读取和回写。
+2. `docs/current-context.md`：当前阶段、边界、默认阅读入口。
+3. `docs/requirements-pool.md`：活跃需求、优先级、状态、下一步建议。
+4. `mvp-design-doc.md`：稳定产品范围、页面、命令、数据流、导出格式。
+5. `ui-style-guide.md`：UI 与交互规范。
+6. `design.md`：UI 审计结论、设计 tokens、组件规则、页面统一方案和后续改造执行蓝图。
+7. `~/.agents/skills/weread-skills/`：微信读书 Skill 原始 API 文档。
+8. `/Users/duoshilin/duosl/forks/html-anything`：智能体报告输出形态与风格拓展参考，尤其是 deck / 小红书 / 卡片 / 海报类 HTML skill。
+9. 飞书多维表格「微信读书 SKill 桌面端需求收集表」：外部需求收集入口，按第 9 节流程读取和回写。
 
 ---
 
@@ -86,13 +87,14 @@ AI 必须同时参考：
 
 开始任何实现前，必须完成：
 
-1. 阅读 `mvp-design-doc.md`，确认当前任务属于 MVP 的哪个模块。
-2. 阅读 `ui-style-guide.md`，确认相关 UI 规则。
-3. 阅读 `docs/requirements-pool.md`，确认当前需求状态、优先级和完成后应更新的位置。
-4. 如果任务涉及 UI、页面、组件、视觉、交互或布局，阅读 `design.md`，并按其中的 tokens、组件规则、页面统一方案和验收清单执行。
+1. 阅读 `docs/current-context.md`，确认当前阶段边界。
+2. 阅读 `docs/requirements-pool.md`，确认当前需求状态、优先级和完成后应更新的位置。
+3. 如果任务涉及产品范围、页面结构、命令清单、数据流或导出格式，阅读 `mvp-design-doc.md`。
+4. 如果任务涉及 UI、页面、组件、视觉、交互或布局，阅读 `ui-style-guide.md` 和 `design.md`，并按其中的 tokens、组件规则、页面统一方案和验收清单执行。
 5. 如果任务涉及微信读书 API，阅读 `~/.agents/skills/weread-skills/` 中对应能力文档。
 6. 如果任务涉及智能体报告输出形态、PPT 风格、小红书图文、海报、卡片、数据报告或新风格拓展，阅读 `/Users/duoshilin/duosl/forks/html-anything/next/src/lib/templates/skills/` 中对应 skill，提炼成符合本项目 Quiet Reading Ledger 的约束。
-7. 明确当前改动的边界：前端 UI、前端数据层、Rust API、导出、配置、系统命令中的哪一类。
+7. 只有在需要追溯已完成需求、历史决策或旧验收时，才读取 `docs/archive/completed-requirements.md`；不要把归档作为默认上下文。
+8. 明确当前改动的边界：前端 UI、前端数据层、Rust API、导出、配置、系统命令中的哪一类。
 
 不要把其他文档中的内容复制进本文件；需要细节时直接引用并遵循对应文档。
 
@@ -190,13 +192,13 @@ API 验收以 `~/.agents/skills/weread-skills/` 为准。
 - 分享能力必须与正式导出分开设计；分享版 HTML 可以加入应用署名、回链或安装入口，但不能影响用户本地私有导出。
 - UI 保持 Quiet Reading Ledger：模板卡片用于选择，预览像真实文件或报告纸面，主操作保持清晰克制。
 - 智能体报告的输出形态拓展默认参考 `/Users/duoshilin/duosl/forks/html-anything` 的 skill 模板体系：PPT 优先参考 deck 类的固定舞台、版式池和翻页交互；小红书优先参考 card / deck-xhs 类的 3:4 截图卡、封面卡、页码和多卡片画廊。但最终产物必须收敛到本项目的阅读档案气质，不照搬营销化文案或第三方模板资产。
-- 下一步最高优先级是全应用 UI 风格统一：先按 `design.md` 锁定 tokens 和基础组件，再收敛页面 shell、标题区、操作区、Tabs、卡片、弹窗、按钮和状态反馈。
+- 当前阶段最高优先级以 `docs/requirements-pool.md` 为准；已完成内容进入 `docs/archive/completed-requirements.md`，不要让需求池重新膨胀。
 
 ---
 
 ## 9. 需求池与下一步
 
-需求状态、优先级、已完成功能记录、下一步建议都不写在本文件，统一维护在 `docs/requirements-pool.md`；飞书多维表格只作为外部需求收集和状态回写入口。
+当前阶段、活跃需求、优先级和下一步建议统一维护在 `docs/current-context.md` 与 `docs/requirements-pool.md`；已完成需求归档到 `docs/archive/completed-requirements.md`；飞书多维表格只作为外部需求收集和状态回写入口。
 
 外部需求收集表：
 
@@ -212,7 +214,7 @@ API 验收以 `~/.agents/skills/weread-skills/` 为准。
 
 开始任何需求前：
 
-1. 先读 `docs/requirements-pool.md`，确认最高优先级且未阻塞的需求。
+1. 先读 `docs/current-context.md` 和 `docs/requirements-pool.md`，确认最高优先级且未阻塞的需求。
 2. 读取飞书需求收集表当前视图，检查是否有新的 `收集箱` / `规划中` / `开发中` 条目需要同步到本地需求池。
 3. 按 `docs/requirements-pool.md` 中的飞书同步规则去重、映射优先级与状态；没有足够信息的条目标记为待澄清，不要直接进入开发。
 4. 再按本文件第 4 节读取对应设计、UI 或 API 资料。
@@ -220,10 +222,11 @@ API 验收以 `~/.agents/skills/weread-skills/` 为准。
 
 完成任何需求后：
 
-1. 更新 `docs/requirements-pool.md` 中对应条目的状态、完成说明和剩余风险。
-2. 如果该需求来自飞书表，且当前身份具备写权限，回写飞书记录的状态、上线版本或补充信息；没有回写权限时在最终回复中说明。
-3. 如果实现改变了产品范围、导出格式、命令清单或 UI 规则，同步更新 `mvp-design-doc.md`、`ui-style-guide.md` 或 `README.md`。
-4. 在最终回复中提示下一个建议启动的高优先级需求。
+1. 更新 `docs/requirements-pool.md` 中对应条目的状态。
+2. 将完成说明、改动入口、验证结果和剩余风险追加到 `docs/archive/completed-requirements.md`，并从活跃需求详情中移除已完成需求。
+3. 如果该需求来自飞书表，且当前身份具备写权限，回写飞书记录的状态、上线版本或补充信息；没有回写权限时在最终回复中说明。
+4. 如果实现改变了产品范围、导出格式、命令清单或 UI 规则，同步更新 `mvp-design-doc.md`、`ui-style-guide.md` 或 `README.md`。
+5. 在最终回复中提示下一个建议启动的高优先级需求。
 
 ---
 
@@ -234,7 +237,9 @@ API 验收以 `~/.agents/skills/weread-skills/` 为准。
 - 产品范围、页面结构、数据流、命令清单、导出格式：写入 `mvp-design-doc.md`。
 - 视觉风格、组件状态、布局规则、交互细节：写入 `ui-style-guide.md`。
 - UI 审计结论、设计 tokens、组件规则、页面统一方案、改造顺序和验收清单：写入 `design.md`。
-- 需求池、优先级、完成记录、下一步开发建议：写入 `docs/requirements-pool.md`。
+- 当前阶段与默认阅读入口：写入 `docs/current-context.md`。
+- 活跃需求、优先级、下一步开发建议：写入 `docs/requirements-pool.md`。
+- 已完成需求、完成记录和历史决策：写入 `docs/archive/completed-requirements.md`。
 - 面向用户的安装、使用、功能说明：写入 `README.md`。
 - 微信读书 API 字段、参数、分页、统计口径：只引用 `~/.agents/skills/weread-skills/`，不要复制到仓库文档。
 - 智能体报告输出形态、版式池、截图比例、交互结构等稳定规则：优先写入 `mvp-design-doc.md`、`ui-style-guide.md` 或 `docs/requirements-pool.md`；`html-anything` 只作为外部参考来源，不复制进仓库。
