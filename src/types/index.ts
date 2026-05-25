@@ -13,6 +13,9 @@ export interface AppSettings {
   imaApiKeyFull?: string | null;
   imaKnowledgeBaseId?: string | null;
   imaKnowledgeBaseName?: string | null;
+  telemetryEnabled: boolean;
+  telemetryInstallationId?: string | null;
+  telemetryEndpointConfigured: boolean;
 }
 
 export interface ImaKnowledgeBaseOption {

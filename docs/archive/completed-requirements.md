@@ -66,6 +66,8 @@
 - 腾讯 ima 联动已完成当前 Markdown 同步闭环；后续只根据用户反馈优化重导出逻辑、同步结果解释和导出内容文案。
 - 新增下一阶段活跃需求：`REQ-014`、`REQ-015`、`REQ-016`。
 - REQ-015 划线颜色筛选：确认微信读书协议中 `style` 表示线型、`colorStyle` 表示颜色；当前缓存样本未返回 `style`，因此后端先兼容可选字段，前端第一阶段只使用颜色。Notes 页新增颜色筛选，支持只看红 / 紫 / 蓝 / 绿 / 黄某一类划线；历史无颜色字段的划线不误归为颜色 0。
+- REQ-017 匿名安装规模统计：新增 Tauri `telemetry` 模块，启动时发送可失败隔离的轻量 ping；设置页仅在关于区域轻量说明统计范围；Cloudflare Worker / D1 样例放在 `cloudflare/telemetry-worker/`，服务端从 `CF-Connecting-IP` 记录 first / last IP。统计不包含操作事件、API Key、微信读书内容、书名、笔记、划线、导出路径或文件名。验证：`./init.sh` passed。
+- REQ-017A 匿名统计多应用支持：客户端 payload 增加 `appName`，默认使用 Rust 包名，也可通过 `WEREAD_TELEMETRY_APP_NAME` 覆盖；Cloudflare D1 schema 改为 `PRIMARY KEY (app_name, installation_id)`，Worker 支持可选 `ALLOWED_APPS`、2KB 请求体限制、按 `app_name` 查询 summary 和全应用汇总。验证：`./init.sh` passed。
 
 ---
 

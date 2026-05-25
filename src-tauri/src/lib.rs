@@ -8,6 +8,7 @@ mod export;
 mod ima;
 mod report;
 mod state;
+mod telemetry;
 mod types;
 
 use state::RuntimeState;
@@ -20,6 +21,12 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .setup(|_app| {
+            tauri::async_runtime::spawn(async {
+                let _ = telemetry::send_startup_ping().await;
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
             commands::save_api_key,
@@ -32,6 +39,9 @@ pub fn run() {
             commands::sync_books_to_ima,
             commands::save_export_settings,
             commands::save_cache_settings,
+            commands::save_telemetry_enabled,
+            commands::reset_telemetry_installation_id,
+            commands::send_telemetry_ping,
             commands::get_api_cache_info,
             commands::clear_api_cache,
             commands::sync_shelf,

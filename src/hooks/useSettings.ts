@@ -18,6 +18,9 @@ const fallbackSettings: AppSettings = {
   imaApiKeyFull: null,
   imaKnowledgeBaseId: null,
   imaKnowledgeBaseName: null,
+  telemetryEnabled: true,
+  telemetryInstallationId: null,
+  telemetryEndpointConfigured: false,
 };
 
 export function useSettings() {
@@ -66,6 +69,14 @@ export function useSettings() {
     );
   };
 
+  const saveTelemetryEnabled = async (enabled: boolean) => {
+    setSettings(await invoke<AppSettings>("save_telemetry_enabled", { enabled }));
+  };
+
+  const resetTelemetryInstallationId = async () => {
+    setSettings(await invoke<AppSettings>("reset_telemetry_installation_id"));
+  };
+
   const saveImaCredentials = async (clientId: string, apiKey: string) => {
     setSettings(
       await invoke<AppSettings>("save_ima_credentials", {
@@ -100,6 +111,8 @@ export function useSettings() {
     clearApiKey,
     saveExportSettings,
     saveCacheSettings,
+    saveTelemetryEnabled,
+    resetTelemetryInstallationId,
     saveImaCredentials,
     clearImaCredentials,
     saveImaTarget,

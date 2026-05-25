@@ -41,6 +41,8 @@ impl AppConfig {
             ima_api_key: None,
             ima_knowledge_base_id: None,
             ima_knowledge_base_name: None,
+            telemetry_enabled: Some(true),
+            telemetry_installation_id: None,
             config_path,
         }
     }
@@ -98,6 +100,9 @@ impl AppConfig {
             ima_api_key_full: self.ima_api_key.clone(),
             ima_knowledge_base_id: self.ima_knowledge_base_id.clone(),
             ima_knowledge_base_name: self.ima_knowledge_base_name.clone(),
+            telemetry_enabled: self.telemetry_enabled(),
+            telemetry_installation_id: self.telemetry_installation_id.clone(),
+            telemetry_endpoint_configured: crate::telemetry::endpoint_configured(),
         }
     }
 
@@ -105,5 +110,9 @@ impl AppConfig {
         self.cache_ttl_seconds
             .unwrap_or(DEFAULT_CACHE_TTL_SECONDS)
             .max(MIN_CACHE_TTL_SECONDS)
+    }
+
+    pub fn telemetry_enabled(&self) -> bool {
+        self.telemetry_enabled.unwrap_or(true)
     }
 }

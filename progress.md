@@ -17,6 +17,8 @@
 - [x] 已新增 `feature_list.json`、`progress.md`、`init.sh`、`session-handoff.md` 作为轻量 harness。
 - [x] 已将 harness 启动、单功能推进、Definition of Done、End of Session 和 clean restart 规则写入 `AGENTS.md`。
 - [x] `feat-015` / `REQ-015` 已完成：后端兼容划线 `style` / `colorStyle` 两个字段，Notes 页支持按划线颜色筛选。
+- [x] `feat-017` / `REQ-017` 已完成：随机安装编号匿名统计、设置页关于区域轻量说明、Cloudflare Worker + D1 部署样例已落地。
+- [x] `feat-017a` / `REQ-017A` 已完成：匿名统计支持多应用 `appName`、复合主键和按应用汇总。
 
 ### What's In Progress
 
@@ -42,21 +44,11 @@
 
 ## Files Modified This Session
 
-- `AGENTS.md` - 更新默认阅读顺序和归档规则。
-- `docs/current-context.md` - 新增当前阶段入口。
-- `docs/requirements-pool.md` - 收敛为活跃需求池。
-- `docs/archive/completed-requirements.md` - 新增已完成需求归档。
-- `mvp-design-doc.md` - 更新 MVP 完成状态和后续边界。
-- `feature_list.json` - 新增功能状态清单。
-- `progress.md` - 新增会话进度日志。
-- `init.sh` - 新增统一验证入口。
-- `session-handoff.md` - 新增交接模板。
-- `src-tauri/src/types.rs` - Bookmark 兼容 `style` 和可选 `colorStyle`。
-- `src-tauri/src/api.rs` - 解析划线线型、颜色字段和想法原文，避免缺失颜色误读为 0。
-- `src/types/index.ts` - 前端 Bookmark / Review 类型同步可选字段。
-- `src/lib/format.ts` - 新增时分秒日期时间格式化。
-- `src/pages/NotesPage.tsx` - Notes 页新增划线颜色筛选；划线正文用文字颜色体现；想法显示原文和时分秒。
-- `src/index.css` - 新增颜色筛选布局、划线文字颜色和想法原文引用样式。
+- `src-tauri/src/telemetry.rs` - 新增匿名统计启动 ping、随机安装编号生成、端点配置和失败隔离。
+- `src-tauri/src/config.rs`、`src-tauri/src/types.rs`、`src-tauri/src/commands.rs`、`src-tauri/src/lib.rs` - 接入匿名统计配置、设置返回值和 Tauri 命令。
+- `src/App.tsx`、`src/hooks/useSettings.ts`、`src/pages/SettingsPage.tsx`、`src/styles/pages/settings.css`、`src/types/index.ts` - 启动 ping、设置页关于区域轻量说明和用户可理解文案。
+- `cloudflare/telemetry-worker/` - 新增 Worker、D1 schema、wrangler 示例和部署说明。
+- `README.md`、`mvp-design-doc.md`、`docs/requirements-pool.md`、`docs/archive/completed-requirements.md`、`feature_list.json`、`progress.md`、`session-handoff.md` - 同步需求、边界、完成记录和验证证据。
 
 ## Evidence of Completion
 
@@ -68,6 +60,8 @@
 - [x] Unified verification: `./init.sh` passed on 2026-05-25.
 - [x] REQ-015 verification: `./init.sh` passed on 2026-05-25 after Notes color filter changes.
 - [x] Notes display refinement: `./init.sh` passed on 2026-05-25 after replacing color chips with colored text, adding review abstract text, and showing seconds in note timestamps.
+- [x] REQ-017 verification: `./init.sh` passed on 2026-05-25 after anonymous telemetry and Cloudflare Worker files were added.
+- [x] REQ-017A verification: `./init.sh` passed on 2026-05-25 after multi-app telemetry changes.
 
 ## Notes for Next Session
 

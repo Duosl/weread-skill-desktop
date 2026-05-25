@@ -464,6 +464,9 @@ export function SettingsPage({
                 当前版本无法校验自动更新签名，请前往 GitHub 下载并安装最新版本。
               </p>
             )}
+            <p className="about-privacy-note">
+              应用会发送匿名版本统计，用于了解安装量和系统分布；不会上传 API Key、书籍、划线、笔记或导出文件。
+            </p>
           </div>
         </section>
 

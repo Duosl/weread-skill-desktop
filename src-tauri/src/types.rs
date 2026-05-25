@@ -12,6 +12,8 @@ pub struct AppConfig {
     pub ima_api_key: Option<String>,
     pub ima_knowledge_base_id: Option<String>,
     pub ima_knowledge_base_name: Option<String>,
+    pub telemetry_enabled: Option<bool>,
+    pub telemetry_installation_id: Option<String>,
     #[serde(skip, default = "AppConfig::config_path")]
     pub config_path: PathBuf,
 }
@@ -33,6 +35,16 @@ pub struct AppSettings {
     pub ima_api_key_full: Option<String>,
     pub ima_knowledge_base_id: Option<String>,
     pub ima_knowledge_base_name: Option<String>,
+    pub telemetry_enabled: bool,
+    pub telemetry_installation_id: Option<String>,
+    pub telemetry_endpoint_configured: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TelemetryPingResult {
+    pub sent: bool,
+    pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

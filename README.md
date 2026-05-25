@@ -160,9 +160,11 @@ weread-skill-desktop/
 │   │   ├── api.rs          # 微信读书 API 调用
 │   │   ├── cache.rs        # API 本地缓存与请求日志
 │   │   ├── config.rs       # 配置管理
+│   │   ├── telemetry.rs    # 匿名版本统计
 │   │   ├── export.rs       # Markdown 导出逻辑
 │   │   └── types.rs        # 数据类型
 │   └── tauri.conf.json     # Tauri 配置
+├── cloudflare/             # Cloudflare Worker / D1 辅助服务
 ├── landing/                # 产品落地页
 └── README.md               # 本文档
 ```

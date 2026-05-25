@@ -341,6 +341,21 @@ pub async fn save_cache_settings(cache_ttl_seconds: i64) -> Result<AppSettings, 
 }
 
 #[tauri::command]
+pub async fn save_telemetry_enabled(enabled: bool) -> Result<AppSettings, String> {
+    Ok(crate::telemetry::set_enabled(enabled)?.to_settings())
+}
+
+#[tauri::command]
+pub async fn reset_telemetry_installation_id() -> Result<AppSettings, String> {
+    Ok(crate::telemetry::reset_installation_id()?.to_settings())
+}
+
+#[tauri::command]
+pub async fn send_telemetry_ping() -> Result<TelemetryPingResult, String> {
+    crate::telemetry::send_startup_ping().await
+}
+
+#[tauri::command]
 pub async fn get_api_cache_info() -> Result<ApiCacheInfo, String> {
     Ok(crate::cache::ApiCache::info())
 }

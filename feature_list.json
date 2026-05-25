@@ -25,6 +25,22 @@
       "evidence": ""
     },
     {
+      "id": "feat-017",
+      "name": "REQ-017 匿名安装规模统计",
+      "description": "通过随机安装编号统计安装规模、应用版本和平台分布；不采集微信读书内容、API Key、文件路径或用户操作事件。",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "2026-05-25: 新增 Tauri 匿名统计模块、设置页关闭/重置入口、Cloudflare Worker + D1 部署样例；启动 ping 仅发送随机安装编号、版本、平台、架构、语言区域，IP 由 Worker 从请求头记录；./init.sh passed."
+    },
+    {
+      "id": "feat-017a",
+      "name": "REQ-017A 匿名统计多应用支持",
+      "description": "统计接口支持客户端传 appName，Cloudflare D1 以 app_name + installation_id 区分多个应用，并支持按应用汇总。",
+      "dependencies": ["feat-017"],
+      "status": "done",
+      "evidence": "2026-05-25: Rust telemetry payload 增加 appName；Cloudflare Worker 支持客户端 appName、可选 ALLOWED_APPS、请求体限长、按 app_name 查询 summary；D1 schema 改为 PRIMARY KEY (app_name, installation_id)；./init.sh passed."
+    },
+    {
       "id": "feat-007",
       "name": "REQ-007R 阅读报告真实数据回归与产物质量观察",
       "description": "观察基础报告和智能体报告在真实数据下的布局、口径、权限说明、质量提示和输出形态稳定性。",
