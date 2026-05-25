@@ -7,12 +7,15 @@ AI 必须同时参考：
 1. `AGENTS.md`：工程约束、执行顺序、验收入口。
 2. `docs/current-context.md`：当前阶段、边界、默认阅读入口。
 3. `docs/requirements-pool.md`：活跃需求、优先级、状态、下一步建议。
-4. `mvp-design-doc.md`：稳定产品范围、页面、命令、数据流、导出格式。
-5. `ui-style-guide.md`：UI 与交互规范。
-6. `design.md`：UI 审计结论、设计 tokens、组件规则、页面统一方案和后续改造执行蓝图。
-7. `~/.agents/skills/weread-skills/`：微信读书 Skill 原始 API 文档。
-8. `/Users/duoshilin/duosl/forks/html-anything`：智能体报告输出形态与风格拓展参考，尤其是 deck / 小红书 / 卡片 / 海报类 HTML skill。
-9. 飞书多维表格「微信读书 SKill 桌面端需求收集表」：外部需求收集入口，按第 9 节流程读取和回写。
+4. `feature_list.json`：当前可执行功能队列、依赖、状态和验收证据索引。
+5. `progress.md`：当前会话进展、最近验证结果、下一步动作。
+6. `session-handoff.md`：跨会话交接、恢复入口和未完成事项。
+7. `mvp-design-doc.md`：稳定产品范围、页面、命令、数据流、导出格式。
+8. `ui-style-guide.md`：UI 与交互规范。
+9. `design.md`：UI 审计结论、设计 tokens、组件规则、页面统一方案和后续改造执行蓝图。
+10. `~/.agents/skills/weread-skills/`：微信读书 Skill 原始 API 文档。
+11. `/Users/duoshilin/duosl/forks/html-anything`：智能体报告输出形态与风格拓展参考，尤其是 deck / 小红书 / 卡片 / 海报类 HTML skill。
+12. 飞书多维表格「微信读书 SKill 桌面端需求收集表」：外部需求收集入口，按第 9 节流程读取和回写。
 
 ---
 
@@ -85,16 +88,24 @@ AI 必须同时参考：
 
 ## 4. 开始任务前
 
+### Startup Workflow
+
 开始任何实现前，必须完成：
 
 1. 阅读 `docs/current-context.md`，确认当前阶段边界。
 2. 阅读 `docs/requirements-pool.md`，确认当前需求状态、优先级和完成后应更新的位置。
-3. 如果任务涉及产品范围、页面结构、命令清单、数据流或导出格式，阅读 `mvp-design-doc.md`。
-4. 如果任务涉及 UI、页面、组件、视觉、交互或布局，阅读 `ui-style-guide.md` 和 `design.md`，并按其中的 tokens、组件规则、页面统一方案和验收清单执行。
-5. 如果任务涉及微信读书 API，阅读 `~/.agents/skills/weread-skills/` 中对应能力文档。
-6. 如果任务涉及智能体报告输出形态、PPT 风格、小红书图文、海报、卡片、数据报告或新风格拓展，阅读 `/Users/duoshilin/duosl/forks/html-anything/next/src/lib/templates/skills/` 中对应 skill，提炼成符合本项目 Quiet Reading Ledger 的约束。
-7. 只有在需要追溯已完成需求、历史决策或旧验收时，才读取 `docs/archive/completed-requirements.md`；不要把归档作为默认上下文。
-8. 明确当前改动的边界：前端 UI、前端数据层、Rust API、导出、配置、系统命令中的哪一类。
+3. 阅读 `feature_list.json`，确认同一时间只推进一个功能；如果用户没有指定任务，选择依赖已满足、优先级最高的 `not-started` 功能。
+4. 阅读 `progress.md`；如果存在未完成工作，再阅读 `session-handoff.md`，按交接记录恢复，不要重新猜测上下文。
+5. 如果任务涉及产品范围、页面结构、命令清单、数据流或导出格式，阅读 `mvp-design-doc.md`。
+6. 如果任务涉及 UI、页面、组件、视觉、交互或布局，阅读 `ui-style-guide.md` 和 `design.md`，并按其中的 tokens、组件规则、页面统一方案和验收清单执行。
+7. 如果任务涉及微信读书 API，阅读 `~/.agents/skills/weread-skills/` 中对应能力文档。
+8. 如果任务涉及智能体报告输出形态、PPT 风格、小红书图文、海报、卡片、数据报告或新风格拓展，阅读 `/Users/duoshilin/duosl/forks/html-anything/next/src/lib/templates/skills/` 中对应 skill，提炼成符合本项目 Quiet Reading Ledger 的约束。
+9. 只有在需要追溯已完成需求、历史决策或旧验收时，才读取 `docs/archive/completed-requirements.md`；不要把归档作为默认上下文。
+10. 明确当前改动的边界：前端 UI、前端数据层、Rust API、导出、配置、系统命令中的哪一类。
+
+One feature at a time：开始实现前，必须把选定功能在 `feature_list.json` 中标为 `in-progress`，同一时间只允许一个功能处于 `in-progress`。必须在 `progress.md` 写明当前目标、改动范围和预期验收入口。用户只是询问、规划或审阅时，不强制切换功能状态。
+
+Stay in scope：实现期间只处理当前功能的必要文件、必要状态和必要文档；发现相邻优化时，先记录到 `docs/requirements-pool.md` 或 `feature_list.json`，不要顺手扩张当前交付范围。
 
 不要把其他文档中的内容复制进本文件；需要细节时直接引用并遵循对应文档。
 
@@ -164,13 +175,34 @@ Rust 后端职责：
 
 ## 8. 验收入口
 
-每个阶段完成后至少执行：
+### Verification Commands
+
+每个阶段完成后默认执行：
+
+- `./init.sh`
+
+`init.sh` 是当前仓库的统一验收入口，至少包含：
 
 - `npm run frontend:typecheck`
 - `npm run frontend:build`
-- `cargo check`
+- `cd src-tauri && cargo check`
+- `git diff --check`
+
+当前仓库尚未固定自动化单元测试入口；如果新增测试脚本，必须同步加入 `init.sh`。如果某个需求需要更强回归，可以临时运行对应的 test 命令，并把命令与结果写入 Evidence。
 
 如果某条命令无法执行，必须说明原因和剩余风险。
+
+完成后必须把验证命令、结果摘要和剩余风险写回 `progress.md`；如果功能完成，还要同步写入 `feature_list.json` 的 `evidence` 字段和 `session-handoff.md`。
+
+### Definition of Done
+
+需求 done only when：
+
+- 当前功能代码、相关文档和状态文件已经同步。
+- `./init.sh` 已通过，或失败/跳过原因和剩余风险已记录。
+- `feature_list.json` 已写入最终 `status` 和 Evidence。
+- `progress.md` 与 `session-handoff.md` 已更新到可 clean restart 的状态。
+- 当前功能范围已经关闭，新增想法已进入需求池或功能队列，而不是混入本次完成口径。
 
 功能验收以 `mvp-design-doc.md` 为准。
 
@@ -215,18 +247,32 @@ API 验收以 `~/.agents/skills/weread-skills/` 为准。
 开始任何需求前：
 
 1. 先读 `docs/current-context.md` 和 `docs/requirements-pool.md`，确认最高优先级且未阻塞的需求。
-2. 读取飞书需求收集表当前视图，检查是否有新的 `收集箱` / `规划中` / `开发中` 条目需要同步到本地需求池。
-3. 按 `docs/requirements-pool.md` 中的飞书同步规则去重、映射优先级与状态；没有足够信息的条目标记为待澄清，不要直接进入开发。
-4. 再按本文件第 4 节读取对应设计、UI 或 API 资料。
-5. 如果用户指定了需求，以用户指定为准；如果用户只说“继续”或“下一个”，默认选择本地需求池中最高优先级且未阻塞的 `Todo` 需求。
+2. 读取 `feature_list.json`，确认依赖、状态和当前唯一可推进功能。
+3. 读取飞书需求收集表当前视图，检查是否有新的 `收集箱` / `规划中` / `开发中` 条目需要同步到本地需求池。
+4. 按 `docs/requirements-pool.md` 中的飞书同步规则去重、映射优先级与状态；没有足够信息的条目标记为待澄清，不要直接进入开发。
+5. 再按本文件第 4 节读取对应设计、UI 或 API 资料。
+6. 如果用户指定了需求，以用户指定为准；如果用户只说“继续”或“下一个”，默认选择 `feature_list.json` 中依赖已满足、优先级最高且未阻塞的 `not-started` 功能。
 
 完成任何需求后：
 
-1. 更新 `docs/requirements-pool.md` 中对应条目的状态。
-2. 将完成说明、改动入口、验证结果和剩余风险追加到 `docs/archive/completed-requirements.md`，并从活跃需求详情中移除已完成需求。
-3. 如果该需求来自飞书表，且当前身份具备写权限，回写飞书记录的状态、上线版本或补充信息；没有回写权限时在最终回复中说明。
-4. 如果实现改变了产品范围、导出格式、命令清单或 UI 规则，同步更新 `mvp-design-doc.md`、`ui-style-guide.md` 或 `README.md`。
-5. 在最终回复中提示下一个建议启动的高优先级需求。
+1. 运行 `./init.sh`，并记录通过、失败或跳过原因。
+2. 更新 `feature_list.json` 中对应功能的 `status` 和 `evidence`。
+3. 更新 `progress.md` 的完成说明、验证结果、剩余风险和下一步。
+4. 更新 `session-handoff.md`，确保下一位智能体可以在 5 分钟内恢复现场。
+5. 更新 `docs/requirements-pool.md` 中对应条目的状态。
+6. 将完成说明、改动入口、验证结果和剩余风险追加到 `docs/archive/completed-requirements.md`，并从活跃需求详情中移除已完成需求。
+7. 如果该需求来自飞书表，且当前身份具备写权限，回写飞书记录的状态、上线版本或补充信息；没有回写权限时在最终回复中说明。
+8. 如果实现改变了产品范围、导出格式、命令清单或 UI 规则，同步更新 `mvp-design-doc.md`、`ui-style-guide.md` 或 `README.md`。
+9. 在最终回复中提示下一个建议启动的高优先级需求。
+
+### End of Session
+
+Before ending a development session：
+
+- 确认 `feature_list.json` 中没有过期的 `in-progress` 状态；未完成则保留并写清 blocker，已完成则改为 `done`。
+- 在 `progress.md` 写入最后验证结果、当前状态、下一步。
+- 在 `session-handoff.md` 写入 changed files、blockers、recommended next step，保证下一次可以 restartable 且 clean 地恢复。
+- 不主动提交 git；只报告改动和验证证据。
 
 ---
 
@@ -240,6 +286,10 @@ API 验收以 `~/.agents/skills/weread-skills/` 为准。
 - 当前阶段与默认阅读入口：写入 `docs/current-context.md`。
 - 活跃需求、优先级、下一步开发建议：写入 `docs/requirements-pool.md`。
 - 已完成需求、完成记录和历史决策：写入 `docs/archive/completed-requirements.md`。
+- 可执行功能队列、依赖、状态、证据索引：写入 `feature_list.json`。
+- 当前会话进展、验证结果、下一步动作：写入 `progress.md`。
+- 跨会话恢复说明、未完成事项、最后有效上下文：写入 `session-handoff.md`。
+- 验收命令编排：写入 `init.sh`。
 - 面向用户的安装、使用、功能说明：写入 `README.md`。
 - 微信读书 API 字段、参数、分页、统计口径：只引用 `~/.agents/skills/weread-skills/`，不要复制到仓库文档。
 - 智能体报告输出形态、版式池、截图比例、交互结构等稳定规则：优先写入 `mvp-design-doc.md`、`ui-style-guide.md` 或 `docs/requirements-pool.md`；`html-anything` 只作为外部参考来源，不复制进仓库。
@@ -247,4 +297,4 @@ API 验收以 `~/.agents/skills/weread-skills/` 为准。
 
 ---
 
-最后更新：2026-05-22
+最后更新：2026-05-25

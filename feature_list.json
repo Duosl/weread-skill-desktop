@@ -1,0 +1,36 @@
+{
+  "features": [
+    {
+      "id": "feat-014",
+      "name": "REQ-014 智能体模板原文权限说明优化",
+      "description": "保持现有必需授权 / 可选授权两类策略，补清未授权时的数据边界、Agent 输入约束和用户可理解文案。",
+      "dependencies": [],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-015",
+      "name": "REQ-015 划线样式与颜色信息利用",
+      "description": "利用微信读书划线 colorStyle 字段，在 Notes、Markdown 和报告数据中低调保留标注样式信息，未校准前不猜测颜色语义。",
+      "dependencies": ["feat-014"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-016",
+      "name": "REQ-016 Post-MVP 用户反馈驱动优化池",
+      "description": "将发布后的新增需求绑定到真实用户反馈、复现路径或明确场景，防止回到完整客户端式扩张。",
+      "dependencies": [],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-007",
+      "name": "REQ-007R 阅读报告真实数据回归与产物质量观察",
+      "description": "观察基础报告和智能体报告在真实数据下的布局、口径、权限说明、质量提示和输出形态稳定性。",
+      "dependencies": [],
+      "status": "not-started",
+      "evidence": ""
+    }
+  ]
+}
