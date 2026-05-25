@@ -3,7 +3,7 @@ import type { Review, ReviewListResult } from "@/types";
 
 const REVIEW_PAGE_SIZE = 100;
 
-export async function loadAllReviews(bookId: string): Promise<Review[]> {
+export async function loadAllReviews(bookId: string, forceRefresh = false): Promise<Review[]> {
   const collected: Review[] = [];
   let synckey = 0;
 
@@ -12,6 +12,7 @@ export async function loadAllReviews(bookId: string): Promise<Review[]> {
       bookId,
       synckey,
       count: REVIEW_PAGE_SIZE,
+      forceRefresh,
     });
     const reviews = page.reviews ?? [];
     collected.push(...reviews);

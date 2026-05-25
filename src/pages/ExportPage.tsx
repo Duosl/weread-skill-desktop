@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { FileDown, FileText, FolderOpen, Search, UploadCloud } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { PageShell } from "../components/layout/PageShell";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -11,6 +12,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { useExport } from "../hooks/useExport";
 import { useImaConnector } from "../hooks/useImaConnector";
 import { useNotebooks } from "../hooks/useNotebooks";
+import { useToast } from "../components/ui/ToastContext";
 import { buildMarkdownPreview } from "../lib/preview/exportPreview";
 import { noteTotal } from "../lib/format";
 import { loadAllReviews } from "../lib/reviews";
@@ -32,12 +34,13 @@ export function ExportPage({
   const notebooks = useNotebooks();
   const exporter = useExport();
   const ima = useImaConnector();
+  const navigate = useNavigate();
+  const toast = useToast();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [outputDir, setOutputDir] = useState(settings.lastExportDir);
   const [includeBookmarks, setIncludeBookmarks] = useState(true);
   const [includeReviews, setIncludeReviews] = useState(true);
   const [bookQuery, setBookQuery] = useState("");
-  const [notice, setNotice] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
 
@@ -127,14 +130,12 @@ export function ExportPage({
     const selected = await open({ directory: true, multiple: false, defaultPath: outputDir });
     if (typeof selected === "string") {
       setOutputDir(selected);
-      setNotice(null);
     } else {
-      setNotice("已取消选择导出目录");
+      toast("已取消选择导出目录", "info");
     }
   }
 
   const runExport = useCallback(async () => {
-    setNotice(null);
     const options: ExportOptions = {
       bookIds: selectedIds,
       format: "markdown",
@@ -151,7 +152,6 @@ export function ExportPage({
   }, [exporter.runExport, includeBookmarks, includeReviews, outputDir, selectedIds]);
 
   const runImaSync = useCallback(async () => {
-    setNotice(null);
     await ima.syncBooks({
       bookIds: selectedIds,
       includeBookmarks,
@@ -163,28 +163,50 @@ export function ExportPage({
   const imaReady = settings.imaClientIdSet && settings.imaApiKeySet && Boolean(settings.imaKnowledgeBaseId);
   const imaSyncButtonLabel = ima.syncing
     ? `同步中 ${ima.syncProgress?.current ?? 0}/${ima.syncProgress?.total || selectedIds.length}`
-    : "同步到 ima";
+    : imaReady
+      ? "同步到 ima"
+      : "配置 ima 后同步";
+
+  const handleImaSyncClick = useCallback(() => {
+    if (selectedIds.length === 0) {
+      toast("请先选择要同步的书籍", "error");
+      return;
+    }
+    if (!imaReady) {
+      navigate("/connectors?openImaConfig=true");
+      return;
+    }
+    void runImaSync();
+  }, [imaReady, navigate, runImaSync, selectedIds.length]);
+
+  const handleExportClick = useCallback(() => {
+    if (selectedIds.length === 0) {
+      toast("请先选择要导出的书籍", "error");
+      return; 
+    }
+    void runExport();
+  }, [runExport, selectedIds.length]);
 
   const exportHeaderAction = useMemo(() => (
     <div className="export-header-actions">
       <Button
         variant="secondary"
         icon={<UploadCloud size={16} />}
-        disabled={selectedIds.length === 0 || !imaReady || ima.syncing}
-        onClick={() => void runImaSync()}
+        disabled={imaReady && ima.syncing}
+        onClick={handleImaSyncClick}
       >
         {imaSyncButtonLabel}
       </Button>
       <Button
         variant="primary"
         icon={<FileDown size={16} />}
-        disabled={selectedIds.length === 0 || !outputDir || exporter.loading}
-        onClick={() => void runExport()}
+        disabled={!outputDir || exporter.loading}
+        onClick={handleExportClick}
       >
         导出
       </Button>
     </div>
-  ), [exporter.loading, ima.syncing, imaReady, imaSyncButtonLabel, outputDir, runExport, runImaSync, selectedIds.length]);
+  ), [exporter.loading, ima.syncing, imaReady, imaSyncButtonLabel, outputDir, handleExportClick, handleImaSyncClick]);
 
   useEffect(() => {
     if (!embedded || !onHeaderActionChange) return;
@@ -195,7 +217,6 @@ export function ExportPage({
   const content = (
     <>
       <ErrorBanner message={notebooks.error ?? exporter.error ?? ima.error} />
-      {notice ? <div className="success-text">{notice}</div> : null}
       {exporter.result ? <div className="success-text">{exporter.result.message}</div> : null}
       {ima.message ? <div className="success-text">{ima.message}</div> : null}
       <div className="export-layout">

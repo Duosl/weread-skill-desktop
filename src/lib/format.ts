@@ -3,6 +3,19 @@ export function formatDate(timestamp?: number | null): string {
   return new Date(timestamp * 1000).toLocaleDateString("zh-CN");
 }
 
+export function formatDateTime(timestamp?: number | null): string {
+  if (!timestamp) return "-";
+  return new Date(timestamp * 1000).toLocaleString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
 export function formatDuration(seconds?: number | null): string {
   if (!seconds || seconds <= 0) return "0分钟";
   const hours = Math.floor(seconds / 3600);

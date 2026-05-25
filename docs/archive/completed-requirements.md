@@ -19,6 +19,7 @@
 | REQ-011 | Notes / Export | 合并为笔记工作台，侧边栏只保留笔记入口，浏览 / 导出用 Tab 分离。 | `src/pages/NotesWorkbenchPage.tsx`、`src/pages/NotesPage.tsx`、`src/pages/ExportPage.tsx`、`src/App.tsx` | `frontend:typecheck`、`frontend:build`、`cargo check`、`git diff --check` |
 | REQ-012 | Report / Agent | 智能体报告支持自定义要求和输出形态：默认报告、PPT 风格、小红书图文风格。 | `src/pages/ReportPage.tsx`、`src/hooks/useAdvancedReport.ts`、`src-tauri/src/advanced_report.rs` | `frontend:typecheck`、`frontend:build`、`cargo check` |
 | REQ-013 | UI / Design System | 全应用 UI 风格统一，新增设计执行文档和基础组件，收敛页面 shell、标题区、Tabs、按钮、弹窗。 | `design.md`、`src/components/layout/PageShell.tsx`、`src/components/ui/SegmentedControl.tsx`、`src/components/ui/IconButton.tsx`、`src/index.css` | `frontend:typecheck`、`frontend:build`、`cargo check`、`git diff --check` |
+| REQ-015 | Notes | 后端兼容划线 `style` / `colorStyle` 两个协议字段，前端按颜色筛选划线并在划线卡片显示用户可理解的颜色标记。 | `src-tauri/src/types.rs`、`src-tauri/src/api.rs`、`src/types/index.ts`、`src/pages/NotesPage.tsx`、`src/index.css` | `./init.sh` |
 
 ---
 
@@ -64,6 +65,7 @@
 - PDF 导出暂不排期，不再作为本地活跃需求推进。
 - 腾讯 ima 联动已完成当前 Markdown 同步闭环；后续只根据用户反馈优化重导出逻辑、同步结果解释和导出内容文案。
 - 新增下一阶段活跃需求：`REQ-014`、`REQ-015`、`REQ-016`。
+- REQ-015 划线颜色筛选：确认微信读书协议中 `style` 表示线型、`colorStyle` 表示颜色；当前缓存样本未返回 `style`，因此后端先兼容可选字段，前端第一阶段只使用颜色。Notes 页新增颜色筛选，支持只看红 / 紫 / 蓝 / 绿 / 黄某一类划线；历史无颜色字段的划线不误归为颜色 0。
 
 ---
 

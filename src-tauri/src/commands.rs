@@ -383,8 +383,13 @@ pub async fn get_book_progress(
 pub async fn get_bookmarks(
     state: State<'_, RuntimeState>,
     book_id: String,
+    force_refresh: Option<bool>,
 ) -> Result<BookmarkListResult, String> {
-    state.client().await?.bookmark_list(&book_id).await
+    state
+        .client()
+        .await?
+        .bookmark_list_with_cache(&book_id, force_refresh.unwrap_or(false))
+        .await
 }
 
 #[tauri::command]
@@ -393,11 +398,12 @@ pub async fn get_my_reviews(
     book_id: String,
     synckey: i64,
     count: i32,
+    force_refresh: Option<bool>,
 ) -> Result<ReviewListResult, String> {
     state
         .client()
         .await?
-        .my_reviews(&book_id, synckey, count)
+        .my_reviews_with_cache(&book_id, synckey, count, force_refresh.unwrap_or(false))
         .await
 }
 

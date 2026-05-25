@@ -12,7 +12,7 @@ export function useNotes(bookId?: string) {
   const [error, setError] = useState<string | null>(null);
 
   const loadNotes = useCallback(
-    async (targetBookId = bookId) => {
+    async (targetBookId = bookId, forceRefresh = false) => {
       if (!targetBookId) {
         setBookmarks([]);
         setReviews([]);
@@ -24,8 +24,8 @@ export function useNotes(bookId?: string) {
       setError(null);
       try {
         const [bookmarkResult, reviewResult] = await Promise.all([
-          invoke<BookmarkListResult>("get_bookmarks", { bookId: targetBookId }),
-          loadAllReviews(targetBookId),
+          invoke<BookmarkListResult>("get_bookmarks", { bookId: targetBookId, forceRefresh }),
+          loadAllReviews(targetBookId, forceRefresh),
         ]);
         setBookmarks(bookmarkResult.bookmarks ?? []);
         setChapters(bookmarkResult.chapters ?? []);

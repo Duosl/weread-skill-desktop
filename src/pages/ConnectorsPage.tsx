@@ -10,7 +10,7 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -37,10 +37,17 @@ export function ConnectorsPage({
   onSaveImaTarget,
 }: ConnectorsPageProps) {
   const navigate = useNavigate();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [dialogOpen, setDialogOpen] = useState(() => searchParams.get("openImaConfig") === "true");
   const configured = settings.imaClientIdSet && settings.imaApiKeySet;
   const syncReady = configured && Boolean(settings.imaKnowledgeBaseId);
   const targetName = settings.imaKnowledgeBaseName;
+
+  useEffect(() => {
+    if (searchParams.get("openImaConfig") === "true") {
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   return (
     <PageShell title="连接器" className="connectors-shell">

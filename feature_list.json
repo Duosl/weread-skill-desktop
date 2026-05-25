@@ -13,8 +13,8 @@
       "name": "REQ-015 划线样式与颜色信息利用",
       "description": "利用微信读书划线 colorStyle 字段，在 Notes、Markdown 和报告数据中低调保留标注样式信息，未校准前不猜测颜色语义。",
       "dependencies": ["feat-014"],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "2026-05-25: 后端兼容 style/colorStyle 可选字段；Notes 页按红/紫/蓝/绿/黄筛选划线并显示颜色标记；./init.sh passed."
     },
     {
       "id": "feat-016",

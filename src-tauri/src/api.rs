@@ -452,7 +452,8 @@ fn parse_bookmark(value: &Value, fallback_book_id: &str) -> Option<Bookmark> {
         mark_text: value.get("markText")?.as_str()?.to_string(),
         create_time: int_field(value, "createTime"),
         range: str_field(value, "range"),
-        color_style: int_field(value, "colorStyle") as i32,
+        style: int_optional(value, "style").map(|value| value as i32),
+        color_style: int_optional(value, "colorStyle").map(|value| value as i32),
         chapter_title: None,
     })
 }
@@ -462,6 +463,11 @@ fn parse_review(value: &Value) -> Option<Review> {
     Some(Review {
         review_id: review.get("reviewId")?.as_str()?.to_string(),
         content: review.get("content")?.as_str()?.to_string(),
+        abstract_text: review
+            .get("abstract")
+            .and_then(Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .map(str::to_string),
         create_time: int_field(review, "createTime"),
         star: int_field(review, "star") as i32,
         chapter_name: review

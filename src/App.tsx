@@ -14,6 +14,7 @@ import { useNotebooks } from "./hooks/useNotebooks";
 import { useReadingStats } from "./hooks/useReadingStats";
 import { useSettings } from "./hooks/useSettings";
 import { useUpdater } from "./hooks/useUpdater";
+import { ToastProvider } from "./components/ui/ToastContext";
 import "./index.css";
 import "./styles/pages/report.css";
 import "./styles/pages/settings.css";
@@ -30,6 +31,7 @@ function App() {
 
   return (
     <HashRouter>
+      <ToastProvider>
       <div className="app-shell">
         <Toolbar
           sidebarCollapsed={sidebarCollapsed}
@@ -116,6 +118,7 @@ function App() {
           onClose={() => setShowSupportDialog(false)}
         />
       </div>
+      </ToastProvider>
     </HashRouter>
   );
 }

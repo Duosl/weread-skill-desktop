@@ -121,7 +121,7 @@ export interface Bookmark {
   markText: string;
   createTime: number;
   range: string;
-  colorStyle: number;
+  colorStyle?: number | null;
   chapterTitle?: string | null;
 }
 
@@ -134,6 +134,7 @@ export interface BookmarkListResult {
 export interface Review {
   reviewId: string;
   content: string;
+  abstractText?: string | null;
   createTime: number;
   star: number;
   chapterName?: string | null;

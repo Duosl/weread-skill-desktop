@@ -199,7 +199,8 @@ pub struct Bookmark {
     pub mark_text: String,
     pub create_time: i64,
     pub range: String,
-    pub color_style: i32,
+    pub style: Option<i32>,
+    pub color_style: Option<i32>,
     pub chapter_title: Option<String>,
 }
 
@@ -216,6 +217,7 @@ pub struct BookmarkListResult {
 pub struct Review {
     pub review_id: String,
     pub content: String,
+    pub abstract_text: Option<String>,
     pub create_time: i64,
     pub star: i32,
     pub chapter_name: Option<String>,

@@ -12,11 +12,12 @@ import { SegmentedControl } from "../components/ui/SegmentedControl";
 import { Spinner } from "../components/ui/Spinner";
 import { useNotes } from "../hooks/useNotes";
 import { useNotebooks } from "../hooks/useNotebooks";
-import { formatDate, noteTotal } from "../lib/format";
+import { formatDateTime, noteTotal } from "../lib/format";
 import type { Bookmark, ChapterInfo, Review } from "../types";
 
 type NoteType = "all" | "bookmarks" | "reviews";
 type ViewMode = "chapter" | "timeline";
+type BookmarkColorFilter = "all" | "1" | "2" | "3" | "4" | "5";
 
 type ChapterGroup = {
   chapterUid: number;
@@ -33,6 +34,8 @@ type FlatNote = {
   time: number;
   content: string;
   range?: string;
+  colorStyle?: number | null;
+  abstractText?: string | null;
 };
 
 type NotesPageProps = {
@@ -52,6 +55,7 @@ export function NotesPage({
   const [query, setQuery] = useState("");
   const [noteType, setNoteType] = useState<NoteType>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("chapter");
+  const [bookmarkColorFilter, setBookmarkColorFilter] = useState<BookmarkColorFilter>("all");
   const [actionError, setActionError] = useState<string | null>(null);
   const notebooks = useNotebooks();
   const notes = useNotes(selectedBookId);
@@ -69,7 +73,7 @@ export function NotesPage({
   }, [initialBookId]);
 
   useEffect(() => {
-    if (selectedBookId) void notes.loadNotes(selectedBookId);
+    if (selectedBookId) void notes.loadNotes(selectedBookId, true);
   }, [selectedBookId]);
 
   useEffect(() => {
@@ -87,17 +91,43 @@ export function NotesPage({
     );
   }, [notebooks.books, notebookQuery]);
   const normalizedQuery = query.trim().toLowerCase();
+  const availableBookmarkColors = useMemo(() => {
+    const colors = new Set<BookmarkColorFilter>();
+    for (const bookmark of notes.bookmarks) {
+      if (isBookmarkColorFilter(bookmark.colorStyle)) {
+        colors.add(String(bookmark.colorStyle) as BookmarkColorFilter);
+      }
+    }
+    return BOOKMARK_COLOR_OPTIONS.filter((option) => option.value === "all" || colors.has(option.value));
+  }, [notes.bookmarks]);
+  const isColorScoped = bookmarkColorFilter !== "all";
+
+  useEffect(() => {
+    if (
+      bookmarkColorFilter !== "all" &&
+      !availableBookmarkColors.some((option) => option.value === bookmarkColorFilter)
+    ) {
+      setBookmarkColorFilter("all");
+    }
+  }, [availableBookmarkColors, bookmarkColorFilter]);
+
+  useEffect(() => {
+    if (noteType !== "bookmarks" && bookmarkColorFilter !== "all") {
+      setBookmarkColorFilter("all");
+    }
+  }, [bookmarkColorFilter, noteType]);
 
   const filteredBookmarks = useMemo(
     () =>
       notes.bookmarks.filter(
         (bookmark) =>
           noteType !== "reviews" &&
+          (!isColorScoped || String(bookmark.colorStyle) === bookmarkColorFilter) &&
           (!normalizedQuery ||
             bookmark.markText.toLowerCase().includes(normalizedQuery) ||
             Boolean(bookmark.chapterTitle?.toLowerCase().includes(normalizedQuery))),
       ),
-    [notes.bookmarks, normalizedQuery, noteType],
+    [bookmarkColorFilter, isColorScoped, notes.bookmarks, normalizedQuery, noteType],
   );
 
   const filteredReviews = useMemo(
@@ -107,6 +137,7 @@ export function NotesPage({
           noteType !== "bookmarks" &&
           (!normalizedQuery ||
             review.content.toLowerCase().includes(normalizedQuery) ||
+            Boolean(review.abstractText?.toLowerCase().includes(normalizedQuery)) ||
             Boolean(review.chapterName?.toLowerCase().includes(normalizedQuery))),
       ),
     [notes.reviews, normalizedQuery, noteType],
@@ -128,6 +159,7 @@ export function NotesPage({
           time: bookmark.createTime,
           content: bookmark.markText,
           range: bookmark.range,
+          colorStyle: bookmark.colorStyle,
         })),
         ...filteredReviews.map((review) => ({
           kind: "review" as const,
@@ -136,6 +168,7 @@ export function NotesPage({
           chapterUid: 0,
           time: review.createTime,
           content: review.content,
+          abstractText: review.abstractText,
         })),
       ].sort((left, right) => right.time - left.time),
     [filteredBookmarks, filteredReviews],
@@ -212,25 +245,35 @@ export function NotesPage({
           </Card>
 
           <Card className="notes-filter-card">
-            <SegmentedControl
-              ariaLabel="笔记类型"
-              value={noteType}
-              onChange={setNoteType}
-              options={[
-                { value: "all", label: "全部" },
-                { value: "bookmarks", label: "划线" },
-                { value: "reviews", label: "想法" },
-              ]}
-            />
-            <SegmentedControl
-              ariaLabel="笔记视图"
-              value={viewMode}
-              onChange={setViewMode}
-              options={[
-                { value: "chapter", label: "按章节" },
-                { value: "timeline", label: "按时间" },
-              ]}
-            />
+            <div className="notes-filter-row">
+              <SegmentedControl
+                ariaLabel="笔记类型"
+                value={noteType}
+                onChange={setNoteType}
+                options={[
+                  { value: "all", label: "全部" },
+                  { value: "bookmarks", label: "划线" },
+                  { value: "reviews", label: "想法" },
+                ]}
+              />
+              <SegmentedControl
+                ariaLabel="笔记视图"
+                value={viewMode}
+                onChange={setViewMode}
+                options={[
+                  { value: "chapter", label: "按章节" },
+                  { value: "timeline", label: "按时间" },
+                ]}
+              />
+            </div>
+            {noteType === "bookmarks" && availableBookmarkColors.length > 1 ? (
+              <SegmentedControl
+                ariaLabel="划线颜色"
+                value={bookmarkColorFilter}
+                onChange={setBookmarkColorFilter}
+                options={availableBookmarkColors}
+              />
+            ) : null}
           </Card>
 
           {!selectedBookId ? (
@@ -290,17 +333,23 @@ function ChapterView({ groups }: { groups: ChapterGroup[] }) {
           {group.bookmarks.map((bookmark) => (
             <Card className="quote-card" key={bookmark.bookmarkId}>
               <div className="note-meta">
-                <span>{formatDate(bookmark.createTime)}</span>
+                <span>{formatDateTime(bookmark.createTime)}</span>
                 {bookmark.range ? <code>{bookmark.range}</code> : null}
               </div>
-              <blockquote>{bookmark.markText}</blockquote>
+              <blockquote
+                className={bookmark.colorStyle ? `bookmark-text-color-${bookmark.colorStyle}` : undefined}
+              >
+                {bookmark.markText}
+              </blockquote>
             </Card>
           ))}
           {group.reviews.map((review) => (
             <Card className="review-card" key={review.reviewId}>
               <div className="note-meta">
-                <span>{formatDate(review.createTime)}</span>
+                <span>{formatDateTime(review.createTime)}</span>
+                {review.range ? <code>{review.range}</code> : null}
               </div>
+              {review.abstractText ? <blockquote className="review-abstract">{review.abstractText}</blockquote> : null}
               <p>{review.content}</p>
             </Card>
           ))}
@@ -321,12 +370,49 @@ function TimelineView({ notes }: { notes: FlatNote[] }) {
         <Card className={note.kind === "bookmark" ? "quote-card" : "review-card"} key={`${note.kind}-${note.id}`}>
           <div className="note-meta">
             <span>{note.chapter}</span>
-            <time>{formatDate(note.time)}</time>
+            <NoteMetaDetails time={note.time} range={note.range} />
           </div>
-          {note.kind === "bookmark" ? <blockquote>{note.content}</blockquote> : <p>{note.content}</p>}
+          {note.kind === "bookmark" ? (
+            <blockquote className={note.colorStyle ? `bookmark-text-color-${note.colorStyle}` : undefined}>
+              {note.content}
+            </blockquote>
+          ) : (
+            <>
+              {note.abstractText ? <blockquote className="review-abstract">{note.abstractText}</blockquote> : null}
+              <p>{note.content}</p>
+            </>
+          )}
         </Card>
       ))}
     </div>
+  );
+}
+
+const BOOKMARK_COLOR_OPTIONS: Array<{ value: BookmarkColorFilter; label: string }> = [
+  { value: "all", label: "全部颜色" },
+  { value: "1", label: "红" },
+  { value: "2", label: "紫" },
+  { value: "3", label: "蓝" },
+  { value: "4", label: "绿" },
+  { value: "5", label: "黄" },
+];
+
+function isBookmarkColorFilter(value: unknown): value is 1 | 2 | 3 | 4 | 5 {
+  return value === 1 || value === 2 || value === 3 || value === 4 || value === 5;
+}
+
+function NoteMetaDetails({
+  range,
+  time,
+}: {
+  range?: string;
+  time?: number;
+}) {
+  return (
+    <span className="note-meta-details">
+      {time ? <time>{formatDateTime(time)}</time> : null}
+      {range ? <code>{range}</code> : null}
+    </span>
   );
 }
 
