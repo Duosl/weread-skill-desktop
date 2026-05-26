@@ -161,7 +161,7 @@ export function CommunityDialog(props: DialogVisibilityProps) {
       kicker="交流"
       heading="微信群与个人微信"
       description="获取使用帮助、反馈问题，也可以分享你的阅读工作流。"
-      note="群二维码失效时，可添加个人微信并备注「WeRead」。"
+      note="群二维码失效时，可添加个人微信并备注「书迹」。"
       channels={communityChannels}
       closeLabel="关闭交流弹窗"
     />
@@ -178,7 +178,7 @@ export function SupportDialog(props: DialogVisibilityProps) {
       kicker="支持"
       heading="赞赏支持"
       description="如果这个工具帮到了你，扫码赞赏就是很直接的鼓励。"
-      note="谢谢你的支持，我们一起让 WeRead Skill Desktop 更快更好。"
+      note="谢谢你的支持，我们一起让书迹更快更好。"
       channels={supportChannels}
       closeLabel="关闭支持弹窗"
     />

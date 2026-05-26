@@ -3,13 +3,15 @@
 ## Current Objective
 
 - Goal: Keep the project restartable after each coding-agent session.
-- Current status: `REQ-017A` is complete; no active feature implementation is in progress.
+- Current status: `REQ-019` is complete; no active feature implementation is in progress.
 - Branch / commit: current working tree, not committed by agent.
 
 ## Completed This Session
 
 - [x] Completed `REQ-017`: anonymous installation telemetry now uses a random local installation ID, startup ping, a light About-page note, and Cloudflare Worker / D1 deployment files. The app does not collect operation events, API Key, WeRead content, export paths, file names, or book/note data; IP is recorded only by the Worker from Cloudflare request headers.
 - [x] Completed `REQ-017A`: telemetry now supports multiple applications through client-provided `appName`; D1 uses `PRIMARY KEY (app_name, installation_id)` and summary can be filtered by `app_name`.
+- [x] Completed `REQ-018`: user-visible product surfaces now use the name `书迹`; the product slogan is “把微信读书笔记整理成可归档、可复盘、可分享的阅读资产。”; repository name, package name and updater URLs remain unchanged.
+- [x] Completed `REQ-019`: added a native 书迹 icon with editable SVG source, generated desktop bundle icons, and switched the sidebar brand mark plus browser favicon to the new icon.
 
 ## Verification Evidence
 
@@ -23,6 +25,9 @@
 | Unified gate | `./init.sh` | Passed | 2026-05-25 |
 | REQ-017 final gate | `./init.sh` | Passed | 2026-05-25 |
 | REQ-017A final gate | `./init.sh` | Passed | 2026-05-25 |
+| REQ-018 final gate | `./init.sh` | Passed | 2026-05-26 |
+| Slogan update | `./init.sh` | Passed | 2026-05-26 |
+| REQ-019 final gate | `./init.sh` | Passed | 2026-05-26 |
 
 ## Files Changed
 
@@ -38,6 +43,10 @@
 - `src-tauri/src/commands.rs`
 - `src-tauri/src/lib.rs`
 - `src-tauri/Cargo.toml`
+- `index.html`
+- `assets/brand/shuji-icon.svg`
+- `public/shuji-icon.png`
+- `src-tauri/icons/*`
 - `src-tauri/Cargo.lock`
 - `src/App.tsx`
 - `src/hooks/useSettings.ts`
@@ -48,6 +57,14 @@
 - `cloudflare/telemetry-worker/wrangler.example.toml`
 - `cloudflare/telemetry-worker/src/index.ts`
 - `src/types/index.ts`
+- `src/components/layout/Sidebar.tsx`
+- `src/components/RewardDialog.tsx`
+- `src/pages/SettingsPage.tsx`
+- `src/lib/preview/exportPreview.ts`
+- `src-tauri/src/export.rs`
+- `src-tauri/src/advanced_report.rs`
+- `src-tauri/tauri.conf.json`
+- `src-tauri/Cargo.toml`
 
 ## Decisions Made
 
@@ -66,6 +83,8 @@
 - The app sends a random installation ID, version, channel, platform, architecture and locale. The Worker records first/latest IP from `CF-Connecting-IP`; do not add WeRead content, local paths, operation events, account identifiers, API Key or device-derived fingerprints.
 - The Worker accepts client-provided `appName`; set `ALLOWED_APPS` in Wrangler vars if a deployment should restrict app names.
 - Existing single-app D1 tables need a new table or database for the composite primary key; SQLite/D1 cannot add a composite primary key in place.
+- User-visible product name is now `书迹`. Product slogan is “把微信读书笔记整理成可归档、可复盘、可分享的阅读资产。” Keep repository/package identifiers and updater URLs as `weread-skill-desktop` until a dedicated release-infrastructure migration is planned.
+- The 书迹 icon concept is an independent mark: blue rounded square, open book, warm highlighter trace and small archive/mark detail. It avoids directly reusing the WeRead official icon while preserving the reading-note meaning.
 
 ## Blockers / Risks
 

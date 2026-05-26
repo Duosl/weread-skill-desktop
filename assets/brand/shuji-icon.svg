@@ -1,0 +1,47 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="176" y1="120" x2="848" y2="904" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2F80ED"/>
+      <stop offset="0.55" stop-color="#2F80ED"/>
+      <stop offset="1" stop-color="#2F80ED"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="265" y1="242" x2="760" y2="802" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFDF7"/>
+      <stop offset="1" stop-color="#F2E8D3"/>
+    </linearGradient>
+    <linearGradient id="trace" x1="321" y1="636" x2="733" y2="636" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8C548"/>
+      <stop offset="1" stop-color="#E59A2E"/>
+    </linearGradient>
+    <filter id="softShadow" x="196" y="210" width="632" height="642" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="26"/>
+      <feGaussianBlur stdDeviation="28"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.04 0 0 0 0 0.12 0 0 0 0 0.24 0 0 0 0.22 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+  </defs>
+
+  <rect x="92" y="92" width="840" height="840" rx="188" fill="url(#bg)"/>
+
+  <g transform="translate(512 512) scale(0.9) translate(-512 -512)">
+    <g filter="url(#softShadow)">
+      <path d="M263 274C263 248.595 284.508 228.423 309.84 230.055C396.129 235.615 468.851 259.618 512 305.582C555.149 259.618 627.871 235.615 714.16 230.055C739.492 228.423 761 248.595 761 274V761C761 787.083 739.091 807.488 713.1 805.29C623.606 797.721 552.049 768.41 512 717.037C471.951 768.41 400.394 797.721 310.9 805.29C284.909 807.488 263 787.083 263 761V274Z" fill="url(#paper)"/>
+      <path d="M512 307V716" stroke="#D5C7AA" stroke-width="20" stroke-linecap="round"/>
+      <path d="M326 323C390 329 442 348 476 377" stroke="#D5C7AA" stroke-width="19" stroke-linecap="round"/>
+      <path d="M318 406C377 412 426 430 464 460" stroke="#D5C7AA" stroke-width="15" stroke-linecap="round" opacity="0.68"/>
+      <path d="M324 514C374 514 426 528 474 560" stroke="#D5C7AA" stroke-width="18" stroke-linecap="round" opacity="0.78"/>
+      <path d="M331 681C383 666 428 668 462 689" stroke="#D5C7AA" stroke-width="14" stroke-linecap="round" opacity="0.54"/>
+      <path d="M697 332C633 337 582 354 548 383" stroke="#D5C7AA" stroke-width="18" stroke-linecap="round"/>
+      <path d="M704 420C645 426 596 444 554 474" stroke="#D5C7AA" stroke-width="15" stroke-linecap="round" opacity="0.68"/>
+      <path d="M694 544C640 546 591 562 550 592" stroke="#D5C7AA" stroke-width="18" stroke-linecap="round" opacity="0.76"/>
+      <path d="M683 696C635 684 594 686 562 704" stroke="#D5C7AA" stroke-width="14" stroke-linecap="round" opacity="0.5"/>
+    </g>
+
+    <path d="M352 588C432 560 515 564 592 594C632 609 668 610 704 596" stroke="url(#trace)" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M386 582C460 568 524 574 590 598C628 611 660 610 684 601" stroke="#FFF8D8" stroke-opacity="0.58" stroke-width="13" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -21,10 +21,10 @@ export function Sidebar({ onOpenCommunity, onOpenSupport, updateReady, onInstall
   return (
     <aside className="sidebar">
       <div className="brand">
-        <img className="brand-mark" src="/weread-icon.png" alt="" />
+        <img className="brand-mark" src="/shuji-mark.svg" alt="" />
         <div>
-          <strong>微信读书</strong>
-          <span>Skill 桌面客户端</span>
+          <strong>书迹</strong>
+          <span>微信读书阅读档案</span>
         </div>
       </div>
 

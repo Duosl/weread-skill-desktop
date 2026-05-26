@@ -246,7 +246,7 @@ pub(crate) fn build_markdown(data: &ExportBook, options: &ExportOptions) -> Stri
         markdown.push_str("> 暂无可导出的划线或想法。\n\n");
     }
     markdown.push_str("---\n");
-    markdown.push_str("*由 WeRead Skill Desktop 导出*\n");
+    markdown.push_str("*由「书迹」桌面端导出*\n");
     markdown
 }
 

@@ -1206,7 +1206,7 @@ fn build_profile_summary(
     json!({
         "version": 1,
         "generatedAt": Utc::now().to_rfc3339(),
-        "sourceOfTruth": "WeRead Skill Desktop normalized summary",
+        "sourceOfTruth": "书迹 normalized summary",
         "displayRules": [
             "Key metrics in this file are authoritative. Use them exactly when rendering counts.",
             "All raw reading time fields from reading-stats are seconds. Never treat them as minutes or hours.",

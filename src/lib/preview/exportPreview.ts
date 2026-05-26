@@ -96,7 +96,7 @@ export function buildMarkdownPreview(
   }
 
   lines.push("---");
-  lines.push("*由 WeRead Skill Desktop 导出*");
+  lines.push("*由「书迹」桌面端导出*");
 
   return lines.join("\n");
 }

@@ -1,6 +1,6 @@
-# WeRead Skill Desktop - MVP 技术设计文档
+# 书迹 - MVP 技术设计文档
 
-> **产品定位：** 微信读书数据导出与管理工具（非完整客户端）
+> **产品定位：** 把微信读书笔记整理成可归档、可复盘、可分享的阅读资产。
 >
 > **技术栈：** Tauri 2 + React 19 + TypeScript + Vite 5 + Tailwind CSS 4
 
@@ -441,7 +441,7 @@ impl AppConfig {
 ...
 
 ---
-*由 WeRead Skill Desktop 导出*
+*由 书迹 导出*
 ```
 
 ### 5.2 导出流程

@@ -47,6 +47,22 @@
       "dependencies": [],
       "status": "not-started",
       "evidence": ""
+    },
+    {
+      "id": "feat-018",
+      "name": "REQ-018 产品命名调整为书迹",
+      "description": "将用户可见的软件名、窗口标题、导出署名和说明文案统一调整为「书迹」，保留仓库名、包名和更新地址不变。",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "2026-05-26: 侧边栏品牌、窗口/安装包名、Cargo 描述、导出署名、Markdown 预览署名、README、设置页关于和支持/交流群文案已统一为「书迹」；主标语定为“把微信读书笔记整理成可归档、可复盘、可分享的阅读资产。”；仓库名、包名和更新地址保留不变；./init.sh passed."
+    },
+    {
+      "id": "feat-019",
+      "name": "REQ-019 书迹品牌图标",
+      "description": "设计书迹自有图标，替换桌面安装包图标、窗口图标、侧边栏品牌图和浏览器预览 favicon，避免继续直接使用微信读书官方图标。",
+      "dependencies": ["feat-018"],
+      "status": "done",
+      "evidence": "2026-05-26: 新增 SVG 主源 assets/brand/shuji-icon.svg，以书页、金色划线痕迹和档案感蓝色底表达书迹；使用 tauri icon 生成桌面安装包图标，侧边栏品牌图和 index.html favicon 改用 public/shuji-icon.png；./init.sh passed."
     }
   ]
 }

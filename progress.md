@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Last Updated:** 2026-05-25  
+**Last Updated:** 2026-05-26
 **Active Feature:** none
 **Default Next Feature:** feat-014 - REQ-014 智能体模板原文权限说明优化
 
@@ -19,6 +19,8 @@
 - [x] `feat-015` / `REQ-015` 已完成：后端兼容划线 `style` / `colorStyle` 两个字段，Notes 页支持按划线颜色筛选。
 - [x] `feat-017` / `REQ-017` 已完成：随机安装编号匿名统计、设置页关于区域轻量说明、Cloudflare Worker + D1 部署样例已落地。
 - [x] `feat-017a` / `REQ-017A` 已完成：匿名统计支持多应用 `appName`、复合主键和按应用汇总。
+- [x] `feat-018` / `REQ-018` 已完成：用户可见的软件名、窗口标题、导出署名和说明文案已统一调整为「书迹」；主标语定为“把微信读书笔记整理成可归档、可复盘、可分享的阅读资产。”；仓库名、包名和更新地址保留不变。
+- [x] `feat-019` / `REQ-019` 已完成：新增书迹自有图标 SVG 主源，生成桌面安装包图标，侧边栏品牌图和浏览器预览 favicon 已切换为新图标。
 
 ### What's In Progress
 
@@ -62,6 +64,9 @@
 - [x] Notes display refinement: `./init.sh` passed on 2026-05-25 after replacing color chips with colored text, adding review abstract text, and showing seconds in note timestamps.
 - [x] REQ-017 verification: `./init.sh` passed on 2026-05-25 after anonymous telemetry and Cloudflare Worker files were added.
 - [x] REQ-017A verification: `./init.sh` passed on 2026-05-25 after multi-app telemetry changes.
+- [x] REQ-018 verification: `./init.sh` passed on 2026-05-26 after renaming user-visible product surfaces to 书迹.
+- [x] Slogan verification: `./init.sh` passed on 2026-05-26 after adding the product slogan.
+- [x] REQ-019 verification: `./init.sh` passed on 2026-05-26 after adding the 书迹 icon source and generated desktop icon assets.
 
 ## Notes for Next Session
 

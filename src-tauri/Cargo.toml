@@ -1,8 +1,8 @@
 [package]
 name = "weread-skill-desktop"
 version = "0.3.0"
-description = "WeRead Skill Desktop"
-authors = ["WeRead Skill Desktop"]
+description = "书迹"
+authors = ["书迹"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -371,7 +371,15 @@ export function SettingsPage({
             <div className="about-meta">
               <div className="about-meta-item">
                 <span className="about-meta-label">应用名称</span>
-                <span className="about-meta-value">微信读书 Skill 桌面客户端</span>
+                <span className="about-meta-value">书迹</span>
+              </div>
+              <div className="about-meta-item about-meta-item--slogan">
+                <span className="about-meta-label">产品标语</span>
+                <span className="about-meta-value about-meta-value--slogan">
+                  把微信读书笔记整理成
+                  <br />
+                  <b>可归档、可复盘、可分享</b>的阅读资产
+                </span>
               </div>
               <div className="about-meta-item">
                 <span className="about-meta-label">当前版本</span>

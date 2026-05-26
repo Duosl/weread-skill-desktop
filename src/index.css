@@ -229,7 +229,6 @@ a {
   flex: 0 0 38px;
   border-radius: 12px;
   object-fit: cover;
-  box-shadow: 0 8px 20px rgba(47, 128, 237, 0.18);
 }
 
 .brand strong,

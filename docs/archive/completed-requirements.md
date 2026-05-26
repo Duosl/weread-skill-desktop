@@ -20,6 +20,8 @@
 | REQ-012 | Report / Agent | 智能体报告支持自定义要求和输出形态：默认报告、PPT 风格、小红书图文风格。 | `src/pages/ReportPage.tsx`、`src/hooks/useAdvancedReport.ts`、`src-tauri/src/advanced_report.rs` | `frontend:typecheck`、`frontend:build`、`cargo check` |
 | REQ-013 | UI / Design System | 全应用 UI 风格统一，新增设计执行文档和基础组件，收敛页面 shell、标题区、Tabs、按钮、弹窗。 | `design.md`、`src/components/layout/PageShell.tsx`、`src/components/ui/SegmentedControl.tsx`、`src/components/ui/IconButton.tsx`、`src/index.css` | `frontend:typecheck`、`frontend:build`、`cargo check`、`git diff --check` |
 | REQ-015 | Notes | 后端兼容划线 `style` / `colorStyle` 两个协议字段，前端按颜色筛选划线并在划线卡片显示用户可理解的颜色标记。 | `src-tauri/src/types.rs`、`src-tauri/src/api.rs`、`src/types/index.ts`、`src/pages/NotesPage.tsx`、`src/index.css` | `./init.sh` |
+| REQ-018 | Brand | 用户可见的软件名、窗口标题、导出署名和说明文案统一调整为「书迹」；主标语定为“把微信读书笔记整理成可归档、可复盘、可分享的阅读资产。”；仓库名、包名和更新地址保留不变。 | `src/components/layout/Sidebar.tsx`、`src-tauri/tauri.conf.json`、`README.md` | `./init.sh` |
+| REQ-019 | Brand | 新增书迹自有图标，以书页、金色划线痕迹和档案感蓝色底表达产品定位；替换桌面安装包图标、侧边栏品牌图和浏览器预览 favicon。 | `assets/brand/shuji-icon.svg`、`src-tauri/icons/`、`public/shuji-icon.png` | `./init.sh` |
 
 ---
 
@@ -68,6 +70,8 @@
 - REQ-015 划线颜色筛选：确认微信读书协议中 `style` 表示线型、`colorStyle` 表示颜色；当前缓存样本未返回 `style`，因此后端先兼容可选字段，前端第一阶段只使用颜色。Notes 页新增颜色筛选，支持只看红 / 紫 / 蓝 / 绿 / 黄某一类划线；历史无颜色字段的划线不误归为颜色 0。
 - REQ-017 匿名安装规模统计：新增 Tauri `telemetry` 模块，启动时发送可失败隔离的轻量 ping；设置页仅在关于区域轻量说明统计范围；Cloudflare Worker / D1 样例放在 `cloudflare/telemetry-worker/`，服务端从 `CF-Connecting-IP` 记录 first / last IP。统计不包含操作事件、API Key、微信读书内容、书名、笔记、划线、导出路径或文件名。验证：`./init.sh` passed。
 - REQ-017A 匿名统计多应用支持：客户端 payload 增加 `appName`，默认使用 Rust 包名，也可通过 `WEREAD_TELEMETRY_APP_NAME` 覆盖；Cloudflare D1 schema 改为 `PRIMARY KEY (app_name, installation_id)`，Worker 支持可选 `ALLOWED_APPS`、2KB 请求体限制、按 `app_name` 查询 summary 和全应用汇总。验证：`./init.sh` passed。
+- REQ-018 产品命名调整为书迹：侧边栏品牌、窗口 / 安装包名、Cargo 描述、导出署名、Markdown 预览署名、README、设置页关于和支持 / 交流群文案已统一为「书迹」；主标语定为“把微信读书笔记整理成可归档、可复盘、可分享的阅读资产。”；仓库名、Rust 包名和更新地址暂不迁移，避免影响发布链路。验证：`./init.sh` passed。
+- REQ-019 书迹品牌图标：新增可维护 SVG 主源 `assets/brand/shuji-icon.svg`，图形使用蓝色圆角底、打开的书页、金色划线痕迹和小型档案标记；用 `tauri icon` 生成桌面安装包图标；侧边栏品牌图与浏览器预览 favicon 改用 `public/shuji-icon.png`。旧 `public/weread-icon.png` 未删除，仅作为历史回退素材保留。验证：`./init.sh` passed。
 
 ---
 
@@ -100,4 +104,4 @@
 
 ---
 
-最后更新：2026-05-25
+最后更新：2026-05-26

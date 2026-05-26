@@ -385,6 +385,18 @@
   color: var(--ink);
 }
 
+.about-meta-item--slogan {
+  align-items: flex-start;
+}
+
+.about-meta-value--slogan {
+  font-size: 12px;
+  font-weight: 400;
+  color: #6f665c;
+  line-height: 1.6;
+  text-align: right;
+}
+
 .about-actions-bar {
   display: flex;
   align-items: center;

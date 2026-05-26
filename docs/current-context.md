@@ -1,4 +1,4 @@
-# WeRead Skill Desktop - 当前工程上下文
+# 书迹 - 当前工程上下文
 
 本文件是进入下一阶段后的轻量入口。默认先读本文件和 `docs/requirements-pool.md`；已完成内容只在需要追溯历史决策时读取 `docs/archive/`。
 

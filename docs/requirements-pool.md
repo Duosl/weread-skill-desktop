@@ -1,4 +1,4 @@
-# WeRead Skill Desktop - 活跃需求池
+# 书迹 - 活跃需求池
 
 本文件只维护当前阶段仍需推进的需求、验收和外部需求同步规则。已完成需求归档到 `docs/archive/completed-requirements.md`，默认不要为了开始新任务去读归档。
 
