@@ -32,7 +32,7 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
   const [bookProgress, setBookProgress] = useState<BookProgress | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [bookshelfView, setBookshelfView] = useState<BookshelfView>("list");
+  const [bookshelfView, setBookshelfView] = useState<BookshelfView>("cover");
 
   useEffect(() => {
     if (apiKeySet) {
