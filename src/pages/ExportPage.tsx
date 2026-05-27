@@ -43,15 +43,21 @@ export function ExportPage({
   const [bookQuery, setBookQuery] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [didApplyInitialSelection, setDidApplyInitialSelection] = useState(false);
 
   useEffect(() => {
     void notebooks.loadNotebooks();
   }, []);
 
   useEffect(() => {
-    if (!initialSelectedBookId) return;
-    setSelectedIds([initialSelectedBookId]);
-  }, [initialSelectedBookId]);
+    if (didApplyInitialSelection || notebooks.loading || notebooks.books.length === 0) return;
+    setDidApplyInitialSelection(true);
+    if (initialSelectedBookId) {
+      setSelectedIds([initialSelectedBookId]);
+      return;
+    }
+    setSelectedIds(notebooks.books.map((book) => book.bookId));
+  }, [didApplyInitialSelection, initialSelectedBookId, notebooks.books, notebooks.loading]);
 
   const selectedBooks = useMemo(
     () => notebooks.books.filter((book) => selectedIds.includes(book.bookId)),

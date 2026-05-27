@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { BookOpen, Search, X } from "lucide-react";
+import { BookOpen, LayoutGrid, LayoutList, Search, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageShell } from "../components/layout/PageShell";
 import { Badge } from "../components/ui/Badge";
@@ -18,6 +18,8 @@ import { useNotebooks } from "../hooks/useNotebooks";
 import type { useReadingStats } from "../hooks/useReadingStats";
 import type { BookProgress, ShelfBook } from "../types";
 
+type BookshelfView = "list" | "cover";
+
 type DashboardPageProps = {
   shelf: ReturnType<typeof useBookshelf>;
   reading: ReturnType<typeof useReadingStats>;
@@ -30,6 +32,7 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
   const [bookProgress, setBookProgress] = useState<BookProgress | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [bookshelfView, setBookshelfView] = useState<BookshelfView>("list");
 
   useEffect(() => {
     if (apiKeySet) {
@@ -70,6 +73,20 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
             value={shelf.query}
             onChange={(event) => shelf.setQuery(event.target.value)}
             placeholder="搜索书名或作者"
+          />
+        </div>
+        <div className="view-toggle">
+          <IconButton
+            aria-label="列表视图"
+            icon={<LayoutList size={18} />}
+            variant={bookshelfView === "list" ? "primary" : "neutral"}
+            onClick={() => setBookshelfView("list")}
+          />
+          <IconButton
+            aria-label="封面墙视图"
+            icon={<LayoutGrid size={18} />}
+            variant={bookshelfView === "cover" ? "primary" : "neutral"}
+            onClick={() => setBookshelfView("cover")}
           />
         </div>
         <SegmentedControl
@@ -137,10 +154,27 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
           ) : shelf.books.length === 0 ? (
             <EmptyState title="暂无书籍" description="同步后会在这里显示书架书籍。" />
           ) : (
-            <div className="book-grid">
+            <div className={bookshelfView === "cover" ? "cover-wall-grid" : "book-grid"}>
               {shelf.books.map((book) => {
                 const status = getShelfReadingStatus(book);
-                return (
+                return bookshelfView === "cover" ? (
+                  <button
+                    type="button"
+                    className="cover-wall-item"
+                    key={book.bookId}
+                    onClick={() => void openBookDetail(book)}
+                    title={`${book.title}${book.author ? ` - ${book.author}` : ""}`}
+                  >
+                    <div className="cover-wall-cover">
+                      {book.cover ? <img src={book.cover} alt="" /> : <BookOpen size={28} />}
+                    </div>
+                    <div className="cover-wall-overlay">
+                      <span className="cover-wall-title">{book.title}</span>
+                      {book.author ? <span className="cover-wall-author">{book.author}</span> : null}
+                      {status === "finished" ? <Badge>读完</Badge> : null}
+                    </div>
+                  </button>
+                ) : (
                   <button
                     type="button"
                     className="book-card"

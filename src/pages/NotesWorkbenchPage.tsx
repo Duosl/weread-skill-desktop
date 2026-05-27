@@ -47,7 +47,7 @@ export function NotesWorkbenchPage({ settings }: NotesWorkbenchPageProps) {
     setSearchParams(next, { replace: false });
   }
 
-  function exportCurrentBook(bookId: string) {
+  function exportCurrentBook(bookId?: string) {
     setTab("export", bookId);
   }
 
@@ -81,10 +81,9 @@ export function NotesWorkbenchPage({ settings }: NotesWorkbenchPageProps) {
             <Button
               variant="secondary"
               icon={<FileDown size={16} />}
-              disabled={!selectedBookId}
-              onClick={() => exportCurrentBook(selectedBookId)}
+              onClick={() => exportCurrentBook(selectedBookId || undefined)}
             >
-              导出当前书
+              {selectedBookId ? "导出当前书" : "导出全部笔记"}
             </Button>
           </div>
         ) : exportAction

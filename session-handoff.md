@@ -3,93 +3,47 @@
 ## Current Objective
 
 - Goal: Keep the project restartable after each coding-agent session.
-- Current status: `REQ-019` is complete; no active feature implementation is in progress.
+- Current status: `REQ-021` is complete; no active feature implementation is in progress.
 - Branch / commit: current working tree, not committed by agent.
 
 ## Completed This Session
 
-- [x] Completed `REQ-017`: anonymous installation telemetry now uses a random local installation ID, startup ping, a light About-page note, and Cloudflare Worker / D1 deployment files. The app does not collect operation events, API Key, WeRead content, export paths, file names, or book/note data; IP is recorded only by the Worker from Cloudflare request headers.
-- [x] Completed `REQ-017A`: telemetry now supports multiple applications through client-provided `appName`; D1 uses `PRIMARY KEY (app_name, installation_id)` and summary can be filtered by `app_name`.
-- [x] Completed `REQ-018`: user-visible product surfaces now use the name `书迹`; the product slogan is “把微信读书笔记整理成可归档、可复盘、可分享的阅读资产。”; repository name, package name and updater URLs remain unchanged.
-- [x] Completed `REQ-019`: added a native 书迹 icon with editable SVG source, generated desktop bundle icons, and switched the sidebar brand mark plus browser favicon to the new icon.
+- [x] Completed `REQ-021`: optimized the highlight / review share card UI structure.
+  - ShareCardModal: changed the centered modal into a right-side drawer-style workbench with header, source panel, style panel, preview area, and bottom copy/save actions.
+  - ShareCardModal: added `role="dialog"`, `aria-modal`, labelled title, initial focus, and Escape-to-close behavior.
+  - ShareCardPreview: moved `「书迹」桌面端` into the card's own structure by layout: footer for classic/notebook, source block for ink-white, and topline for compact layout.
+  - Notes share button: changed from hover-only discovery to always visible low-emphasis affordance with stronger hover/focus state.
 
 ## Verification Evidence
 
 | Check | Command | Result | Notes |
 |---|---|---|---|
-| TypeScript | `npm run frontend:typecheck` | Passed | 2026-05-25 |
-| Frontend build | `npm run frontend:build` | Passed | 2026-05-25 |
-| Rust | `cd src-tauri && cargo check` | Passed | 2026-05-25 |
-| Diff check | `git diff --check` | Passed | 2026-05-25 |
-| Harness | `node /Users/duoshilin/.agents/skills/harness-creator/scripts/validate-harness.mjs --target /Users/duoshilin/duosl/sidework/weread-skill-desktop` | Passed | 100/100 on 2026-05-25 |
-| Unified gate | `./init.sh` | Passed | 2026-05-25 |
-| REQ-017 final gate | `./init.sh` | Passed | 2026-05-25 |
-| REQ-017A final gate | `./init.sh` | Passed | 2026-05-25 |
-| REQ-018 final gate | `./init.sh` | Passed | 2026-05-26 |
-| Slogan update | `./init.sh` | Passed | 2026-05-26 |
-| REQ-019 final gate | `./init.sh` | Passed | 2026-05-26 |
+| TypeScript | `npm run frontend:typecheck` | Passed | 2026-05-27 |
+| Frontend build | `npm run frontend:build` | Passed | 2026-05-27 |
+| Rust | `cd src-tauri && cargo check` | Passed | 2026-05-27 |
+| Diff check | `git diff --check` | Passed | 2026-05-27 |
+| Unified gate | `./init.sh` | Passed | 2026-05-27 |
 
 ## Files Changed
 
-- `docs/requirements-pool.md`
-- `docs/archive/completed-requirements.md`
-- `mvp-design-doc.md`
-- `feature_list.json`
-- `progress.md`
-- `session-handoff.md`
-- `src-tauri/src/types.rs`
-- `src-tauri/src/telemetry.rs`
-- `src-tauri/src/config.rs`
-- `src-tauri/src/commands.rs`
-- `src-tauri/src/lib.rs`
-- `src-tauri/Cargo.toml`
-- `index.html`
-- `assets/brand/shuji-icon.svg`
-- `public/shuji-icon.png`
-- `src-tauri/icons/*`
-- `src-tauri/Cargo.lock`
-- `src/App.tsx`
-- `src/hooks/useSettings.ts`
-- `src/pages/SettingsPage.tsx`
-- `src/styles/pages/settings.css`
-- `cloudflare/telemetry-worker/README.md`
-- `cloudflare/telemetry-worker/schema.sql`
-- `cloudflare/telemetry-worker/wrangler.example.toml`
-- `cloudflare/telemetry-worker/src/index.ts`
-- `src/types/index.ts`
-- `src/components/layout/Sidebar.tsx`
-- `src/components/RewardDialog.tsx`
-- `src/pages/SettingsPage.tsx`
-- `src/lib/preview/exportPreview.ts`
-- `src-tauri/src/export.rs`
-- `src-tauri/src/advanced_report.rs`
-- `src-tauri/tauri.conf.json`
-- `src-tauri/Cargo.toml`
+- `src/components/ui/ShareCardModal.tsx` - share card drawer/workbench structure, a11y behavior, layout-aware brand placement
+- `src/index.css` - share button visibility, drawer shell, source/style/preview/action sections, brand placement classes, responsive guards
+- `feature_list.json` - feat-021 status and evidence
+- `progress.md` - updated
+- `session-handoff.md` - updated
+- `docs/archive/completed-requirements.md` - completion record
 
 ## Decisions Made
 
-- Default startup reads only current context and active requirements.
-- Completed requirements are archived out of the active pool.
-- `./init.sh` is the canonical verification entrypoint.
-- One active feature should be selected in `feature_list.json` before implementation begins.
-- End every implementation session by updating `feature_list.json`, `progress.md`, and `session-handoff.md` with status and evidence.
-- `style` is accepted by the backend as an optional future line-shape field. The current UI intentionally uses only `colorStyle` for color labels and filtering.
-- Missing `colorStyle` should remain missing; do not coerce it to color 0.
-- Do not reintroduce a color chip after highlights; color is represented by the highlight text color itself.
-- Review cards should show `abstractText` as the original highlighted text above the user's thought when the API returns it.
-- Anonymous telemetry is enabled by default and is mentioned only as a small note in the Settings About section.
-- The telemetry endpoint is configured at build time with `WEREAD_TELEMETRY_ENDPOINT`; when absent, the app keeps working and does not send requests.
-- The telemetry app name is configured at build time with `WEREAD_TELEMETRY_APP_NAME`; when absent, it defaults to the Rust package name.
-- The app sends a random installation ID, version, channel, platform, architecture and locale. The Worker records first/latest IP from `CF-Connecting-IP`; do not add WeRead content, local paths, operation events, account identifiers, API Key or device-derived fingerprints.
-- The Worker accepts client-provided `appName`; set `ALLOWED_APPS` in Wrangler vars if a deployment should restrict app names.
-- Existing single-app D1 tables need a new table or database for the composite primary key; SQLite/D1 cannot add a composite primary key in place.
-- User-visible product name is now `书迹`. Product slogan is “把微信读书笔记整理成可归档、可复盘、可分享的阅读资产。” Keep repository/package identifiers and updater URLs as `weread-skill-desktop` until a dedicated release-infrastructure migration is planned.
-- The 书迹 icon concept is an independent mark: blue rounded square, open book, warm highlighter trace and small archive/mark detail. It avoids directly reusing the WeRead official icon while preserving the reading-note meaning.
+- The share UI should behave like a compact desktop workbench, not a floating marketing modal.
+- The source metadata belongs on the left control rail; the generated image remains the visual center.
+- `「书迹」桌面端` is part of each card template's composition, not a fixed bottom-right badge.
+- The share entry should not depend on hover discovery; it stays visible but visually quiet.
 
 ## Blockers / Risks
 
-- None currently.
-- Telemetry will not send data in local builds unless `WEREAD_TELEMETRY_ENDPOINT` is set.
+- No active blockers.
+- Browser visual verification was not completed because the local dev server requires elevated localhost binding in this sandbox and the approval request was interrupted. `./init.sh` passed.
 - Keep `docs/requirements-pool.md` short; move completed work to archive immediately.
 
 ## Next Session Startup

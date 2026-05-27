@@ -1,5 +1,6 @@
 use crate::state::RuntimeState;
 use crate::types::*;
+use base64::Engine;
 use open::that as open_path;
 use std::collections::HashMap;
 use std::fs;
@@ -742,4 +743,34 @@ pub async fn open_in_weread(book_id: String, chapter_uid: Option<i64>) -> Result
         None => format!("weread://reading?bId={book_id}"),
     };
     open_path(url).map_err(|e| format!("无法打开微信读书: {e}"))
+}
+
+#[tauri::command]
+pub fn save_image_file(
+    app: AppHandle,
+    file_name: String,
+    data_url: String,
+) -> Result<String, String> {
+    let parts: Vec<&str> = data_url.splitn(2, ',').collect();
+    if parts.len() != 2 {
+        return Err("图片数据格式不正确".to_string());
+    }
+    let base64_data = parts[1];
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(base64_data)
+        .map_err(|e| format!("图片数据解码失败: {e}"))?;
+
+    use tauri_plugin_dialog::DialogExt;
+    let file_path = app
+        .dialog()
+        .file()
+        .add_filter("图片", &["png"])
+        .set_file_name(file_name)
+        .blocking_save_file()
+        .ok_or_else(|| "用户取消".to_string())?;
+
+    let path = file_path.as_path().ok_or_else(|| "路径无效".to_string())?;
+    fs::write(path, bytes).map_err(|e| format!("保存图片失败: {e}"))?;
+
+    Ok(path.to_string_lossy().to_string())
 }
