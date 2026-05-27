@@ -1237,7 +1237,7 @@ h2 {
 .note-stack,
 .export-settings {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
   overflow: hidden;
 }
@@ -1273,10 +1273,10 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 8px;
+  margin-bottom: 8px;
   color: #7b7267;
-  font-size: 13px;
+  font-size: 12px;
   min-width: 0;
 }
 
@@ -1288,9 +1288,9 @@ h2 {
 
 .note-meta code {
   font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
+  font-size: 10.5px;
   background: rgba(132, 111, 82, 0.1);
-  padding: 2px 6px;
+  padding: 1px 6px;
   border-radius: 4px;
   color: #7b7267;
 }
@@ -1340,20 +1340,20 @@ h2 {
 }
 
 .review-abstract {
-  margin: 0 0 12px;
-  padding: 12px 14px;
+  margin: 0 0 8px;
+  padding: 10px 12px;
   background: rgba(47, 128, 237, 0.06);
   border-left: 3px solid rgba(47, 128, 237, 0.45);
   color: #4a5662;
   font-family: "Noto Serif SC", serif;
   font-size: 15px;
-  line-height: 1.75;
+  line-height: 1.65;
   overflow-wrap: anywhere;
 }
 
 .chapter-group {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .chapter-group-header {
@@ -1361,9 +1361,9 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 0 4px;
+  padding: 8px 0 3px;
   border-bottom: 1px solid rgba(132, 111, 82, 0.12);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .chapter-group-header h3 {
@@ -1385,16 +1385,16 @@ h2 {
 }
 
 .book-note-group {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .book-note-group-header {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 16px 0 6px;
+  padding: 10px 0 4px;
   border-bottom: 2px solid rgba(132, 111, 82, 0.18);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .book-note-group-header h3 {
@@ -1436,11 +1436,11 @@ h2 {
     linear-gradient(90deg, var(--bookmark-accent-soft), transparent 62%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(255, 255, 255, 0.18)),
     var(--bookmark-accent-wash);
-  padding: 16px 18px;
+  padding: 12px 16px;
   color: var(--bookmark-ink);
   font-family: "Noto Serif SC", serif;
-  font-size: 17px;
-  line-height: 1.8;
+  font-size: 16px;
+  line-height: 1.65;
   overflow-wrap: anywhere;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.72),
@@ -1449,7 +1449,7 @@ h2 {
 
 .review-card p {
   color: #2b2824;
-  line-height: 1.75;
+  line-height: 1.65;
   overflow-wrap: anywhere;
 }
 
@@ -3020,6 +3020,17 @@ h2 {
   transition: opacity 160ms ease-out, background 140ms ease-out, transform 160ms ease-out;
 }
 
+.note-share-btn.icon-button-small {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+}
+
+.quote-card,
+.review-card {
+  padding: 12px 14px;
+}
+
 .quote-card:hover .note-share-btn,
 .review-card:hover .note-share-btn,
 .note-share-btn:focus-visible {
@@ -3230,7 +3241,7 @@ h2 {
   width: 390px;
   max-width: 100%;
   flex-shrink: 0;
-  align-self: flex-start;
+  align-self: center;
 }
 
 .share-card-toolbar-bottom {
