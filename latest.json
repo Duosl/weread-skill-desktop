@@ -1,0 +1,19 @@
+{
+  "version": "0.4.3",
+  "notes": "Release v0.4.3",
+  "pub_date": "2026-05-28T04:57:00Z",
+  "platforms": {
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRzRjNmh6RzJIYlFTekFJSGV6RlY4V3FxWEh2Nm5SdnJvMEwzUTZURWwxTHIxTUtRMlYyNkZrSjNoOU5CVlUwM2pTZDVJbmxQZnVzTDB0aHY1bmlNNzVpL1VYSWN5Y0F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5OTQ0MTExCWZpbGU6V2VSZWFkIFNraWxsIERlc2t0b3AuYXBwLnRhci5negpGYi9pSzBkZjZCMXpHelBRZ1MyNEt2TkMveFBzVmhQOE5LTXkxbUh3T2VsWS92QmpqU0NwVkFSa0NKOS9HbU9ncC9ycnJDcTFuQ2M5UWtKYng5dXBCdz09Cg==",
+      "url": "https://gitee.com/duosl/weread-skill-desktop/releases/download/v0.4.3/weread-skill-desktop_0.4.3_macos_apple-silicon.app.tar.gz"
+    },
+    "darwin-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRzRjNmh6RzJIYlMya2JURFNTaXdOZ0N6UkU5MkJwaTZSTzlkNmJyZjloTmJTVTNpakhUbU1rYUNJUCtHSzY3OUxCT3J0eU05TnZwV2orcGhFMStRVm5lSWhsK2NsRlE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5OTQ0MTgzCWZpbGU6V2VSZWFkIFNraWxsIERlc2t0b3AuYXBwLnRhci5negpsL3hsYS9tM0NJM3pDSXlOdFR4OWlMbktrSmpPTFk5Tzh5TnU5V0MxMDRaNmpCTWhOTUxLZGlySUxjWU1DRUsrOWViMnhSWXUyajU2Z0k2VjZlTkxCQT09Cg==",
+      "url": "https://gitee.com/duosl/weread-skill-desktop/releases/download/v0.4.3/weread-skill-desktop_0.4.3_macos_intel.app.tar.gz"
+    },
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRzRjNmh6RzJIYlZuZWFLVkdlUmxtSE5XRUcza1hFbVdWNGExeWc2aHV2dUZ6UlZqdU9qUVFoN29UVkZvT2lwR1JncFd4bTBtaWpqQkJubWpDMkdERytqaVVqS0t1ZVFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5OTQyMDQ4CWZpbGU6V2VSZWFkIFNraWxsIERlc2t0b3BfMC40LjNfeDY0LXNldHVwLmV4ZQptT0xmek1DSU84VFhFSWFNRUJZTjA3M09zYlNuQmZCbEdLZ1dGWFp5MVp6Uko1MGM0aGg2RVA3cWtCMGoxbW9VVmludXJYRzlQTUgzZ2diZzRQQzFCdz09Cg==",
+      "url": "https://gitee.com/duosl/weread-skill-desktop/releases/download/v0.4.3/weread-skill-desktop_0.4.3_windows_x64-setup.exe"
+    }
+  }
+}
