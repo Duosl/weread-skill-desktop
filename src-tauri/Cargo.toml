@@ -1,6 +1,6 @@
 [package]
 name = "weread-skill-desktop"
-version = "0.4.3"
+version = "0.4.4"
 description = "书迹"
 authors = ["书迹"]
 edition = "2021"
