@@ -1,111 +1,29 @@
-# 已完成需求归档
+# 书迹完成需求归档
 
-本归档只用于追溯历史决策和完成记录。开始新任务时默认不读本文件；优先读 `docs/current-context.md` 和 `docs/requirements-pool.md`。
+本文件只保留已完成需求的可追溯摘要。活跃需求见 `docs/requirements-pool.md`。
 
----
+## 已完成
 
-## 完成需求索引
+| ID | 完成时间 | 摘要 | 验证 |
+| --- | --- | --- | --- |
+| REQ-001 ~ REQ-006 | 2026-05 | MVP 主链路：API Key、书架、笔记、Markdown 导出、阅读统计和基础设置。 | 多轮 `./init.sh` 通过 |
+| REQ-007 | 2026-05 | 阅读报告：基础 HTML 报告、高级 Agent 模板、输出形态、任务状态和历史管理。 | `./init.sh` 通过 |
+| REQ-008 | 2026-05 | Markdown Frontmatter 适配 Obsidian / 资料库索引。 | `./init.sh` 通过 |
+| REQ-010 | 2026-05 | ima Markdown 同步闭环：配置凭证、选择知识库、从导出工作台同步。 | `./init.sh` 通过 |
+| REQ-015 | 2026-05-25 | 划线样式与颜色信息利用：后端兼容 `style` / `colorStyle`，Notes 页支持颜色筛选。 | `./init.sh` 通过 |
+| REQ-017 | 2026-05-25 | 匿名安装规模统计：随机安装编号、开关和重置入口、Cloudflare Worker / D1 示例。 | `./init.sh` 通过 |
+| REQ-017A | 2026-05-25 | 匿名统计多应用支持：`appName`、复合主键和按应用汇总。 | `./init.sh` 通过 |
+| REQ-018 | 2026-05-26 | 产品命名统一为「书迹」，更新用户可见名称、标题、署名和说明。 | `./init.sh` 通过 |
+| REQ-019 | 2026-05-26 | 书迹品牌图标：新增 SVG 主源、桌面图标和 favicon。 | `./init.sh` 通过 |
+| REQ-020 | 2026-05-26 | 书架封面墙视图与笔记分享卡片：列表/封面墙切换、分享预览和 PNG 保存。 | `./init.sh` 通过 |
+| REQ-021 | 2026-05-27 | 划线/想法分享弹窗改为侧向工作台，强化来源、样式、预览和保存动作。 | `./init.sh` 通过 |
+| REQ-022 | 2026-05-28 | 当前项目文档重写与落地页更新：删除过期实现计划，基于最新代码重写核心文档，并生成新的单文件落地页。 | `./init.sh` 通过；落地页结构检查通过 |
+| REQ-023 | 2026-05-28 | 落地页视觉与动效优化：使用 frontend-design 重构首屏、产品工作台视觉、滚动揭示、ticker、hover 反馈和轻视差。 | Chrome headless 桌面/移动截图检查通过；落地页结构检查通过；`./init.sh` 通过 |
+| REQ-024 | 2026-05-28 | 当前项目落地页重新生成：恢复 `landing/index.html`，生成可直接打开的单文件产品落地页，强调阅读档案、Markdown 导出、报告、分享卡片和 ima 同步。 | Chrome headless 桌面/移动截图检查通过；落地页结构检查通过；`./init.sh` 通过 |
 
-| ID | 模块 | 完成摘要 | 主要入口 | 验证 |
-|----|------|----------|----------|------|
-| REQ-001 | Notes / Export | 前端想法分页加载，Notes 页和导出页预览循环读取所有个人想法。 | `src/lib/reviews.ts`、`src/hooks/useNotes.ts`、`src/pages/ExportPage.tsx` | `frontend:typecheck`、`frontend:build`、`cargo check` |
-| REQ-002 | API / QA | 真实 API 数据校准，覆盖书架、笔记本分页、划线、想法、阅读统计、阅读进度。 | `src-tauri/src/api.rs`、相关类型和展示层 | `frontend:typecheck`、`frontend:build`、`cargo check` |
-| REQ-003 | Docs | 清理 `mvp-design-doc.md` 中 JSON 导出和旧阶段计划遗留。 | `mvp-design-doc.md` | 文档检查 |
-| REQ-004 | Export | 导出边界用例补齐：安全文件名、重名防覆盖、空内容、未匹配章节、取消 / 成功 / 失败反馈。 | `src-tauri/src/export.rs`、`src/lib/preview/exportPreview.ts`、`src/pages/ExportPage.tsx` | `frontend:typecheck`、`frontend:build`、`cargo check` |
-| REQ-005 | UI | 窗口尺寸、长文本、空态 / 错误态 / 成功态走查。 | `src/index.css`、`src/pages/ExportPage.tsx`、`src/pages/NotesPage.tsx` | `frontend:typecheck`、`frontend:build`、`cargo check`、Chrome 截图抽查 |
-| REQ-006 | Search | 书架 / 笔记本 / 导出范围本地搜索增强。 | `src/pages/NotesPage.tsx`、`src/pages/ExportPage.tsx` | `frontend:typecheck`、`frontend:build`、`cargo check` |
-| REQ-008 | Export | Obsidian Base 所需 Frontmatter 当前已由 Markdown 导出支持。 | Markdown 导出与预览 | `frontend:typecheck`、`frontend:build`、`cargo check` |
-| REQ-010 | Integration | 腾讯 ima Markdown 同步闭环完成，支持凭证、知识库选择、同步到 ima、同名笔记复用。 | `src/pages/ConnectorsPage.tsx`、`src-tauri/src/ima.rs`、`src-tauri/src/commands.rs` | 既有构建验收 |
-| REQ-011 | Notes / Export | 合并为笔记工作台，侧边栏只保留笔记入口，浏览 / 导出用 Tab 分离。 | `src/pages/NotesWorkbenchPage.tsx`、`src/pages/NotesPage.tsx`、`src/pages/ExportPage.tsx`、`src/App.tsx` | `frontend:typecheck`、`frontend:build`、`cargo check`、`git diff --check` |
-| REQ-012 | Report / Agent | 智能体报告支持自定义要求和输出形态：默认报告、PPT 风格、小红书图文风格。 | `src/pages/ReportPage.tsx`、`src/hooks/useAdvancedReport.ts`、`src-tauri/src/advanced_report.rs` | `frontend:typecheck`、`frontend:build`、`cargo check` |
-| REQ-013 | UI / Design System | 全应用 UI 风格统一，新增设计执行文档和基础组件，收敛页面 shell、标题区、Tabs、按钮、弹窗。 | `design.md`、`src/components/layout/PageShell.tsx`、`src/components/ui/SegmentedControl.tsx`、`src/components/ui/IconButton.tsx`、`src/index.css` | `frontend:typecheck`、`frontend:build`、`cargo check`、`git diff --check` |
-| REQ-015 | Notes | 后端兼容划线 `style` / `colorStyle` 两个协议字段，前端按颜色筛选划线并在划线卡片显示用户可理解的颜色标记。 | `src-tauri/src/types.rs`、`src-tauri/src/api.rs`、`src/types/index.ts`、`src/pages/NotesPage.tsx`、`src/index.css` | `./init.sh` |
-| REQ-018 | Brand | 用户可见的软件名、窗口标题、导出署名和说明文案统一调整为「书迹」；主标语定为“把微信读书笔记整理成可归档、可复盘、可分享的阅读资产。”；仓库名、包名和更新地址保留不变。 | `src/components/layout/Sidebar.tsx`、`src-tauri/tauri.conf.json`、`README.md` | `./init.sh` |
-| REQ-019 | Brand | 新增书迹自有图标，以书页、金色划线痕迹和档案感蓝色底表达产品定位；替换桌面安装包图标、侧边栏品牌图和浏览器预览 favicon。 | `assets/brand/shuji-icon.svg`、`src-tauri/icons/`、`public/shuji-icon.png` | `./init.sh` |
+## 历史边界
 
----
-
-## 阅读报告与智能体报告阶段性完成记录
-
-原 `REQ-007` / `REQ-007.1` 已完成可用闭环，但仍保留为真实数据回归观察项。后续问题在 `docs/requirements-pool.md` 的 `REQ-007R` 下记录或拆新需求。
-
-已完成的稳定能力：
-
-- 新增独立 `阅读报告` 页面和侧边栏入口。
-- 基础报告使用确定性数据模型，不直接展示原划线和个人想法。
-- 基础模板包括阅读分析报告、读书旅程、年度阅读报告。
-- 报告预览和浏览器打开走 App 私有目录临时 HTML。
-- 阅读报告页采用模板目录和单模板工作台，不把所有模板操作铺在列表页。
-- 智能体模板已打通任务闭环：模板清单、生成设置、本地 Agent 调用、取消任务、读取 `output/report.html`、浏览器打开、历史记录、任务状态持久化。
-- 智能体任务工作区约定为 `reports/jobs/<job-id>/`，包含 `input/`、`data/`、`output/`、`job.json`、`task.json`。
-- `input/brief.md` 是唯一任务入口；其他 JSON 作为机器索引备份。
-- 生成报告必须输出 `output/report.html` 和 `output/report.meta.json`。
-- 模型输出流支持简洁 / 详细显示模式。
-- 已加入质量提醒：内容过短、未使用“你”、证据链偏弱、PPT / 小红书结构不合格、HTML 安全边界问题等。
-- 首次生成有质量提醒时会自动追加 `input/quality-fix.md` 并调用同一个本地 Agent 修正一次。
-- 只要 `output/report.html` 已生成，即使 meta 解析失败或 Agent 最后返回异常，也降级为“有警告”而不是不可打开失败。
-- 当前版本不支持分享版 HTML，不生成 `share.html`。
-- 基础模板和智能体模板工作台当前只保留浏览器打开，HTML 导出入口暂不展示。
-- 智能体报告支持输出形态：默认报告、PPT 风格 HTML、小红书图文 HTML。
-- PPT 风格要求固定 16:9 舞台、完整切页状态机、按钮 / 键盘 / 滚轮 / 触控板翻页和底部安全区。
-- 小红书图文风格要求多卡片画廊、3:4 截图卡、封面、页码和来源卡。
-- 智能体报告数据目录新增 `profile.summary.json`，作为关键数字权威摘要，避免模型误写书架数、阅读时长或笔记数。
-- 历史周期报告已按具体划线 / 想法创建时间过滤笔记，不再用整本书最近笔记时间误判周期。
-- 生成任务上下文写入当前电脑日期、时间和时区，避免相对日期误判。
-
-仍需观察：
-
-- 真实数据下基础报告长书名、排行密度、小窗口布局。
-- 智能体报告不同输出形态的稳定性。
-- 原文授权文案和未授权时的 Agent 输入约束。
-
----
-
-## 2026-05-25 收尾归档
-
-- MVP 主线冻结：Markdown 导出、笔记浏览、书架管理、阅读统计和基础报告已作为主线能力保留。
-- PDF 导出暂不排期，不再作为本地活跃需求推进。
-- 腾讯 ima 联动已完成当前 Markdown 同步闭环；后续只根据用户反馈优化重导出逻辑、同步结果解释和导出内容文案。
-- 新增下一阶段活跃需求：`REQ-014`、`REQ-015`、`REQ-016`。
-- REQ-015 划线颜色筛选：确认微信读书协议中 `style` 表示线型、`colorStyle` 表示颜色；当前缓存样本未返回 `style`，因此后端先兼容可选字段，前端第一阶段只使用颜色。Notes 页新增颜色筛选，支持只看红 / 紫 / 蓝 / 绿 / 黄某一类划线；历史无颜色字段的划线不误归为颜色 0。
-- REQ-017 匿名安装规模统计：新增 Tauri `telemetry` 模块，启动时发送可失败隔离的轻量 ping；设置页仅在关于区域轻量说明统计范围；Cloudflare Worker / D1 样例放在 `cloudflare/telemetry-worker/`，服务端从 `CF-Connecting-IP` 记录 first / last IP。统计不包含操作事件、API Key、微信读书内容、书名、笔记、划线、导出路径或文件名。验证：`./init.sh` passed。
-- REQ-017A 匿名统计多应用支持：客户端 payload 增加 `appName`，默认使用 Rust 包名，也可通过 `WEREAD_TELEMETRY_APP_NAME` 覆盖；Cloudflare D1 schema 改为 `PRIMARY KEY (app_name, installation_id)`，Worker 支持可选 `ALLOWED_APPS`、2KB 请求体限制、按 `app_name` 查询 summary 和全应用汇总。验证：`./init.sh` passed。
-- REQ-018 产品命名调整为书迹：侧边栏品牌、窗口 / 安装包名、Cargo 描述、导出署名、Markdown 预览署名、README、设置页关于和支持 / 交流群文案已统一为「书迹」；主标语定为“把微信读书笔记整理成可归档、可复盘、可分享的阅读资产。”；仓库名、Rust 包名和更新地址暂不迁移，避免影响发布链路。验证：`./init.sh` passed。
-- REQ-019 书迹品牌图标：新增可维护 SVG 主源 `assets/brand/shuji-icon.svg`，图形使用蓝色圆角底、打开的书页、金色划线痕迹和小型档案标记；用 `tauri icon` 生成桌面安装包图标；侧边栏品牌图与浏览器预览 favicon 改用 `public/shuji-icon.png`。旧 `public/weread-icon.png` 已删除，验证：`./init.sh` passed。
-
-## 2026-05-27
-
-- REQ-021 划线分享弹窗 UI 结构优化：划线 / 想法分享卡片从居中弹窗优化为右侧抽屉式工作台，结构分为标题、来源信息、样式选择、真实卡片预览、复制 / 保存操作。分享入口从 hover-only 改为常驻低强调显示并保留 hover / focus 强反馈；弹窗补充 dialog 语义、初始聚焦和 Escape 关闭。`「书迹」桌面端` 不再固定在右下角，而是根据卡片版式进入 footer / source / topline 等更合适的位置。验证：`./init.sh` passed。
-
----
-
-## 2026-05-23
-
-- 自动更新国内源：Tauri updater 新增 Gitee 固定清单 endpoint 作为首选源，Release workflow 增加 `release2gitee` 同步 GitHub Release 到 Gitee Release，并将改写为 Gitee 下载地址的 `latest.json` 推送到 GitHub / Gitee `updater` 分支；GitHub latest endpoint 保留为 fallback。
-
-## 2026-05-22
-
-- 设置页 Token 获取引导：已将 README 中的微信读书 API Token 获取步骤加入应用内设置页，支持一键打开微信读书 Skill 配置页；获取说明支持展开 / 收起，未配置时默认展开，保存后自动收起，并补充 Token 只保存在本机的说明；`frontend:typecheck`、`frontend:build` 通过。
-- 智能体报告原文授权提示：必需读取划线原文和个人想法的模板改用更明确的授权文案；未授权时生成配置摘要显示警告色，授权 checkbox 显示红色必填缺失态，非必需模板保持普通可选展示；`frontend:typecheck`、`frontend:build` 通过。
-
-## 2026-05-21
-
-- REQ-013 全应用 UI 风格统一与设计系统收敛：新增 `design.md`，扩展 `PageShell`，新增 `SegmentedControl` / `IconButton`，统一书架、笔记工作台、笔记筛选、设置页按钮和支持弹窗的基础交互组件；全局 CSS 增加 token、焦点态、减弱动效和 z-index 层级。
-- 书架类别筛选：书籍卡片显示完整 `category`，空类别显示「未分类」；书架工具栏新增本地一级类别筛选行。
-- 书架页面简化：书架筛选只保留「全部」和「已读完」；只有 `finishReading=1` 时显示「读完」标签。
-
-## 2026-05-20
-
-- REQ-001 到 REQ-006 完成 MVP 主链路的数据、导出、UI 和搜索收敛。
-- REQ-008 Obsidian Base 导出增强：用户确认现有 Frontmatter 能力已支持。
-- 飞书需求表同步：合并 `rec27qYCk2C7z5` 到 `REQ-007`，新增 `REQ-008`、`REQ-010` 作为 P2 外部候选；PDF 导出候选已在 2026-05-25 从当前排期移除。
-- Markdown-only 导出边界：已移除 JSON 导出命令和前端格式切换，导出入口固定为 `export_to_markdown`。
-- Markdown Frontmatter：导出文件头部包含 `bookId`、`isbn`、`title`、`author`、`cover`、`lastReadDate`、`finishedDate`、`reading-time`、`progress`。
-- 笔记页视图：支持笔记本列表、关键词搜索、划线与想法筛选，以及「按章节 / 按时间」两种视图。
-- 导出页真实预览：选择单本书时读取真实划线、想法、书籍信息和阅读进度生成 Markdown 预览；多本选择时只展示提示。
-- API 本地缓存：API 响应写入本地缓存，设置页可调整自动刷新间隔。
-- 自动更新发布修正：Windows updater 元数据改为使用 Tauri v2 `createUpdaterArtifacts: true` 对应的 `-setup.exe` / `-setup.exe.sig`。
-
----
-
-最后更新：2026-05-27
+- PDF 导出曾进入需求收集，但未进入当前主线。
+- 在线阅读、推荐发现、公共书评浏览不属于书迹范围。
+- ima 连接器当前只做 Markdown 同步，不做 PDF、后台自动同步或在书迹内新建知识库。
+- 高级报告是本地 Agent 能力封装，前端不直接调用模型，不把用户未授权的划线原文交给 Agent。
