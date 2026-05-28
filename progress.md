@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Last Updated:** 2026-05-27
+**Last Updated:** 2026-05-28
 **Active Feature:** none
 **Default Next Feature:** feat-014 - REQ-014 智能体模板原文权限说明优化
 
@@ -23,6 +23,9 @@
 - [x] `feat-019` / `REQ-019` 已完成：新增书迹自有图标 SVG 主源，生成桌面安装包图标，侧边栏品牌图和浏览器预览 favicon 已切换为新图标。
 - [x] `feat-020` / `REQ-020` 已完成：书架封面墙视图切换 + 笔记分享卡片弹窗 + 保存为 PNG 图片。
 - [x] `feat-021` / `REQ-021` 已完成：划线 / 想法分享弹窗优化为侧向分享卡片工作台，署名根据卡片版式放入合适位置。
+- [x] `feat-022` / `REQ-022` 已完成：删除过期实现计划文档，基于当前代码重写核心文档，并生成新的 `landing/index.html` 单文件落地页。
+- [x] `feat-023` / `REQ-023` 已完成：使用 `frontend-design` 优化落地页视觉、产品模拟图、动效和响应式体验。
+- [x] `feat-024` / `REQ-024` 已完成：重新生成 `landing/index.html` 单文件落地页，首屏、功能证据、工作流、隐私边界和下载入口已落地。
 
 ### What's In Progress
 
@@ -48,10 +51,16 @@
 
 ## Files Modified This Session
 
-- `src/components/ui/ShareCardModal.tsx` - 分享卡片从居中弹窗重构为侧向工作台；新增来源信息、样式区、预览标题、dialog 语义、初始聚焦、Escape 关闭；「书迹」桌面端署名按模板版式放入 footer / source / topline。
-- `src/index.css` - 优化分享按钮常驻低强调状态、抽屉式弹窗布局、来源 / 样式 / 预览 / 操作区样式、署名版式和响应式保护。
-- `feature_list.json` - 新增并完成 `feat-021`。
-- `progress.md`、`session-handoff.md`、`docs/archive/completed-requirements.md` - 同步完成状态和验证证据。
+- `AGENTS.md`、`README.md`、`mvp-design-doc.md`、`ui-style-guide.md`、`design.md`、`CHANGELOG.md` - 基于当前代码重写。
+- `docs/current-context.md`、`docs/requirements-pool.md`、`docs/archive/completed-requirements.md` - 更新当前阶段、活跃需求和完成归档。
+- `docs/advanced-report-implementation-plan.md`、`docs/ima-connector-implementation-plan.md`、`weread-desktop-plan.md` - 删除过期实现细节文档。
+- `landing/index.html` - 重写为新的单文件产品落地页。
+- `feature_list.json`、`progress.md`、`session-handoff.md` - 同步 `feat-022` 状态和验收证据。
+- `landing/index.html` - 使用 `frontend-design` 方向重构为深色编辑部式首屏、多层产品工作台视觉、ticker、滚动揭示、hover 反馈和指针轻视差。
+- `feature_list.json`、`docs/requirements-pool.md`、`docs/archive/completed-requirements.md`、`progress.md`、`session-handoff.md` - 同步 `feat-023` 状态和证据。
+- `feature_list.json`、`docs/requirements-pool.md`、`progress.md`、`session-handoff.md` - 启动 `feat-024` 落地页重新生成。
+- `landing/index.html` - 重新生成单文件产品落地页。
+- `feature_list.json`、`docs/requirements-pool.md`、`docs/archive/completed-requirements.md`、`docs/current-context.md`、`progress.md`、`session-handoff.md` - 同步 `feat-024` 状态和证据。
 
 ## Evidence of Completion
 
@@ -70,7 +79,15 @@
 - [x] REQ-019 verification: `./init.sh` passed on 2026-05-26 after adding the 书迹 icon source and generated desktop icon assets.
 - [x] REQ-020 verification: `./init.sh` passed on 2026-05-26 after cover wall view and share card modal.
 - [x] REQ-021 verification: `./init.sh` passed on 2026-05-27 after share card drawer/workbench UI refinement.
+- [x] REQ-022 verification: `./init.sh` passed on 2026-05-28 after documentation rewrite and landing page update.
+- [x] Landing static check: `node -e ...` structural check passed on 2026-05-28; doctype present, icon exists, no duplicate IDs, `aria-labelledby` targets exist.
+- [x] REQ-023 visual check: Chrome headless screenshots passed on 2026-05-28 for desktop 1440x1100 and mobile 390x900.
+- [x] REQ-023 landing static check: structural check passed on 2026-05-28; doctype present, icon exists, no duplicate IDs, `aria-labelledby` targets exist, reveal script present.
+- [x] REQ-023 verification: `./init.sh` passed on 2026-05-28 after landing visual and motion optimization.
+- [x] REQ-024 landing static check: structural check passed on 2026-05-28; doctype present, icon exists, no duplicate IDs, hash targets exist, reveal script and tilt script present.
+- [x] REQ-024 visual check: Chrome headless screenshots passed on 2026-05-28 for desktop 1440x1100 and mobile 390x900.
+- [x] REQ-024 verification: `./init.sh` passed on 2026-05-28 after regenerating `landing/index.html`.
 
 ## Notes for Next Session
 
-Start with `docs/current-context.md`, then `docs/requirements-pool.md`, then `feature_list.json`. Do not read `docs/archive/completed-requirements.md` unless a task needs historical evidence.
+Start with `docs/current-context.md`, then `docs/requirements-pool.md`, then `feature_list.json`. Default next feature is `feat-014 / REQ-014 智能体模板原文权限说明优化`.

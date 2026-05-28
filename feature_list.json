@@ -79,6 +79,30 @@
       "dependencies": ["feat-020"],
       "status": "done",
       "evidence": "2026-05-27: ShareCardModal 从居中弹窗优化为右侧抽屉式分享卡片工作台，新增标题、来源信息区、样式选择区、预览区和底部复制/保存操作；分享按钮改为常驻低强调显示并支持键盘焦点；弹窗支持 dialog 语义、初始聚焦和 Escape 关闭；「书迹」桌面端署名改为根据卡片版式放入 footer/source/topline，而不是固定右下角；./init.sh passed."
+    },
+    {
+      "id": "feat-022",
+      "name": "REQ-022 当前项目文档重写与落地页更新",
+      "description": "删除已过期的实现细节文档，基于当前代码重写项目文档，并生成单文件产品落地页。",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "2026-05-28: 删除 docs/advanced-report-implementation-plan.md、docs/ima-connector-implementation-plan.md、weread-desktop-plan.md；基于当前代码重写 README、AGENTS、mvp-design-doc、ui-style-guide、design、当前上下文、需求池、归档、CHANGELOG、progress 和 session-handoff；生成新的 landing/index.html 单文件落地页；飞书需求表当前视图无新增未同步条目；landing 结构检查通过；./init.sh passed."
+    },
+    {
+      "id": "feat-023",
+      "name": "REQ-023 落地页视觉与动效优化",
+      "description": "使用 frontend-design 重新优化 landing/index.html 的视觉表现、产品模拟图、动效和响应式体验。",
+      "dependencies": ["feat-022"],
+      "status": "done",
+      "evidence": "2026-05-28: 使用 frontend-design 方向重构 landing/index.html，改为深色编辑部式阅读档案首屏、多层产品工作台视觉、ticker、滚动揭示、hover 反馈和指针轻视差；移动端标题与按钮响应式修正；Chrome headless 截图检查 desktop 1440x1100 和 mobile 390x900；landing 结构检查通过；./init.sh passed."
+    },
+    {
+      "id": "feat-024",
+      "name": "REQ-024 当前项目落地页重新生成",
+      "description": "在当前工作树中恢复并重新生成 landing/index.html 单文件产品落地页，保持 Quiet Reading Ledger 气质和可直接浏览的静态交付。",
+      "dependencies": ["feat-022"],
+      "status": "done",
+      "evidence": "2026-05-28: 重新生成 landing/index.html 单文件落地页，采用私人阅读档案柜方向，包含首屏产品工作台视觉、功能证据、工作流程、隐私边界和下载入口；Chrome headless 桌面 1440x1100 与移动 390x900 截图检查通过；landing 结构检查通过；./init.sh passed."
     }
   ]
 }
