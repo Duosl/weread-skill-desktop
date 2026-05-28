@@ -1,5 +1,5 @@
 import React, { forwardRef, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 import { Image as TauriImage } from "@tauri-apps/api/image";
 import { writeImage } from "@tauri-apps/plugin-clipboard-manager";
 import { Check, Clipboard, Download, FileText, Palette, X } from "lucide-react";
@@ -452,13 +452,10 @@ function ShareCardModal({ data, onClose }: ShareCardModalProps) {
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [, setImageReady] = useState(false);
   const [themeId, setThemeId] = useState<ThemeId>(getStoredTheme);
   const cardRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const imageDataUrlRef = useRef<string | null>(null);
-  const imagePromiseRef = useRef<Promise<string> | null>(null);
-  const renderSeqRef = useRef(0);
 
   const theme = getTheme(themeId);
   const contentLabel = data?.kind === "bookmark" ? "划线" : "想法";
@@ -515,17 +512,9 @@ function ShareCardModal({ data, onClose }: ShareCardModalProps) {
 
   async function getPreparedImage(): Promise<string> {
     if (imageDataUrlRef.current) return imageDataUrlRef.current;
-    if (imagePromiseRef.current) return imagePromiseRef.current;
-    imagePromiseRef.current = generateImage()
-      .then((dataUrl) => {
-        imageDataUrlRef.current = dataUrl;
-        setImageReady(true);
-        return dataUrl;
-      })
-      .finally(() => {
-        imagePromiseRef.current = null;
-      });
-    return imagePromiseRef.current;
+    const dataUrl = await generateImage();
+    imageDataUrlRef.current = dataUrl;
+    return dataUrl;
   }
 
   async function handleSave() {
@@ -535,13 +524,41 @@ function ShareCardModal({ data, onClose }: ShareCardModalProps) {
     setSaved(false);
     try {
       const roundedDataUrl = await getPreparedImage();
-      const safeTitle = data.bookTitle
-        .replace(/[\\/:*?"<>|]/g, "_")
-        .slice(0, 40);
-      await invoke("save_image_file", {
-        fileName: `${safeTitle}-笔记卡片.png`,
-        dataUrl: roundedDataUrl,
+
+      // 生成文件名：书名-章节-摘要.png
+      const sanitize = (s: string) => s.replace(/[\\/:*?"<>|\s]+/g, "_").replace(/^_+|_+$/g, "");
+      const bookPart = sanitize(data.bookTitle).slice(0, 30);
+      const chapterPart = data.chapter ? sanitize(data.chapter).slice(0, 10) : "";
+      const contentPart = sanitize(data.content).slice(0, 5).replace(/[，。！？、；：""''（）《》…—\-.,!?;:'"()\[\]{}]+$/, "");
+
+      const parts = [bookPart, chapterPart, contentPart].filter(Boolean);
+      const fileName = `${parts.join("-")}.png`;
+
+      // 使用前端 save API 选择文件路径（异步，不阻塞 UI）
+      const filePath = await save({
+        defaultPath: fileName,
+        filters: [{ name: "图片", extensions: ["png"] }],
       });
+
+      if (!filePath) {
+        // 用户取消了对话框
+        return;
+      }
+
+      // 将 data URL 转换为 Blob
+      const response = await fetch(roundedDataUrl);
+      const blob = await response.blob();
+
+      // 使用浏览器下载 API 保存文件
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
       setSaved(true);
     } catch (err) {
       if (String(err) !== "用户取消") setSaveError(formatError(err));
@@ -573,38 +590,9 @@ function ShareCardModal({ data, onClose }: ShareCardModalProps) {
 
   const previewRef = useRef<HTMLDivElement>(null);
 
+  // 数据或主题变化时清除图片缓存，下次点击时重新生成
   useEffect(() => {
-    if (!data) return;
-    const seq = renderSeqRef.current + 1;
-    renderSeqRef.current = seq;
     imageDataUrlRef.current = null;
-    imagePromiseRef.current = null;
-    setImageReady(false);
-
-    const timer = window.setTimeout(() => {
-      if (renderSeqRef.current !== seq) return;
-      imagePromiseRef.current = generateImage()
-        .then((dataUrl) => {
-          if (renderSeqRef.current !== seq) return dataUrl;
-          imageDataUrlRef.current = dataUrl;
-          setImageReady(true);
-          return dataUrl;
-        })
-        .catch((err) => {
-          if (renderSeqRef.current === seq) {
-            console.warn("预生成分享图片失败", err);
-          }
-          throw err;
-        })
-        .finally(() => {
-          if (renderSeqRef.current === seq) {
-            imagePromiseRef.current = null;
-          }
-        });
-      imagePromiseRef.current.catch(() => {});
-    }, 1200);
-
-    return () => window.clearTimeout(timer);
   }, [data, themeId]);
 
   if (!data) return null;
@@ -690,16 +678,16 @@ function ShareCardModal({ data, onClose }: ShareCardModalProps) {
                   className="share-card-action-btn"
                   variant="secondary"
                   icon={copied ? <Check size={16} /> : <Clipboard size={16} />}
-                  disabled={copying}
+                  disabled={copying || saving}
                   onClick={() => void handleCopy()}
                 >
-                  {copied ? "已复制" : "复制"}
+                  {copying ? "复制中..." : copied ? "已复制" : "复制"}
                 </Button>
                 <Button
                   className="share-card-action-btn share-card-action-btn-primary"
                   variant={saved ? "secondary" : "primary"}
                   icon={saved ? <Check size={16} /> : <Download size={16} />}
-                  disabled={saving}
+                  disabled={saving || copying}
                   onClick={() => void handleSave()}
                 >
                   {saving ? "保存中..." : saved ? "已保存" : "保存图片"}
