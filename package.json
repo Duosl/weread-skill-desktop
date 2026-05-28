@@ -12,7 +12,7 @@
     "build:mac": "tauri build --target universal-apple-darwin",
     "build:mac-arm": "tauri build --target aarch64-apple-darwin",
     "build:mac-intel": "tauri build --target x86_64-apple-darwin",
-    "build:windows": "tauri build --target x86_64-pc-windows-msvc",
+    "build:windows": "tauri build --target x86_64-pc-windows-msvc --bundles nsis",
     "build:linux": "tauri build --target x86_64-unknown-linux-gnu",
     "preview": "vite preview",
     "tauri": "tauri"

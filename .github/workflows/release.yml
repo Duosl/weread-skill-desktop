@@ -243,9 +243,7 @@ jobs:
           VERSION: ${{ needs.create-release.outputs.tag_name }}
         run: |
           New-Item -ItemType Directory -Force -Path release-assets/windows
-          # MSI for manual download
-          Copy-Item src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64.msi"
-          # NSIS for updater
+          # NSIS installer for manual download and updater
           Copy-Item src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64-setup.exe" -ErrorAction SilentlyContinue
           # Updater signature for createUpdaterArtifacts=true
           Copy-Item src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe.sig "release-assets/windows/weread-skill-desktop_$($env:VERSION.TrimStart('v'))_windows_x64-setup.exe.sig" -ErrorAction SilentlyContinue
@@ -522,7 +520,6 @@ jobs:
             --pattern "*.dmg" \
             --pattern "*.app.tar.gz" \
             --pattern "*.app.tar.gz.sig" \
-            --pattern "*.msi" \
             --pattern "*.exe" \
             --pattern "*.exe.sig" \
             --pattern "latest.json" \

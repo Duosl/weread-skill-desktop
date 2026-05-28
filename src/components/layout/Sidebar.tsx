@@ -24,7 +24,7 @@ export function Sidebar({ onOpenCommunity, onOpenSupport, updateReady, onInstall
         <img className="brand-mark" src="/shuji-mark.svg" alt="" />
         <div>
           <strong>书迹</strong>
-          <span>微信读书阅读档案</span>
+          <span>读书留痕，有迹可循</span>
         </div>
       </div>
 

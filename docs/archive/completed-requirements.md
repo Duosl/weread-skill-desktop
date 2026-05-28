@@ -71,7 +71,7 @@
 - REQ-017 匿名安装规模统计：新增 Tauri `telemetry` 模块，启动时发送可失败隔离的轻量 ping；设置页仅在关于区域轻量说明统计范围；Cloudflare Worker / D1 样例放在 `cloudflare/telemetry-worker/`，服务端从 `CF-Connecting-IP` 记录 first / last IP。统计不包含操作事件、API Key、微信读书内容、书名、笔记、划线、导出路径或文件名。验证：`./init.sh` passed。
 - REQ-017A 匿名统计多应用支持：客户端 payload 增加 `appName`，默认使用 Rust 包名，也可通过 `WEREAD_TELEMETRY_APP_NAME` 覆盖；Cloudflare D1 schema 改为 `PRIMARY KEY (app_name, installation_id)`，Worker 支持可选 `ALLOWED_APPS`、2KB 请求体限制、按 `app_name` 查询 summary 和全应用汇总。验证：`./init.sh` passed。
 - REQ-018 产品命名调整为书迹：侧边栏品牌、窗口 / 安装包名、Cargo 描述、导出署名、Markdown 预览署名、README、设置页关于和支持 / 交流群文案已统一为「书迹」；主标语定为“把微信读书笔记整理成可归档、可复盘、可分享的阅读资产。”；仓库名、Rust 包名和更新地址暂不迁移，避免影响发布链路。验证：`./init.sh` passed。
-- REQ-019 书迹品牌图标：新增可维护 SVG 主源 `assets/brand/shuji-icon.svg`，图形使用蓝色圆角底、打开的书页、金色划线痕迹和小型档案标记；用 `tauri icon` 生成桌面安装包图标；侧边栏品牌图与浏览器预览 favicon 改用 `public/shuji-icon.png`。旧 `public/weread-icon.png` 未删除，仅作为历史回退素材保留。验证：`./init.sh` passed。
+- REQ-019 书迹品牌图标：新增可维护 SVG 主源 `assets/brand/shuji-icon.svg`，图形使用蓝色圆角底、打开的书页、金色划线痕迹和小型档案标记；用 `tauri icon` 生成桌面安装包图标；侧边栏品牌图与浏览器预览 favicon 改用 `public/shuji-icon.png`。旧 `public/weread-icon.png` 已删除，验证：`./init.sh` passed。
 
 ## 2026-05-27
 
