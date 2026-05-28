@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { BookOpen, LayoutGrid, LayoutList, Search, X } from "lucide-react";
+import { BookOpen, Clock, LayoutGrid, LayoutList, ListOrdered, Search, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageShell } from "../components/layout/PageShell";
 import { Badge } from "../components/ui/Badge";
@@ -19,6 +19,7 @@ import type { useReadingStats } from "../hooks/useReadingStats";
 import type { BookProgress, ShelfBook } from "../types";
 
 type BookshelfView = "list" | "cover";
+type BookshelfSort = "recent" | "notes";
 
 type DashboardPageProps = {
   shelf: ReturnType<typeof useBookshelf>;
@@ -33,6 +34,7 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [bookshelfView, setBookshelfView] = useState<BookshelfView>("cover");
+  const [bookshelfSort, setBookshelfSort] = useState<BookshelfSort>("recent");
 
   useEffect(() => {
     if (apiKeySet) {
@@ -46,6 +48,22 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
     () => new Map(notebooks.books.map((book) => [book.bookId, book])),
     [notebooks.books],
   );
+
+  const displayBooks = useMemo(() => {
+    const getRecentTime = (book: ShelfBook) => book.readUpdateTime || book.updateTime || 0;
+    const getNotebookNoteTotal = (book: ShelfBook) => {
+      const notebook = notebookByBookId.get(book.bookId);
+      return notebook ? noteTotal(notebook) : 0;
+    };
+    return [...shelf.books].sort((left, right) => {
+      if (bookshelfSort === "notes") {
+        const leftNotes = getNotebookNoteTotal(left);
+        const rightNotes = getNotebookNoteTotal(right);
+        if (leftNotes !== rightNotes) return rightNotes - leftNotes;
+      }
+      return getRecentTime(right) - getRecentTime(left);
+    });
+  }, [bookshelfSort, notebookByBookId, shelf.books]);
 
   async function openBookDetail(book: ShelfBook) {
     setSelectedBook(book);
@@ -64,6 +82,8 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
 
   const selectedNotebook = selectedBook ? notebookByBookId.get(selectedBook.bookId) : undefined;
   const selectedBookStatus = selectedBook ? getShelfReadingStatus(selectedBook) : null;
+  const selectedNoteTotal = selectedNotebook ? noteTotal(selectedNotebook) : 0;
+  const selectedNotesLoading = Boolean(selectedBook && notebooks.loading && !selectedNotebook);
   const shelfToolbar = apiKeySet ? (
     <Card className="toolbar-card bookshelf-toolbar">
       <div className="toolbar-main-row">
@@ -75,6 +95,16 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
             placeholder="搜索书名或作者"
           />
         </div>
+        <SegmentedControl
+          ariaLabel="书架排序"
+          className="bookshelf-sort"
+          value={bookshelfSort}
+          onChange={setBookshelfSort}
+          options={[
+            { value: "recent", label: "最近阅读", icon: <Clock size={15} /> },
+            { value: "notes", label: "最多笔记", icon: <ListOrdered size={15} /> },
+          ]}
+        />
         <div className="view-toggle">
           <IconButton
             aria-label="列表视图"
@@ -151,11 +181,11 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
             <Card>
               <Spinner label="正在同步书架" />
             </Card>
-          ) : shelf.books.length === 0 ? (
+          ) : displayBooks.length === 0 ? (
             <EmptyState title="暂无书籍" description="同步后会在这里显示书架书籍。" />
           ) : (
             <div className={bookshelfView === "cover" ? "cover-wall-grid" : "book-grid"}>
-              {shelf.books.map((book) => {
+              {displayBooks.map((book) => {
                 const status = getShelfReadingStatus(book);
                 return bookshelfView === "cover" ? (
                   <button
@@ -242,7 +272,7 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
                   </div>
                   <div>
                     <span>总计</span>
-                    <strong>{selectedNotebook ? noteTotal(selectedNotebook) : 0}</strong>
+                    <strong>{selectedNoteTotal}</strong>
                   </div>
                 </div>
 
@@ -261,9 +291,15 @@ export function DashboardPage({ shelf, reading, apiKeySet }: DashboardPageProps)
                   </div>
                 </div>
 
-                <Link to={`/notes/${selectedBook.bookId}`} className="detail-action">
-                  <Button variant="primary">查看笔记详情</Button>
-                </Link>
+                {selectedNoteTotal > 0 ? (
+                  <Link to={`/notes/${selectedBook.bookId}`} className="detail-action">
+                    <Button variant="primary">查看笔记详情</Button>
+                  </Link>
+                ) : (
+                  <div className="detail-action">
+                    <Button variant="secondary" disabled>{selectedNotesLoading ? "正在读取笔记" : "暂无笔记详情"}</Button>
+                  </div>
+                )}
               </aside>
             </div>
           ) : null}

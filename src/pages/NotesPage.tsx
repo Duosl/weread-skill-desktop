@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, MessageSquareQuote, Search, Share2 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
@@ -76,6 +76,7 @@ export function NotesPage({
   const notes = useNotes(selectedBookId);
   const allNotes = useAllNotes();
   const isAllNotesMode = !selectedBookId;
+  const notebookScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     void notebooks.loadNotebooks();
@@ -102,6 +103,19 @@ export function NotesPage({
       void allNotes.loadAll(notebooks.books);
     }
   }, [isAllNotesMode, notebooks.books, notebooks.loading]);
+
+  useEffect(() => {
+    if (!selectedBookId || notebooks.loading || notebooks.books.length === 0) return;
+    const timer = setTimeout(() => {
+      const container = notebookScrollRef.current;
+      if (!container) return;
+      const active = container.querySelector<HTMLElement>(".notebook.active");
+      if (!active) return;
+      const nextTop = active.offsetTop - container.clientHeight / 2 + active.clientHeight / 2;
+      container.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [selectedBookId, notebooks.books, notebooks.loading]);
 
   const selectedBook = notebooks.books.find((book) => book.bookId === selectedBookId);
   const filteredNotebooks = useMemo(() => {
@@ -298,7 +312,7 @@ export function NotesPage({
           ) : filteredNotebooks.length === 0 ? (
             <EmptyState title="没有匹配笔记本" description="换一个关键词继续筛选。" />
           ) : (
-            <div className="notebook-scroll">
+            <div className="notebook-scroll" ref={notebookScrollRef}>
               <button
                 type="button"
                 className={!selectedBookId ? "notebook active" : "notebook"}

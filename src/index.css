@@ -180,6 +180,7 @@ a {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   width: 30px;
   height: 30px;
   border: 0;
@@ -793,6 +794,10 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.bookshelf-sort {
+  flex: 0 0 auto;
 }
 
 .search-box {
@@ -2924,6 +2929,10 @@ h2 {
   border-left: 4px solid var(--brand);
 }
 
+.toast-success {
+  border-left: 4px solid var(--reading);
+}
+
 .toast-error {
   border-left: 4px solid var(--danger);
 }
@@ -2941,6 +2950,10 @@ h2 {
 
 .toast-info .toast-message {
   color: var(--brand-strong);
+}
+
+.toast-success .toast-message {
+  color: var(--reading-strong);
 }
 
 .toast-error .toast-message {
@@ -2984,6 +2997,10 @@ h2 {
 
 .toast-info .toast-progress {
   background: var(--brand);
+}
+
+.toast-success .toast-progress {
+  background: var(--reading);
 }
 
 .toast-error .toast-progress {
@@ -3269,6 +3286,16 @@ h2 {
 .share-card-action-btn {
   width: 118px;
   flex: 0 0 118px;
+}
+
+.share-card-action-btn-success {
+  color: var(--reading-strong);
+  border-color: color-mix(in srgb, var(--reading) 28%, transparent);
+  background: var(--reading-soft);
+}
+
+.share-card-action-btn-success svg {
+  color: var(--reading);
 }
 
 .share-card-action-btn-primary {

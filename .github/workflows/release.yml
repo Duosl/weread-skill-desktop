@@ -509,22 +509,7 @@ jobs:
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Install release2gitee
-        if: steps.gitee_secrets.outputs.enabled == 'true'
-        run: cargo install release2gitee --version 1.0.2 --locked
-
-      - name: Sync GitHub Release to Gitee
-        if: steps.gitee_secrets.outputs.enabled == 'true'
-        env:
-          GITHUB_OWNER: ${{ github.repository_owner }}
-          GITHUB_REPO: weread-skill-desktop
-          GITEE_OWNER: duosl
-          GITEE_REPO: weread-skill-desktop
-          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: release2gitee
-
-      - name: Download GitHub latest.json
+      - name: Download Mac + Windows assets from GitHub
         if: steps.gitee_secrets.outputs.enabled == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -532,7 +517,71 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           mkdir -p release-assets/gitee
-          gh release download "$TAG" --repo "$REPO" --pattern latest.json --dir release-assets/gitee --clobber
+          cd release-assets/gitee
+          gh release download "$TAG" --repo "$REPO" \
+            --pattern "*.dmg" \
+            --pattern "*.app.tar.gz" \
+            --pattern "*.app.tar.gz.sig" \
+            --pattern "*.msi" \
+            --pattern "*.exe" \
+            --pattern "*.exe.sig" \
+            --pattern "latest.json" \
+            --clobber
+          echo "Downloaded assets:"
+          ls -lh
+
+      - name: Create Gitee Release and upload assets
+        if: steps.gitee_secrets.outputs.enabled == 'true'
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          TAG: ${{ needs.create-release.outputs.tag_name }}
+          VERSION: ${{ needs.create-release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          GITEE_API="https://gitee.com/api/v5"
+
+          RELEASE_ID=$(curl -sf \
+            "${GITEE_API}/repos/duosl/weread-skill-desktop/releases/tags/${TAG}?access_token=${GITEE_TOKEN}" \
+            | jq -r '.id // empty')
+
+          if [ -n "$RELEASE_ID" ]; then
+            echo "Gitee release already exists: id=${RELEASE_ID}"
+          else
+            BODY="Release ${TAG}"
+            if [ -f release-assets/gitee/latest.json ]; then
+              BODY=$(jq -r '.notes // "Release '"${TAG}"'"' release-assets/gitee/latest.json)
+            fi
+
+            RELEASE_ID=$(curl -sf -X POST \
+              "${GITEE_API}/repos/duosl/weread-skill-desktop/releases" \
+              -F "access_token=${GITEE_TOKEN}" \
+              -F "tag_name=${TAG}" \
+              -F "name=Release ${TAG}" \
+              -F "body=${BODY}" \
+              -F "target_commitish=main" \
+              -F "prerelease=false" \
+              | jq -r '.id')
+
+            if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
+              echo "::error::Failed to create Gitee release"
+              exit 1
+            fi
+            echo "Created Gitee release: id=${RELEASE_ID}"
+          fi
+
+          for file in release-assets/gitee/*; do
+            [ -f "$file" ] || continue
+            filename=$(basename "$file")
+            echo "Uploading ${filename}..."
+            curl -sf -X POST \
+              "${GITEE_API}/repos/duosl/weread-skill-desktop/releases/${RELEASE_ID}/attach_files" \
+              -F "access_token=${GITEE_TOKEN}" \
+              -F "file=@${file}" \
+              | jq -er '.file_name // .name // .message'
+          done
+
+          echo "Gitee release sync complete (Mac + Windows only)"
 
       - name: Generate Gitee updater latest.json
         if: steps.gitee_secrets.outputs.enabled == 'true'
@@ -548,7 +597,8 @@ jobs:
           jq \
             --arg github_base "$GITHUB_BASE" \
             --arg gitee_base "$GITEE_BASE" \
-            '(.platforms[]?.url) |= (if startswith($github_base) then $gitee_base + ltrimstr($github_base) else . end)' \
+            '(.platforms[]?.url) |= (if startswith($github_base) then $gitee_base + ltrimstr($github_base) else . end)
+             | del(.platforms["linux-x86_64"])' \
             latest.json > latest-gitee.json
 
           cat latest-gitee.json

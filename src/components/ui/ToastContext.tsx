@@ -1,6 +1,6 @@
 import { createContext, useCallback, useEffect, useContext, useRef, useState, type ReactNode } from "react";
 
-type ToastType = "info" | "error" | "warn";
+type ToastType = "info" | "success" | "error" | "warn";
 
 type ToastItem = {
   id: number;

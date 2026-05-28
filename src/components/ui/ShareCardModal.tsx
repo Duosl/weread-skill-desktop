@@ -675,7 +675,7 @@ function ShareCardModal({ data, onClose }: ShareCardModalProps) {
               ) : null}
               <div className="share-card-actions">
                 <Button
-                  className="share-card-action-btn"
+                  className={`share-card-action-btn ${copied ? "share-card-action-btn-success" : ""}`}
                   variant="secondary"
                   icon={copied ? <Check size={16} /> : <Clipboard size={16} />}
                   disabled={copying || saving}
