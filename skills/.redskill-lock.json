@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "skills": {
+    "xhs-visual-director-skill": {
+      "name": "xhs-visual-director-skill",
+      "version": "1.0.0",
+      "source": "redskill",
+      "install_dir": "/Users/duoshilin/duosl/sidework/weread-skill-desktop/skills/xhs-visual-director-skill",
+      "installed_at": "1780099280659",
+      "sha256": "d29000f5991ece829683b0cd94ca0af4b38638fa7cb0c49965b54bd736a24f7a"
+    }
+  }
+}

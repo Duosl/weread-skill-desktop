@@ -1,6 +1,7 @@
 use crate::types::*;
 use agent_cli_bridge::{invoke_agent_with_handle, InvokeEvent, InvokeOpts};
 use chrono::{Datelike, Local, Utc};
+use std::borrow::Cow;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -166,6 +167,27 @@ pub struct StartAdvancedReportRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AdvancedReportDataAccessPreviewRequest {
+    pub template_id: String,
+    pub raw_notes_consent: bool,
+    pub report_period: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdvancedReportDataAccessPreview {
+    pub template_id: String,
+    pub period_label: String,
+    pub will_read: Vec<String>,
+    pub may_read: Vec<String>,
+    pub will_not_read: Vec<String>,
+    pub raw_notes_required: bool,
+    pub raw_notes_enabled: bool,
+    pub summary: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AdvancedReportTaskEvent {
     pub job_id: String,
     pub status: AdvancedReportTaskStatus,
@@ -182,7 +204,7 @@ pub struct AdvancedReportLogEvent {
 }
 
 pub fn list_advanced_report_templates() -> Vec<AdvancedReportTemplate> {
-    builtin_templates()
+    let mut templates: Vec<AdvancedReportTemplate> = builtin_templates()
         .into_iter()
         .map(|template| AdvancedReportTemplate {
             id: template.id.to_string(),
@@ -212,7 +234,36 @@ pub fn list_advanced_report_templates() -> Vec<AdvancedReportTemplate> {
                 .map(|item| item.to_string())
                 .collect(),
         })
-        .collect()
+        .collect();
+
+    if let Ok(custom) = crate::custom_templates::list_custom_templates() {
+        let all_shapes = output_shapes();
+        for ct in custom {
+            templates.push(AdvancedReportTemplate {
+                id: ct.id,
+                name: ct.name,
+                description: ct.description,
+                category: ct.category,
+                style_summary: ct.style_summary,
+                default_report_period: ct.default_report_period,
+                default_output_shape: ct.default_output_shape,
+                output_shapes: all_shapes
+                    .iter()
+                    .filter(|s| ct.output_shapes.contains(&s.id.to_string()))
+                    .map(|shape| AdvancedReportOutputShape {
+                        id: shape.id.to_string(),
+                        name: shape.name.to_string(),
+                        description: shape.description.to_string(),
+                    })
+                    .collect(),
+                requires_raw_notes_consent: ct.requires_raw_notes_consent,
+                default_capabilities: ct.default_capabilities,
+                optional_capabilities: ct.optional_capabilities,
+            });
+        }
+    }
+
+    templates
 }
 
 pub fn merge_advanced_report_tasks(
@@ -230,6 +281,53 @@ pub fn merge_advanced_report_tasks(
     let mut tasks = tasks.into_values().collect::<Vec<_>>();
     tasks.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
     Ok(tasks)
+}
+
+pub fn preview_advanced_report_data_access(
+    request: AdvancedReportDataAccessPreviewRequest,
+) -> Result<AdvancedReportDataAccessPreview, String> {
+    let template = find_template(&request.template_id)?;
+    let report_period = normalize_report_period(request.report_period.as_deref())?;
+    let raw_enabled = request.raw_notes_consent;
+    let mut will_read = vec![
+        "书架".to_string(),
+        "阅读统计".to_string(),
+        "笔记本概览".to_string(),
+    ];
+    let mut may_read = Vec::new();
+    let mut will_not_read = Vec::new();
+
+    if template.requires_raw_notes_consent {
+        if raw_enabled {
+            will_read.push("相关划线原文".to_string());
+            will_read.push("相关个人想法".to_string());
+        } else {
+            will_not_read.push("划线原文和个人想法".to_string());
+        }
+    } else if raw_enabled {
+        may_read.push("相关划线原文".to_string());
+        may_read.push("相关个人想法".to_string());
+    } else {
+        will_not_read.push("划线原文和个人想法".to_string());
+    }
+
+    let summary = if raw_enabled {
+        "本次生成会使用阅读概览，并可按模板需要引用你确认读取的划线或想法。"
+    } else {
+        "本次生成只使用书架、阅读统计和笔记概览，不读取划线或想法原文。"
+    }
+    .to_string();
+
+    Ok(AdvancedReportDataAccessPreview {
+        template_id: request.template_id,
+        period_label: report_period_label(report_period).to_string(),
+        will_read,
+        may_read,
+        will_not_read,
+        raw_notes_required: template.requires_raw_notes_consent,
+        raw_notes_enabled: raw_enabled,
+        summary,
+    })
 }
 
 fn normalize_task_with_report_file(mut task: AdvancedReportTask) -> AdvancedReportTask {
@@ -284,6 +382,13 @@ pub async fn create_advanced_report_job(
             "doNotInventUserData": true
         }
     });
+    let data_access_plan = preview_advanced_report_data_access(
+        AdvancedReportDataAccessPreviewRequest {
+            template_id: request.template_id.clone(),
+            raw_notes_consent: request.raw_notes_consent,
+            report_period: request.report_period.clone(),
+        },
+    )?;
     let generation_settings = json!({
         "version": 1,
         "localTimeContext": local_context.clone(),
@@ -331,12 +436,13 @@ pub async fn create_advanced_report_job(
     write_text(input_dir.join("brief.md"), &brief)?;
     write_text(input_dir.join("agent-prompt.md"), &prompt)?;
     write_json(input_dir.join("template.json"), &template_manifest)?;
-    write_text(input_dir.join("style.md"), template.style_md)?;
-    write_text(input_dir.join("prompt.md"), template.prompt_md)?;
+    write_text(input_dir.join("style.md"), &template.style_md)?;
+    write_text(input_dir.join("prompt.md"), &template.prompt_md)?;
     if !user_prompt.is_empty() {
         write_text(input_dir.join("user-prompt.md"), &user_prompt)?;
     }
     write_json(input_dir.join("user-policy.json"), &user_policy)?;
+    write_json(input_dir.join("data-access-plan.json"), &data_access_plan)?;
     write_json(
         input_dir.join("generation-settings.json"),
         &generation_settings,
@@ -1094,13 +1200,13 @@ async fn prefetch_default_data(
     let mut overall_stats_context = None;
     let (period_start, period_end) = report_period_bounds(report_period);
 
-    if has_capability(template.default_capabilities, "shelf.sync") {
+    if has_capability(&template.default_capabilities, "shelf.sync") {
         let result = client.shelf_sync(force_refresh).await?;
         write_data_file(data_dir, "shelf.context.json", &result, &mut data_index)?;
         shelf_context = Some(result);
     }
 
-    if has_capability(template.default_capabilities, "notes.notebooks") {
+    if has_capability(&template.default_capabilities, "notes.notebooks") {
         let notebooks = load_all_notebooks(client, force_refresh).await?;
         let scoped_notebooks =
             scope_notebooks_for_period(client, notebooks, force_refresh, period_start, period_end)
@@ -1115,7 +1221,7 @@ async fn prefetch_default_data(
         notebooks_for_notes = Some(scoped_notebooks);
     }
 
-    if has_capability(template.default_capabilities, "reading.stats") {
+    if has_capability(&template.default_capabilities, "reading.stats") {
         let (mode, base_time, file_name) = reading_stats_request_for_period(report_period);
         let scoped = client.reading_stats(mode, base_time, force_refresh).await?;
         let scoped_for_agent = reading_stats_for_agent(&scoped);
@@ -1135,8 +1241,8 @@ async fn prefetch_default_data(
     }
 
     if raw_notes_consent
-        && (has_capability(template.optional_capabilities, "notes.bookmarks")
-            || has_capability(template.optional_capabilities, "notes.reviews"))
+        && (has_capability(&template.optional_capabilities, "notes.bookmarks")
+            || has_capability(&template.optional_capabilities, "notes.reviews"))
     {
         let notebooks = match notebooks_for_notes {
             Some(notebooks) => notebooks,
@@ -1619,7 +1725,7 @@ fn resolve_output_shape(
     let shape_id = requested_shape
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .unwrap_or(template.default_output_shape);
+        .unwrap_or(&*template.default_output_shape);
     output_shapes()
         .into_iter()
         .find(|shape| shape.id == shape_id)
@@ -1661,10 +1767,41 @@ fn report_period_label(report_period: &str) -> &'static str {
 }
 
 fn find_template(template_id: &str) -> Result<BuiltinAdvancedTemplate, String> {
-    builtin_templates()
+    if let Some(template) = builtin_templates()
         .into_iter()
         .find(|template| template.id == template_id)
-        .ok_or_else(|| format!("未知智能体模板: {template_id}"))
+    {
+        return Ok(template);
+    }
+
+    if let Ok(custom_templates) = crate::custom_templates::list_custom_templates() {
+        if let Some(ct) = custom_templates.into_iter().find(|t| t.id == template_id) {
+            return Ok(BuiltinAdvancedTemplate {
+                id: Cow::Owned(ct.id),
+                name: Cow::Owned(ct.name),
+                description: Cow::Owned(ct.description),
+                category: Cow::Owned(ct.category),
+                style_summary: Cow::Owned(ct.style_summary),
+                style_md: Cow::Owned(ct.style_md),
+                prompt_md: Cow::Owned(ct.prompt_md),
+                default_report_period: Cow::Owned(ct.default_report_period),
+                default_output_shape: Cow::Owned(ct.default_output_shape),
+                requires_raw_notes_consent: ct.requires_raw_notes_consent,
+                default_capabilities: ct
+                    .default_capabilities
+                    .into_iter()
+                    .map(Cow::Owned)
+                    .collect(),
+                optional_capabilities: ct
+                    .optional_capabilities
+                    .into_iter()
+                    .map(Cow::Owned)
+                    .collect(),
+            });
+        }
+    }
+
+    Err(format!("未知智能体模板: {template_id}"))
 }
 
 fn template_manifest_json(
@@ -1847,7 +1984,7 @@ fn path_string(path: &Path) -> String {
     path.to_string_lossy().to_string()
 }
 
-fn has_capability(capabilities: &[&str], target: &str) -> bool {
+fn has_capability(capabilities: &[std::borrow::Cow<'static, str>], target: &str) -> bool {
     capabilities.iter().any(|item| *item == target)
 }
 

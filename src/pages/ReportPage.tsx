@@ -6,6 +6,7 @@ import { AdvancedTaskResultCard } from "../components/report/AdvancedTaskResultC
 import { BasicReportDialog } from "../components/report/BasicReportDialog";
 import { ConfirmDialog } from "../components/report/ConfirmDialog";
 import { GenerationSettings } from "../components/report/GenerationSettings";
+import { CustomTemplateDialog } from "../components/report/CustomTemplateDialog";
 import { TemplateCard } from "../components/report/TemplateCard";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -30,7 +31,11 @@ import { reportTemplates } from "../lib/report/templates";
 import type { ReportPeriod, ReportTemplateId } from "../lib/report/types";
 import { tauriCommands } from "../lib/tauriCommands";
 import type { AdvancedReportTask, AdvancedReportTemplate } from "../hooks/useAdvancedReport";
+import type { AdvancedReportDataAccessPreview } from "../types/advancedReport";
 import type { ModelOutputMode } from "../types/modelOutput";
+import type { CustomTemplate } from "../types";
+import { invoke } from "@tauri-apps/api/core";
+import { PlusCircle } from "lucide-react";
 
 type ReportPageProps = {
   apiKeySet: boolean;
@@ -145,6 +150,9 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
   const [advancedUserPromptByTemplate, setAdvancedUserPromptByTemplate] = useState<Record<string, string>>({});
   const [seenAdvancedTaskIds, setSeenAdvancedTaskIds] = useState<string[]>(() => loadSeenAdvancedTaskIds());
   const [actionError, setActionError] = useState<string | null>(null);
+  const [dataAccessPreview, setDataAccessPreview] = useState<AdvancedReportDataAccessPreview | null>(null);
+  const [showCustomTemplateDialog, setShowCustomTemplateDialog] = useState(false);
+  const [editingCustomTemplate, setEditingCustomTemplate] = useState<CustomTemplate | null>(null);
   const selectedTemplate = reportTemplates.find((item) => item.id === selectedTemplateId) ?? null;
   const taskByTemplate = new Map<string, AdvancedReportTask>();
 
@@ -252,6 +260,29 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
   useEffect(() => {
     saveReportTemplateTab(templateTab);
   }, [templateTab]);
+
+  useEffect(() => {
+    if (!selectedAdvancedTemplate) {
+      setDataAccessPreview(null);
+      return;
+    }
+    let canceled = false;
+    tauriCommands
+      .previewAdvancedReportDataAccess({
+        templateId: selectedAdvancedTemplate.id,
+        rawNotesConsent,
+        reportPeriod: selectedAdvancedPeriod,
+      })
+      .then((preview) => {
+        if (!canceled) setDataAccessPreview(preview);
+      })
+      .catch(() => {
+        if (!canceled) setDataAccessPreview(null);
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [selectedAdvancedTemplate?.id, selectedAdvancedPeriod, rawNotesConsent]);
 
   useEffect(() => {
     if (!apiKeySet || report.refreshVersion === 0) return;
@@ -653,6 +684,7 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                   selectedAgent={selectedAgent}
                   outputShape={selectedAdvancedOutputShape}
                   userPrompt={selectedAdvancedUserPrompt}
+                  dataAccessPreview={dataAccessPreview}
                   onPeriodChange={(nextPeriod) =>
                     setAdvancedPeriodByTemplate((current) => ({
                       ...current,
@@ -764,6 +796,17 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
                   />
                 );
               })}
+              <button
+                type="button"
+                className="custom-template-create-card"
+                onClick={() => {
+                  setEditingCustomTemplate(null);
+                  setShowCustomTemplateDialog(true);
+                }}
+              >
+                <PlusCircle size={24} />
+                <span>创建模板</span>
+              </button>
             </div>
           )}
         </section>
@@ -799,6 +842,27 @@ export function ReportPage({ apiKeySet }: ReportPageProps) {
           confirmLabel="确认删除"
           onCancel={() => setTaskPendingDelete(null)}
           onConfirm={() => void confirmDeleteAdvancedJob()}
+        />
+      ) : null}
+
+      {showCustomTemplateDialog ? (
+        <CustomTemplateDialog
+          template={editingCustomTemplate}
+          onSave={async (request) => {
+            if (editingCustomTemplate) {
+              await invoke("update_custom_template", {
+                templateId: editingCustomTemplate.id,
+                request,
+              });
+            } else {
+              await invoke("create_custom_template", { request });
+            }
+            await advancedReport.loadTemplates();
+          }}
+          onClose={() => {
+            setShowCustomTemplateDialog(false);
+            setEditingCustomTemplate(null);
+          }}
         />
       ) : null}
     </PageShell>

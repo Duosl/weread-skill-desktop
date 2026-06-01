@@ -8,6 +8,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { NotesWorkbenchPage } from "./pages/NotesWorkbenchPage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { ReportPage } from "./pages/ReportPage";
+import { ChatPage } from "./pages/ChatPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { useBookshelf } from "./hooks/useBookshelf";
 import { useNotebooks } from "./hooks/useNotebooks";
@@ -18,6 +19,8 @@ import { ToastProvider } from "./components/ui/ToastContext";
 import "./index.css";
 import "./styles/pages/report.css";
 import "./styles/pages/settings.css";
+import "./styles/pages/chat.css";
+import "./styles/pages/custom-template.css";
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -78,6 +81,10 @@ function App() {
               }
             />
             <Route
+              path="/chat"
+              element={<ChatPage settings={settings.settings} />}
+            />
+            <Route
               path="/connectors"
               element={
                 <ConnectorsPage
@@ -97,6 +104,8 @@ function App() {
                   onSaveApiKey={settings.saveApiKey}
                   onClearApiKey={settings.clearApiKey}
                   onSaveCacheSettings={settings.saveCacheSettings}
+                  onSaveLlmConfig={settings.saveLlmConfig}
+                  onClearLlmConfig={settings.clearLlmConfig}
                   updateState={updateState}
                   onCheckUpdate={() => checkForUpdates(false)}
                   onDownloadUpdate={downloadUpdate}

@@ -14,6 +14,9 @@ pub struct AppConfig {
     pub ima_knowledge_base_name: Option<String>,
     pub telemetry_enabled: Option<bool>,
     pub telemetry_installation_id: Option<String>,
+    pub llm_base_url: Option<String>,
+    pub llm_api_key: Option<String>,
+    pub llm_model: Option<String>,
     #[serde(skip, default = "AppConfig::config_path")]
     pub config_path: PathBuf,
 }
@@ -38,6 +41,9 @@ pub struct AppSettings {
     pub telemetry_enabled: bool,
     pub telemetry_installation_id: Option<String>,
     pub telemetry_endpoint_configured: bool,
+    pub llm_configured: bool,
+    pub llm_base_url: Option<String>,
+    pub llm_model: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -344,4 +350,182 @@ pub struct ReportHtmlExportResult {
     pub success: bool,
     pub file_path: String,
     pub message: String,
+}
+
+
+// ========== LLM Chat 相关类型 ==========
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlmMessage {
+    pub role: String,
+    pub content: Option<String>,
+    pub tool_calls: Option<Vec<LlmToolCall>>,
+    pub tool_call_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlmToolCall {
+    pub id: String,
+    pub r#type: String,
+    pub function: LlmFunctionCall,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlmFunctionCall {
+    pub name: String,
+    pub arguments: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlmChatRequest {
+    pub messages: Vec<LlmMessage>,
+    pub system_prompt: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlmChatEvent {
+    pub r#type: String,
+    pub job_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub call_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skill_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub copy: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub question: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<Vec<AskUserOption>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access_records: Option<Vec<DataAccessRecord>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub consent_request: Option<ConsentRequest>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AskUserOption {
+    pub label: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlmTestResult {
+    pub ok: bool,
+    pub message: String,
+    pub model: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DataAccessRecord {
+    pub call_id: String,
+    pub api_name: String,
+    pub display_name: String,
+    pub purpose: String,
+    pub data_categories: Vec<String>,
+    pub data_category_labels: Vec<String>,
+    pub privacy_level: String,
+    pub contains_raw_text: bool,
+    pub destination: String,
+    pub scope: Option<String>,
+    pub status: String,
+    pub denial_effect: String,
+    pub summary_text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConsentRequest {
+    pub title: String,
+    pub purpose: String,
+    pub read_description: String,
+    pub destination_description: String,
+    pub denial_effect: String,
+}
+
+// ========== 聊天历史相关类型 ==========
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct ChatHistoryEntry {
+    pub id: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub message_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct ChatHistory {
+    pub id: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub messages: serde_json::Value,
+}
+
+// ========== 自定义模板相关类型 ==========
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomTemplate {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub category: String,
+    pub style_summary: String,
+    pub style_md: String,
+    pub prompt_md: String,
+    pub default_report_period: String,
+    pub default_output_shape: String,
+    pub output_shapes: Vec<String>,
+    pub requires_raw_notes_consent: bool,
+    pub default_capabilities: Vec<String>,
+    pub optional_capabilities: Vec<String>,
+    pub created_at: String,
+    pub source: String,
+    pub intent: Option<TemplateIntent>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateCustomTemplateRequest {
+    pub name: String,
+    pub description: String,
+    pub style_md: Option<String>,
+    pub prompt_md: String,
+    pub default_output_shape: Option<String>,
+    pub output_shapes: Option<Vec<String>>,
+    pub requires_raw_notes_consent: Option<bool>,
+    pub intent: Option<TemplateIntent>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TemplateIntent {
+    pub question: String,
+    pub use_case: String,
+    pub output_use: String,
+    pub tone: String,
+    pub raw_text_policy: String,
 }

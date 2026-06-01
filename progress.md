@@ -2,8 +2,8 @@
 
 ## Current State
 
-**Last Updated:** 2026-05-28
-**Active Feature:** none
+**Last Updated:** 2026-06-01
+**Active Feature:** feat-014 - REQ-014 智能体模板原文权限说明优化
 **Default Next Feature:** feat-014 - REQ-014 智能体模板原文权限说明优化
 
 ## Status
@@ -26,10 +26,20 @@
 - [x] `feat-022` / `REQ-022` 已完成：删除过期实现计划文档，基于当前代码重写核心文档，并生成新的 `landing/index.html` 单文件落地页。
 - [x] `feat-023` / `REQ-023` 已完成：使用 `frontend-design` 优化落地页视觉、产品模拟图、动效和响应式体验。
 - [x] `feat-024` / `REQ-024` 已完成：重新生成 `landing/index.html` 单文件落地页，首屏、功能证据、工作流、隐私边界和下载入口已落地。
+- [x] `feat-025` / `REQ-025` 已完成：新增 `docs/ai-chat-skill-agent-plan.md`，明确 AI Chat 后续实施路线为内嵌式 Skill-aware Agent，使用 Tauri Resource Skills、统一 gateway、隐私授权和 job/call 事件协议。
 
 ### What's In Progress
 
-- [ ] 当前没有正在实现的功能。
+- 已基于外部参考提示词优点，优化 `src-tauri/resources/prompts/system.md`，新增任务分级、Preamble 协议、触发式主动策略和报告流程规范。
+- 已将统一网关工具从 `invoke_weread_skill` 重命名为 `invoke_data_gateway`，并同步更新代码、Skill 文档、manifest 和相关计划文档。
+- 已统一 `invoke_data_gateway` 相关口径：收敛 Skill 声明、系统提示词边界、网关 schema 说明、扩展能力摘要和实施方案描述。
+- 已在 `invoke_data_gateway` 网关层新增失败请求入参日志，写入 `~/.weread-desktop/logs/gateway-failures.ndjson`，便于定位参数格式错误。
+- 已实现轻量 Skill Registry + Loader，改为 L1 元数据启动、L2 `load_skill` 按需加载、L3 资源按需读取；系统提示词与 `llm_chat` 已同步调整。
+- 已补充 Skill 激活规则与 `shuji-weread` 核心能力硬规则：涉及书架、统计、笔记、划线、想法或报告所需数据前，必须先加载 `shuji-weread`。
+- [x] feat-014 第一阶段小步优化：AI 对话 / LLM 配置 / 笔记读取确认 / 自定义模板体验文案收敛。
+- [x] feat-014 第二阶段第一块：结构化记录 AI 对话数据读取摘要，并由后端生成笔记读取确认说明。
+- [x] feat-014 第二 / 第三阶段收敛：结构化授权 key、自定义模板 intent、报告读取范围预览、报告卡片文件夹动作。
+- [x] AI Chat 系统提示词外部化：抽取到 `src-tauri/resources/prompts/system.md`，并通过 `system_prompt.rs` 在运行时注入时间、技能和报告设计上下文。
 
 ### What's Next
 
@@ -61,6 +71,12 @@
 - `feature_list.json`、`docs/requirements-pool.md`、`progress.md`、`session-handoff.md` - 启动 `feat-024` 落地页重新生成。
 - `landing/index.html` - 重新生成单文件产品落地页。
 - `feature_list.json`、`docs/requirements-pool.md`、`docs/archive/completed-requirements.md`、`docs/current-context.md`、`progress.md`、`session-handoff.md` - 同步 `feat-024` 状态和证据。
+- `docs/ai-chat-skill-agent-plan.md` - 新增 AI Chat Skill-aware Agent 实施方案。
+- `feature_list.json`、`docs/requirements-pool.md`、`docs/archive/completed-requirements.md`、`progress.md`、`session-handoff.md` - 同步 `feat-025` 状态和证据。
+- `src/pages/ChatPage.tsx`、`src/pages/SettingsPage.tsx`、`src-tauri/src/llm_chat.rs`、`src/components/report/CustomTemplateDialog.tsx` - 完成 AI 对话、配置隐私、报告推荐和自定义模板第一阶段体验文案优化。
+- `feature_list.json`、`docs/requirements-pool.md`、`progress.md`、`session-handoff.md` - 记录 `feat-014` 第一阶段进展和验证证据。
+- `src-tauri/src/types.rs`、`src-tauri/src/agent_gateway.rs`、`src-tauri/src/llm_chat.rs`、`src/types/index.ts`、`src/pages/ChatPage.tsx` - 新增 `DataAccessRecord` / `ConsentRequest`、工具调用读取记录、`data_access_summary` 事件和前端读取摘要展示。
+- `src-tauri/src/state.rs`、`src-tauri/src/custom_templates.rs`、`src-tauri/src/advanced_report.rs`、`src-tauri/src/commands.rs`、`src-tauri/src/lib.rs`、`src/types/advancedReport.ts`、`src/lib/tauriCommands.ts`、`src/components/report/GenerationSettings.tsx` - 完成结构化授权 key、自定义模板 intent、读取范围预览、`data-access-plan.json` 和报告文件夹动作。
 
 ## Evidence of Completion
 
@@ -87,6 +103,14 @@
 - [x] REQ-024 landing static check: structural check passed on 2026-05-28; doctype present, icon exists, no duplicate IDs, hash targets exist, reveal script and tilt script present.
 - [x] REQ-024 visual check: Chrome headless screenshots passed on 2026-05-28 for desktop 1440x1100 and mobile 390x900.
 - [x] REQ-024 verification: `./init.sh` passed on 2026-05-28 after regenerating `landing/index.html`.
+- [x] REQ-025 whitespace check: `git diff --check` passed on 2026-05-29 after adding the AI Chat Skill-aware Agent plan.
+- [x] REQ-014 first-stage type check: `npm run frontend:typecheck` passed on 2026-06-01.
+- [x] REQ-014 first-stage Rust check: `cargo check` passed on 2026-06-01.
+- [x] REQ-014 first-stage unified verification: `./init.sh` passed on 2026-06-01; Vite reported the existing large chunk warning only.
+- [x] REQ-014 second-stage data access summary type check: `npm run frontend:typecheck` passed on 2026-06-01.
+- [x] REQ-014 second-stage data access summary Rust check: `cargo check` passed on 2026-06-01.
+- [x] REQ-014 second-stage data access summary unified verification: `./init.sh` passed on 2026-06-01; Vite reported the existing large chunk warning only.
+- [x] REQ-014 second/third-stage unified verification: `./init.sh` passed on 2026-06-01; Vite reported the existing large chunk warning only.
 
 ## Notes for Next Session
 

@@ -203,8 +203,10 @@ export function useUpdater() {
     }
   }, []);
 
-  // 启动时检测 + 定时检测
+  // 启动时检测 + 定时检测（开发模式下跳过）
   useEffect(() => {
+    if (import.meta.env.DEV) return;
+
     const startupTimer = setTimeout(() => {
       checkForUpdates(true);
     }, STARTUP_DELAY);

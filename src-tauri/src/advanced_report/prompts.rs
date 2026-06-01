@@ -151,7 +151,6 @@ pub(crate) fn build_agent_brief(
 - 不要在 `report.html` 中出现用户本地绝对路径、工作区路径、缓存路径或 `file://` URL。
 - 不要在 `report.html` 中用 iframe、object、embed、fetch、XMLHttpRequest、window.open 或 location 跳转读取/加载本地 HTML、JSON、图片或其他文件；报告必须是自包含单文件，直接双击或浏览器打开都能运行。
 - 不要在 `report.html` 中承诺“没有任何虚构内容”“完全真实”“绝对准确”等绝对化结论。报告可以说明“基于已导出的微信读书数据生成”，但必须承认大模型可能会出错，分析结论建议结合原始阅读数据自行判断。
-- `report.html` 底部必须同时出现三类信息：`数据来源：微信读书官方 Skill`；大模型风险提示；面向分享读者的开源项目入口。建议文案为“大模型可能会出错，本报告基于已导出的微信读书数据生成，分析结论请结合原始数据判断。”、“也想生成自己的阅读报告？”、“这份报告由开源桌面工具整理生成，你可以在 GitHub 获取项目。”，并展示仓库地址 `https://github.com/Duosl/weread-skill-desktop`。不要只写软件名或只裸露 URL。
 
 ## 本次自定义要求
 
@@ -175,6 +174,10 @@ pub(crate) fn build_agent_brief(
 ## 视觉约束
 
 {style}
+
+### 共享 HTML 要求
+
+{shared_html}
 
 ## 具体任务
 
@@ -215,6 +218,7 @@ pub(crate) fn build_agent_brief(
         user_prompt_section = user_prompt_section,
         prompt = template.prompt_md,
         style = template.style_md,
+        shared_html = crate::report_design::HTML_REQUIREMENTS,
         template_json = template_json,
         generation_settings_json = generation_settings_json,
         capabilities_json = capabilities_json

@@ -3,6 +3,7 @@ use agent_cli_bridge::{detect_agents, invoke_agent_with_handle, InvokeEvent, Inv
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,7 +105,7 @@ pub fn list_detected_agents() -> Vec<DetectedAgentDto> {
 
 pub async fn invoke_local_agent(
     app: AppHandle,
-    state: State<'_, RuntimeState>,
+    state: State<'_, Arc<RuntimeState>>,
     request: AgentInvokeRequest,
 ) -> Result<AgentInvokeResult, String> {
     if request.agent.trim().is_empty() {
@@ -225,7 +226,7 @@ pub async fn invoke_local_agent(
 }
 
 pub async fn cancel_local_agent(
-    state: State<'_, RuntimeState>,
+    state: State<'_, Arc<RuntimeState>>,
     job_id: String,
 ) -> Result<bool, String> {
     let job_id = job_id.trim();

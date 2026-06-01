@@ -13,12 +13,14 @@ import {
   RefreshCw,
   Save,
   Settings2,
+  Sparkles,
   Trash2,
+  Zap,
 } from "lucide-react";
 import { PageShell } from "../components/layout/PageShell";
 import { Button } from "../components/ui/Button";
 import { ErrorBanner } from "../components/ui/ErrorBanner";
-import type { AppSettings } from "../types";
+import type { AppSettings, LlmTestResult } from "../types";
 import type { UpdateState } from "../hooks/useUpdater";
 
 const GITHUB_RELEASES_URL =
@@ -31,6 +33,8 @@ type SettingsPageProps = {
   onSaveApiKey: (apiKey: string) => Promise<void>;
   onClearApiKey: () => Promise<void>;
   onSaveCacheSettings: (cacheTtlSeconds: number) => Promise<void>;
+  onSaveLlmConfig: (baseUrl: string, apiKey: string, model: string) => Promise<void>;
+  onClearLlmConfig: () => Promise<void>;
   updateState: UpdateState;
   onCheckUpdate: () => void;
   onDownloadUpdate: () => void;
@@ -45,6 +49,8 @@ export function SettingsPage({
   onSaveApiKey,
   onClearApiKey,
   onSaveCacheSettings,
+  onSaveLlmConfig,
+  onClearLlmConfig,
   updateState,
   onCheckUpdate,
   onDownloadUpdate,
@@ -63,6 +69,14 @@ export function SettingsPage({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState("");
+
+  // LLM config state
+  const [llmBaseUrl, setLlmBaseUrl] = useState(settings.llmBaseUrl ?? "");
+  const [llmApiKey, setLlmApiKey] = useState("");
+  const [llmModel, setLlmModel] = useState(settings.llmModel ?? "");
+  const [showLlmApiKey, setShowLlmApiKey] = useState(false);
+  const [llmTesting, setLlmTesting] = useState(false);
+  const [llmTestResult, setLlmTestResult] = useState<LlmTestResult | null>(null);
 
   useEffect(() => {
     if (!message) return;
@@ -120,6 +134,67 @@ export function SettingsPage({
       setMessage("缓存刷新间隔已保存");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveLlmConfig() {
+    setSaving(true);
+    setMessage(null);
+    setLlmTestResult(null);
+    try {
+      await onSaveLlmConfig(llmBaseUrl, llmApiKey, llmModel);
+      setShowLlmApiKey(false);
+      setLlmApiKey("");
+      setMessage("AI 服务配置已保存");
+    } catch (e) {
+      setMessage(String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function autoSaveLlmConfig() {
+    if (!llmBaseUrl.trim() || !llmModel.trim()) return;
+    // 已配置过 LLM 但 API Key 字段为空时，不要自动保存（会误清 Key）
+    if (!llmApiKey.trim()) return;
+    try {
+      await onSaveLlmConfig(llmBaseUrl, llmApiKey, llmModel);
+    } catch {
+      // silent fail for auto-save
+    }
+  }
+
+  async function clearLlmConfig() {
+    setSaving(true);
+    setMessage(null);
+    try {
+      await onClearLlmConfig();
+      setLlmBaseUrl("");
+      setLlmApiKey("");
+      setLlmModel("");
+      setLlmTestResult(null);
+      setMessage("AI 服务配置已清除");
+    } catch (e) {
+      setMessage(String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function testLlmConnection() {
+    setLlmTesting(true);
+    setLlmTestResult(null);
+    try {
+      // 先保存再测试
+      if (llmBaseUrl.trim() && llmModel.trim() && (llmApiKey.trim() || settings.llmConfigured)) {
+        await onSaveLlmConfig(llmBaseUrl, llmApiKey, llmModel);
+      }
+      const result = await invoke<LlmTestResult>("test_llm_connection");
+      setLlmTestResult(result);
+    } catch (e) {
+      setLlmTestResult({ ok: false, message: String(e) });
+    } finally {
+      setLlmTesting(false);
     }
   }
 
@@ -349,6 +424,157 @@ export function SettingsPage({
                   保存
                 </Button>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ===== AI Service ===== */}
+        <section className="settings-card">
+          <div className="settings-card-header">
+            <div className="settings-card-icon">
+              <Sparkles size={18} strokeWidth={1.8} />
+            </div>
+            <div>
+              <h3 className="settings-card-title">AI 服务配置</h3>
+              <p className="settings-card-desc">
+                配置你自己的 OpenAI 兼容 AI 服务，用于 AI 对话和报告生成
+              </p>
+            </div>
+          </div>
+
+          <div className="settings-card-body">
+            <div className="settings-field">
+              <div className="settings-field-label-row">
+                <label className="settings-field-label">Base URL</label>
+                <span
+                  className={`settings-status-badge ${
+                    settings.llmConfigured ? "ok" : ""
+                  }`}
+                >
+                  {settings.llmConfigured ? "已配置" : "未配置"}
+                </span>
+              </div>
+              <input
+                className="settings-field-input"
+                value={llmBaseUrl}
+                onChange={(e) => setLlmBaseUrl(e.target.value)}
+                onBlur={autoSaveLlmConfig}
+                placeholder="https://api.openai.com/v1"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="settings-field">
+              <label className="settings-field-label">API Key</label>
+              <div className="token-input-wrap">
+                <input
+                  className="settings-field-input"
+                  value={llmApiKey}
+                  onChange={(e) => setLlmApiKey(e.target.value)}
+                  onBlur={autoSaveLlmConfig}
+                  placeholder={settings.llmConfigured ? "已保存，留空则不更新" : "输入 API Key"}
+                  type={showLlmApiKey ? "text" : "password"}
+                  autoComplete="off"
+                />
+                {llmApiKey && (
+                  <button
+                    type="button"
+                    className="token-toggle-btn"
+                    onClick={() => setShowLlmApiKey((prev) => !prev)}
+                    tabIndex={-1}
+                  >
+                    {showLlmApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="settings-field">
+              <label className="settings-field-label">模型名称</label>
+              <input
+                className="settings-field-input"
+                value={llmModel}
+                onChange={(e) => setLlmModel(e.target.value)}
+                onBlur={autoSaveLlmConfig}
+                placeholder="gpt-4o"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="settings-field-actions">
+              <Button
+                variant="primary"
+                size="small"
+                icon={<Save size={14} />}
+                disabled={
+                  saving ||
+                  !llmBaseUrl.trim() ||
+                  (!settings.llmConfigured && !llmApiKey.trim()) ||
+                  !llmModel.trim()
+                }
+                onClick={saveLlmConfig}
+              >
+                保存
+              </Button>
+              {settings.llmConfigured && (
+                <Button
+                  variant="secondary"
+                  size="small"
+                  icon={<Zap size={14} />}
+                  disabled={llmTesting}
+                  onClick={testLlmConnection}
+                >
+                  {llmTesting ? "测试中…" : "测试连接"}
+                </Button>
+              )}
+              {settings.llmConfigured && (
+                <Button
+                  variant="danger"
+                  size="small"
+                  icon={<Trash2 size={14} />}
+                  disabled={saving}
+                  onClick={clearLlmConfig}
+                >
+                  清除
+                </Button>
+              )}
+            </div>
+
+            {llmTestResult && (
+              <div
+                className={`settings-field-hint ${
+                  llmTestResult.ok ? "is-success" : "is-error"
+                }`}
+                style={{
+                  color: llmTestResult.ok
+                    ? "var(--color-success, #22c55e)"
+                    : "var(--color-danger, #ef4444)",
+                  marginTop: "8px",
+                }}
+              >
+                {llmTestResult.message}
+              </div>
+            )}
+
+            <div
+              className="api-token-guide"
+              style={{ marginTop: "12px" }}
+            >
+              <p
+                className="api-token-guide-note"
+                style={{ marginBottom: 0 }}
+              >
+                <strong>数据边界说明</strong>
+                <br />
+                书迹不提供内置模型。只有当你授权 AI 分析相关内容时，相关划线或想法才会发送到你配置的
+                AI 服务用于分析，不会发送到书迹服务器。
+                <br />
+                · 书架、阅读统计等概览信息会用于回答你的问题
+                <br />
+                · 划线和个人想法属于你的私人阅读内容，读取前会尽量说明用途
+                <br />
+                · 请确保你信任所配置的 AI 服务
+              </p>
             </div>
           </div>
         </section>

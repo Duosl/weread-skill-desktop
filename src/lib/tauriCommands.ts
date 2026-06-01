@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AdvancedReportJob,
   AdvancedReportJobRequest,
+  AdvancedReportDataAccessPreview,
+  AdvancedReportDataAccessPreviewRequest,
   AdvancedReportLogEvent,
   AdvancedReportOutput,
   AdvancedReportTask,
@@ -16,6 +18,9 @@ export type ReportHtmlPreviewResult = {
 export const tauriCommands = {
   listAdvancedReportTemplates() {
     return invoke<AdvancedReportTemplate[]>("list_advanced_report_templates");
+  },
+  previewAdvancedReportDataAccess(request: AdvancedReportDataAccessPreviewRequest) {
+    return invoke<AdvancedReportDataAccessPreview>("preview_advanced_report_data_access", { request });
   },
   createAdvancedReportJob(request: AdvancedReportJobRequest) {
     return invoke<AdvancedReportJob>("create_advanced_report_job", { request });
@@ -43,5 +48,8 @@ export const tauriCommands = {
   },
   openReportFile(path: string) {
     return invoke<void>("open_report_file", { path });
+  },
+  openReportFolder(path: string) {
+    return invoke<void>("open_report_folder", { path });
   },
 };

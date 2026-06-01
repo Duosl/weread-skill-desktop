@@ -1,6 +1,6 @@
 # 书迹活跃需求池
 
-最后更新：2026-05-28
+最后更新：2026-06-01
 
 本文件只维护仍需推进的需求。已完成内容放入 `docs/archive/completed-requirements.md`，不要把历史实现细节重新搬回需求池。
 
@@ -8,7 +8,7 @@
 
 | ID | 优先级 | 状态 | 模块 | 需求 |
 | --- | --- | --- | --- | --- |
-| REQ-014 | P1 | Todo | Report / Privacy | 智能体模板原文权限说明优化 |
+| REQ-014 | P1 | Doing | Report / Privacy | 智能体模板原文权限说明优化 |
 | REQ-016 | P2 | Todo | Product / Release | Post-MVP 用户反馈驱动优化池 |
 | REQ-007R | P2 | Watch | Report / QA | 阅读报告真实数据回归与产物质量观察 |
 
@@ -23,7 +23,7 @@
 ## REQ-014 智能体模板原文权限说明优化
 
 - 优先级：P1
-- 状态：Todo
+- 状态：Doing
 - 模块：Report / Privacy / Agent
 - 背景：高级报告模板会根据策略读取统计、书架、笔记数量、划线原文和个人想法。涉及原文时需要更清楚地向用户解释数据边界。
 - 产品结论：
@@ -37,6 +37,26 @@
   - 未授权时 Agent 输入明确要求不要编造划线原文、个人想法、读后感或书籍原文。
   - 必需授权模板未授权时给出可理解原因。
   - 可选授权模板未授权时不写入 `notes.raw.json`。
+
+### 2026-06-01 第一阶段小步优化
+
+- 已优化 AI 对话空态、历史说明、笔记读取确认弹窗、AI 服务配置隐私说明、报告推荐工具提示语气和自定义模板表单引导。
+- 本阶段将“划线/想法”统一表达为私人阅读内容，不使用“免审”等风控词。
+- 验证：`npm run frontend:typecheck` passed；`cargo check` passed；`./init.sh` passed。
+
+### 2026-06-01 第二阶段第一块
+
+- 已新增 AI 对话数据读取摘要的结构化事件，后端记录每次工具调用读取的数据类别、是否包含划线/想法原文、读取状态和用途说明。
+- 笔记读取确认弹窗优先使用后端生成的结构化说明，不再只依赖模型生成的 `purpose` 文案。
+- 验证：`npm run frontend:typecheck` passed；`cargo check` passed；`./init.sh` passed。
+
+### 2026-06-01 第二 / 第三阶段收敛
+
+- 授权记忆已从单纯 API 名升级为结构化 key（API + 数据类别 + 是否原文），保留旧 API 名兼容。
+- 自定义模板已新增结构化 `intent` 存储，继续兼容现有 prompt / style 生成链路。
+- 高级报告生成前新增读取范围预览，并在任务输入目录写入 `data-access-plan.json`。
+- AI 对话保存报告卡片新增“文件夹”动作，可直接打开报告所在目录。
+- 验证：`npm run frontend:typecheck` passed；`cargo check` passed；`./init.sh` passed。
 
 ## REQ-016 Post-MVP 用户反馈驱动优化池
 

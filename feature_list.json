@@ -5,8 +5,8 @@
       "name": "REQ-014 智能体模板原文权限说明优化",
       "description": "保持现有必需授权 / 可选授权两类策略，补清未授权时的数据边界、Agent 输入约束和用户可理解文案。",
       "dependencies": [],
-      "status": "not-started",
-      "evidence": ""
+      "status": "in-progress",
+      "evidence": "2026-06-01: 第一阶段小步优化完成，范围限定为 AI 对话空态/授权文案、LLM 配置隐私说明、报告推荐提示词语气、自定义模板引导；npm run frontend:typecheck passed；cargo check passed；./init.sh passed。第二阶段完成主要结构化收敛：DataAccessRecord / ConsentRequest、data_access_summary 事件、结构化 consent key、自定义模板 intent、报告生成前读取范围预览和 data-access-plan.json；第三阶段补充报告卡片文件夹动作；./init.sh passed。REQ-014 后续完整验收仍保持 in-progress。"
     },
     {
       "id": "feat-015",
@@ -103,6 +103,14 @@
       "dependencies": ["feat-022"],
       "status": "done",
       "evidence": "2026-05-28: 重新生成 landing/index.html 单文件落地页，采用私人阅读档案柜方向，包含首屏产品工作台视觉、功能证据、工作流程、隐私边界和下载入口；Chrome headless 桌面 1440x1100 与移动 390x900 截图检查通过；landing 结构检查通过；./init.sh passed."
+    },
+    {
+      "id": "feat-025",
+      "name": "REQ-025 AI Chat Skill-aware Agent 实施方案",
+      "description": "基于当前讨论重新制定 AI Chat 实施方案：保留设置和 Chat UI 原型，替换手写工具循环为内嵌式 Agent + Resource Skills + 统一网关白名单执行。",
+      "dependencies": ["feat-014"],
+      "status": "done",
+      "evidence": "2026-05-29: 新增 docs/ai-chat-skill-agent-plan.md，明确 AI Chat 改为内嵌式 Skill-aware Agent：Tauri Resource Skills、Skill registry、统一 invoke_data_gateway gateway、隐私授权、job/call 事件协议、SDK 选择和迁移步骤；推荐/相似书/公开书评定义为 AI-only 能力；git diff --check passed."
     }
   ]
 }

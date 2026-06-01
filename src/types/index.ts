@@ -16,6 +16,9 @@ export interface AppSettings {
   telemetryEnabled: boolean;
   telemetryInstallationId?: string | null;
   telemetryEndpointConfigured: boolean;
+  llmConfigured: boolean;
+  llmBaseUrl?: string | null;
+  llmModel?: string | null;
 }
 
 export interface ImaKnowledgeBaseOption {
@@ -224,4 +227,131 @@ export interface ExportProgress {
   current: number;
   total: number;
   title: string;
+}
+
+// ========== LLM Chat Types ==========
+
+export interface LlmMessage {
+  role: string;
+  content?: string | null;
+  toolCalls?: LlmToolCall[] | null;
+  toolCallId?: string | null;
+}
+
+export interface LlmToolCall {
+  id: string;
+  type: string;
+  function: LlmFunctionCall;
+}
+
+export interface LlmFunctionCall {
+  name: string;
+  arguments: string;
+}
+
+export interface LlmChatRequest {
+  messages: LlmMessage[];
+  systemPrompt?: string | null;
+}
+
+export interface LlmChatEvent {
+  type: string;
+  jobId: string;
+  callId?: string | null;
+  content?: string | null;
+  skillName?: string | null;
+  title?: string | null;
+  summary?: string | null;
+  copy?: string | null;
+  filePath?: string | null;
+  error?: string | null;
+  question?: string | null;
+  options?: Array<{ label: string; description?: string }> | null;
+  responseType?: string | null;
+  accessRecords?: DataAccessRecord[] | null;
+  consentRequest?: ConsentRequest | null;
+}
+
+export interface LlmTestResult {
+  ok: boolean;
+  message: string;
+  model?: string | null;
+}
+
+export interface DataAccessRecord {
+  callId: string;
+  apiName: string;
+  displayName: string;
+  purpose: string;
+  dataCategories: string[];
+  dataCategoryLabels: string[];
+  privacyLevel: string;
+  containsRawText: boolean;
+  destination: "local_only" | "user_configured_llm" | string;
+  scope?: string | null;
+  status: "completed" | "denied" | "failed" | "pending" | string;
+  denialEffect: string;
+  summaryText: string;
+}
+
+export interface ConsentRequest {
+  title: string;
+  purpose: string;
+  readDescription: string;
+  destinationDescription: string;
+  denialEffect: string;
+}
+
+// ========== Chat History Types ==========
+
+export interface ChatHistoryEntry {
+  sessionId: string;
+  date: string | null;
+  messageCount: number;
+  updatedAt: string | null;
+}
+
+export interface ChatHistory {
+  sessionId: string | null;
+  messages: any[];
+}
+
+// ========== Custom Template Types ==========
+
+export interface CustomTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  styleSummary: string;
+  styleMd: string;
+  promptMd: string;
+  defaultReportPeriod: string;
+  defaultOutputShape: string;
+  outputShapes: string[];
+  requiresRawNotesConsent: boolean;
+  defaultCapabilities: string[];
+  optionalCapabilities: string[];
+  createdAt: string;
+  source: string;
+  intent?: TemplateIntent | null;
+}
+
+export interface CreateCustomTemplateRequest {
+  name: string;
+  description: string;
+  styleMd?: string | null;
+  promptMd: string;
+  defaultOutputShape?: string | null;
+  outputShapes?: string[] | null;
+  requiresRawNotesConsent?: boolean | null;
+  intent?: TemplateIntent | null;
+}
+
+export interface TemplateIntent {
+  question: string;
+  useCase: string;
+  outputUse: string;
+  tone: string;
+  rawTextPolicy: "none" | "optional" | "required" | string;
 }

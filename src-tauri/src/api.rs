@@ -26,7 +26,7 @@ impl WeReadClient {
         self.gateway_value_with_cache(api_name, params, false).await
     }
 
-    async fn gateway_value_with_cache(
+    pub async fn gateway_value_with_cache(
         &self,
         api_name: &str,
         params: Value,

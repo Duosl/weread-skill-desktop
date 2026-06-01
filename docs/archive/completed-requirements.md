@@ -20,6 +20,7 @@
 | REQ-022 | 2026-05-28 | 当前项目文档重写与落地页更新：删除过期实现计划，基于最新代码重写核心文档，并生成新的单文件落地页。 | `./init.sh` 通过；落地页结构检查通过 |
 | REQ-023 | 2026-05-28 | 落地页视觉与动效优化：使用 frontend-design 重构首屏、产品工作台视觉、滚动揭示、ticker、hover 反馈和轻视差。 | Chrome headless 桌面/移动截图检查通过；落地页结构检查通过；`./init.sh` 通过 |
 | REQ-024 | 2026-05-28 | 当前项目落地页重新生成：恢复 `landing/index.html`，生成可直接打开的单文件产品落地页，强调阅读档案、Markdown 导出、报告、分享卡片和 ima 同步。 | Chrome headless 桌面/移动截图检查通过；落地页结构检查通过；`./init.sh` 通过 |
+| REQ-025 | 2026-05-29 | AI Chat Skill-aware Agent 实施方案：新增 `docs/ai-chat-skill-agent-plan.md`，明确保留设置和 Chat UI 原型，替换手写工具循环为 Tauri Resource Skills + Rust 统一网关。 | `git diff --check` 通过 |
 
 ## 历史边界
 

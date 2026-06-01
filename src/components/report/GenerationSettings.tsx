@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import type { AdvancedReportOutputShape, AdvancedReportTemplate } from "../../hooks/useAdvancedReport";
+import type { AdvancedReportDataAccessPreview } from "../../types/advancedReport";
 import type { LocalAgent } from "../../hooks/useAgentBridge";
 import type { ReportPeriod } from "../../lib/report/types";
 import { ErrorBanner } from "../ui/ErrorBanner";
@@ -21,6 +22,7 @@ type GenerationSettingsProps = {
   selectedAgent: LocalAgent | null;
   outputShape: string;
   userPrompt: string;
+  dataAccessPreview: AdvancedReportDataAccessPreview | null;
   onPeriodChange: (period: ReportPeriod) => void;
   onRawNotesConsentChange: (value: boolean) => void;
   onAgentChange: (agentId: string) => void;
@@ -42,6 +44,7 @@ export function GenerationSettings({
   selectedAgent,
   outputShape,
   userPrompt,
+  dataAccessPreview,
   onPeriodChange,
   onRawNotesConsentChange,
   onAgentChange,
@@ -107,6 +110,27 @@ export function GenerationSettings({
               </button>
             </div>
           </div>
+          {dataAccessPreview ? (
+            <div className="advanced-setting-prompt">
+              <span>读取范围预览</span>
+              <small>{dataAccessPreview.summary}</small>
+              <div className="chat-action-details">
+                <span className="chat-action-detail-item">
+                  将读取：{dataAccessPreview.willRead.join("、") || "无"}
+                </span>
+                {dataAccessPreview.mayRead.length > 0 ? (
+                  <span className="chat-action-detail-item">
+                    可能读取：{dataAccessPreview.mayRead.join("、")}
+                  </span>
+                ) : null}
+                {dataAccessPreview.willNotRead.length > 0 ? (
+                  <span className="chat-action-detail-item">
+                    不读取：{dataAccessPreview.willNotRead.join("、")}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <section className="advanced-setting-panel setting-runtime">

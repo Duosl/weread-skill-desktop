@@ -43,6 +43,9 @@ impl AppConfig {
             ima_knowledge_base_name: None,
             telemetry_enabled: Some(true),
             telemetry_installation_id: None,
+            llm_base_url: None,
+            llm_api_key: None,
+            llm_model: None,
             config_path,
         }
     }
@@ -103,6 +106,9 @@ impl AppConfig {
             telemetry_enabled: self.telemetry_enabled(),
             telemetry_installation_id: self.telemetry_installation_id.clone(),
             telemetry_endpoint_configured: crate::telemetry::endpoint_configured(),
+            llm_configured: self.llm_api_key.is_some() && self.llm_base_url.is_some(),
+            llm_base_url: self.llm_base_url.clone(),
+            llm_model: self.llm_model.clone(),
         }
     }
 

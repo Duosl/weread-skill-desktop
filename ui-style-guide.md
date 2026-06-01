@@ -141,3 +141,24 @@ Quiet Reading Ledger：安静的私人阅读账本。
 - 使用真实产品能力做视觉：书架、笔记、Markdown、报告、分享卡片、ima。
 - CTA 保持克制：下载、查看源码/文档即可。
 - 单文件 HTML 可以存在于 `landing/index.html`，应可直接用浏览器打开。
+
+## Tailwind CSS 使用规范
+
+项目使用 Tailwind CSS v4，设计令牌已通过 `@theme` 映射为 Tailwind 工具类。
+
+### 可用工具类速查
+
+| 类别 | 工具类示例 | 对应设计令牌 |
+|------|-----------|-------------|
+| 颜色 | `text-brand`、`bg-paper`、`border-hairline` | `--color-brand`、`--color-paper`、`--color-hairline` |
+| 字体 | `font-body`、`font-display`、`font-mono` | `--font-body`、`--font-display`、`--font-mono` |
+| 间距 | `p-1`~`p-6`、`m-2`、`gap-3` | `--spacing-1`~`--spacing-6` |
+| 圆角 | `rounded-xs`、`rounded-md`、`rounded-lg`、`rounded-pill` | `--radius-xs`~`--radius-pill` |
+
+### 规则
+
+- 新页面、新组件优先使用 Tailwind 工具类，不新建独立 CSS 文件。
+- 颜色使用语义化 token 名（`text-brand`），不使用硬编码色值。
+- 布局使用 `flex`、`grid`、`gap` 等工具类，不手写 `display: flex`。
+- 现有 CSS 文件（`index.css`、`chat.css`、`settings.css` 等）不迁移，除非重构。
+- 如需新增设计令牌，先在 `index.css` 的 `:root` 和 `@theme` 中定义，再使用。

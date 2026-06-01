@@ -61,6 +61,23 @@ export type StartAdvancedReportRequest = {
   binOverride?: string | null;
 };
 
+export type AdvancedReportDataAccessPreviewRequest = {
+  templateId: string;
+  rawNotesConsent: boolean;
+  reportPeriod?: string | null;
+};
+
+export type AdvancedReportDataAccessPreview = {
+  templateId: string;
+  periodLabel: string;
+  willRead: string[];
+  mayRead: string[];
+  willNotRead: string[];
+  rawNotesRequired: boolean;
+  rawNotesEnabled: boolean;
+  summary: string;
+};
+
 export type AdvancedReportJob = {
   jobId: string;
   templateId: string;

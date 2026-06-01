@@ -1,0 +1,126 @@
+{
+  "name": "shuji-weread",
+  "version": "1.0.0",
+  "gateway_tool": "invoke_data_gateway",
+  "apis": {
+    "/store/search": {
+      "handler": "store_search",
+      "doc": "search.md",
+      "privacy_level": "low",
+      "requires_consent": false,
+      "required": ["keyword"]
+    },
+    "/book/info": {
+      "handler": "book_info",
+      "doc": "book.md",
+      "privacy_level": "low",
+      "requires_consent": false,
+      "required": ["bookId"]
+    },
+    "/book/chapterinfo": {
+      "handler": "book_chapterinfo",
+      "doc": "book.md",
+      "privacy_level": "low",
+      "requires_consent": false,
+      "required": ["bookId"]
+    },
+    "/book/getprogress": {
+      "handler": "book_getprogress",
+      "doc": "book.md",
+      "privacy_level": "low",
+      "requires_consent": false,
+      "required": ["bookId"]
+    },
+    "/shelf/sync": {
+      "handler": "shelf_sync",
+      "doc": "shelf.md",
+      "privacy_level": "low",
+      "requires_consent": false,
+      "required": []
+    },
+    "/book/bookmarklist": {
+      "handler": "book_bookmarklist",
+      "doc": "notes.md",
+      "privacy_level": "sensitive",
+      "requires_consent": true,
+      "required": ["bookId"]
+    },
+    "/review/list/mine": {
+      "handler": "review_list_mine",
+      "doc": "notes.md",
+      "privacy_level": "sensitive",
+      "requires_consent": true,
+      "required": ["bookid"]
+    },
+    "/user/notebooks": {
+      "handler": "user_notebooks",
+      "doc": "notes.md",
+      "privacy_level": "medium",
+      "requires_consent": false,
+      "required": []
+    },
+    "/book/underlines": {
+      "handler": "book_underlines",
+      "doc": "notes.md",
+      "privacy_level": "medium",
+      "requires_consent": false,
+      "required": ["bookId", "chapterUid"]
+    },
+    "/book/bestbookmarks": {
+      "handler": "book_bestbookmarks",
+      "doc": "notes.md",
+      "privacy_level": "sensitive",
+      "requires_consent": true,
+      "required": ["bookId"]
+    },
+    "/book/readreviews": {
+      "handler": "book_readreviews",
+      "doc": "notes.md",
+      "privacy_level": "sensitive",
+      "requires_consent": true,
+      "required": ["bookId", "chapterUid", "reviews"]
+    },
+    "/review/single": {
+      "handler": "review_single",
+      "doc": "notes.md",
+      "privacy_level": "sensitive",
+      "requires_consent": true,
+      "required": ["reviewId"]
+    },
+    "/readdata/detail": {
+      "handler": "readdata_detail",
+      "doc": "readdata.md",
+      "privacy_level": "low",
+      "requires_consent": false,
+      "required": []
+    },
+    "/review/list": {
+      "handler": "review_list",
+      "doc": "review.md",
+      "privacy_level": "low",
+      "requires_consent": false,
+      "required": ["bookId"]
+    },
+    "/book/recommend": {
+      "handler": "store_recommend",
+      "doc": "discover.md",
+      "privacy_level": "low",
+      "requires_consent": false,
+      "required": []
+    },
+    "/book/similar": {
+      "handler": "book_similar",
+      "doc": "discover.md",
+      "privacy_level": "low",
+      "requires_consent": false,
+      "required": ["bookId"]
+    },
+    "/export/report_html": {
+      "handler": "export_report_html",
+      "doc": "SKILL.md",
+      "privacy_level": "local-write",
+      "requires_consent": false,
+      "required": ["html", "title"]
+    }
+  }
+}

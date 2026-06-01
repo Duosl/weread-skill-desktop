@@ -21,6 +21,9 @@ const fallbackSettings: AppSettings = {
   telemetryEnabled: true,
   telemetryInstallationId: null,
   telemetryEndpointConfigured: false,
+  llmConfigured: false,
+  llmBaseUrl: null,
+  llmModel: null,
 };
 
 export function useSettings() {
@@ -102,6 +105,20 @@ export function useSettings() {
     );
   };
 
+  const saveLlmConfig = async (baseUrl: string, apiKey: string, model: string) => {
+    setSettings(
+      await invoke<AppSettings>("save_llm_config", {
+        baseUrl,
+        apiKey,
+        model,
+      }),
+    );
+  };
+
+  const clearLlmConfig = async () => {
+    setSettings(await invoke<AppSettings>("clear_llm_config"));
+  };
+
   return {
     settings,
     loading,
@@ -116,5 +133,7 @@ export function useSettings() {
     saveImaCredentials,
     clearImaCredentials,
     saveImaTarget,
+    saveLlmConfig,
+    clearLlmConfig,
   };
 }
