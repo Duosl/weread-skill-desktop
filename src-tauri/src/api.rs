@@ -6,7 +6,7 @@ use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 
 const GATEWAY_URL: &str = "https://i.weread.qq.com/api/agent/gateway";
-const SKILL_VERSION: &str = "1.0.3";
+const DEFAULT_SKILL_VERSION: &str = "1.0.4";
 
 #[derive(Clone)]
 pub struct WeReadClient {
@@ -32,9 +32,10 @@ impl WeReadClient {
         params: Value,
         force_refresh: bool,
     ) -> Result<Value, String> {
-        let mut body = params;
+        let mut body = params.clone();
         body["api_name"] = json!(api_name);
-        body["skill_version"] = json!(SKILL_VERSION);
+        let skill_version = effective_skill_version();
+        body["skill_version"] = json!(skill_version);
 
         if !force_refresh {
             let ttl_seconds = AppConfig::load().cache_ttl_seconds();
@@ -43,6 +44,31 @@ impl WeReadClient {
             }
         }
 
+        let value = self.send_gateway_request(api_name, &body).await?;
+        if let Some(latest_version) = upgrade_latest_version(&value) {
+            persist_skill_version_override(&latest_version)?;
+            let current_version = body
+                .get("skill_version")
+                .and_then(Value::as_str)
+                .unwrap_or(DEFAULT_SKILL_VERSION);
+            if latest_version != current_version {
+                let mut retry_body = params;
+                retry_body["api_name"] = json!(api_name);
+                retry_body["skill_version"] = json!(latest_version);
+                let retry_value = self.send_gateway_request(api_name, &retry_body).await?;
+                if retry_value.get("upgrade_info").is_some() {
+                    return Err("检测到微信读书 Skill 版本升级提示，请更新应用后重试".to_string());
+                }
+                ApiCache::write(api_name, &retry_body, &retry_value)?;
+                return Ok(retry_value);
+            }
+            return Err("检测到微信读书 Skill 版本升级提示，请更新应用后重试".to_string());
+        }
+        ApiCache::write(api_name, &body, &value)?;
+        Ok(value)
+    }
+
+    async fn send_gateway_request(&self, api_name: &str, body: &Value) -> Result<Value, String> {
         let response = self
             .client
             .post(GATEWAY_URL)
@@ -72,9 +98,6 @@ impl WeReadClient {
         }
 
         let value: Value = serde_json::from_str(&text).map_err(|e| format!("解析响应失败: {e}"))?;
-        if value.get("upgrade_info").is_some() {
-            return Err("检测到微信读书 Skill 版本升级提示，请更新应用后重试".to_string());
-        }
         if let Some(code) = value.get("errcode").and_then(Value::as_i64) {
             if code != 0 {
                 let message = value
@@ -84,7 +107,6 @@ impl WeReadClient {
                 return Err(format!("{api_name} API 错误 ({code}): {message}"));
             }
         }
-        ApiCache::write(api_name, &body, &value)?;
         Ok(value)
     }
 
@@ -361,6 +383,31 @@ impl WeReadClient {
             regist_time,
         })
     }
+}
+
+fn effective_skill_version() -> String {
+    AppConfig::load()
+        .weread_skill_version_override()
+        .unwrap_or_else(|| DEFAULT_SKILL_VERSION.to_string())
+}
+
+fn upgrade_latest_version(value: &Value) -> Option<String> {
+    value
+        .get("upgrade_info")
+        .and_then(|upgrade| upgrade.get("latest_version"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|version| !version.is_empty())
+        .map(ToString::to_string)
+}
+
+fn persist_skill_version_override(latest_version: &str) -> Result<(), String> {
+    let mut config = AppConfig::load();
+    if config.weread_skill_version_override.as_deref() == Some(latest_version) {
+        return Ok(());
+    }
+    config.weread_skill_version_override = Some(latest_version.to_string());
+    config.save()
 }
 
 fn parse_shelf_book(value: &Value) -> Option<ShelfBook> {

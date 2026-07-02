@@ -14,6 +14,7 @@ pub struct AppConfig {
     pub ima_knowledge_base_name: Option<String>,
     pub telemetry_enabled: Option<bool>,
     pub telemetry_installation_id: Option<String>,
+    pub weread_skill_version_override: Option<String>,
     #[serde(skip, default = "AppConfig::config_path")]
     pub config_path: PathBuf,
 }

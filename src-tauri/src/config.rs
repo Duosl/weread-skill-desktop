@@ -43,6 +43,7 @@ impl AppConfig {
             ima_knowledge_base_name: None,
             telemetry_enabled: Some(true),
             telemetry_installation_id: None,
+            weread_skill_version_override: None,
             config_path,
         }
     }
@@ -114,5 +115,13 @@ impl AppConfig {
 
     pub fn telemetry_enabled(&self) -> bool {
         self.telemetry_enabled.unwrap_or(true)
+    }
+
+    pub fn weread_skill_version_override(&self) -> Option<String> {
+        self.weread_skill_version_override
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToString::to_string)
     }
 }
